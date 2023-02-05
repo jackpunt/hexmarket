@@ -3,6 +3,7 @@ import { KeyBinder, ParamGUI, S, stime, Undo } from "@thegraid/easeljs-lib";
 import { GameSetup } from "./game-setup";
 import { Hex, Hex2, HexMap, HSC, IHex, S_Resign } from "./hex";
 import { H } from "./hex-intfs";
+import { Planner } from "./plan-proxy";
 import { Player } from "./player";
 import { Table } from "./table";
 import { otherColor, StoneColor, stoneColors, TP } from "./table-params";
@@ -128,7 +129,7 @@ export class GamePlay extends GamePlay0 {
 
   async waitPaused(p = this.curPlayer, ident = '') {
     this.hexMap.update()
-    let isPaused = !(p.planner).pauseP.resolved
+    let isPaused = !(p.planner as Planner).pauseP.resolved
     if (isPaused) {
       console.log(stime(this, `.waitPaused: ${p.colorn} ${ident} waiting...`))
       await p.planner.waitPaused(ident)

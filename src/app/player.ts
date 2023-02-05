@@ -1,14 +1,13 @@
 import { stime, S } from "@thegraid/common-lib"
 import { GamePlay } from "./game-play"
 import { IHex } from "./hex"
-import { HgClient } from "./HgClient"
 import { IPlanner, newPlanner } from "./plan-proxy"
 import { Table } from "./table"
 import { StoneColor, TP } from "./table-params"
 
 export class Player {
   name: string
-  index: number
+  index: number; // serial number of Player
   color: StoneColor
   otherPlayer: Player
   table: Table
@@ -16,7 +15,7 @@ export class Player {
   /** if true then invoke plannerMove */
   useRobo: boolean = false
   get colorn() { return TP.colorScheme[this.color] }
- 
+
   constructor(index: number, color: StoneColor, table: Table) {
     this.index = index
     this.color = color
@@ -33,10 +32,10 @@ export class Player {
     // this.hgClient = (this.index == Player.remotePlayer) ? new HgClient(url, (hgClient) => {
     //   console.log(stime(this, `.hgClientOpen!`), hgClient)
     // }) : undefined
-    this.planner = newPlanner(gamePlay.hexMap, this.index, gamePlay.logWriter)
+    this.planner = newPlanner(gamePlay.hexMap, this.index)
   }
   stopMove() {
-    this.planner.roboMove(false)
+    this.planner?.roboMove(false)
   }
   /** if Planner is not running, maybe start it; else wait for GUI */ // TODO: move Table.dragger to HumanPlanner
   playerMove(sc: StoneColor, useRobo = this.useRobo, incb = 0) {
@@ -53,20 +52,20 @@ export class Player {
   }
   plannerRunning = false
   plannerMove(sc: StoneColor, incb = 0) {
-    this.planner.roboMove(true)
+    this.planner?.roboMove(true)
     this.plannerRunning = true
-    let iHistory = this.table.gamePlay.iHistory
-    let ihexPromise = this.planner.makeMove(sc, iHistory, incb)
-    ihexPromise.then((ihex: IHex) => {
-      this.plannerRunning = false
-      this.table.moveStoneToHex(ihex, sc)
-    })
+    // let iHistory = this.table.gamePlay.iHistory
+    // let ihexPromise = this.planner.makeMove(sc, iHistory, incb)
+    // ihexPromise.then((ihex: IHex) => {
+    //   this.plannerRunning = false
+    //   this.table.moveStoneToHex(ihex, sc)
+    // })
   }
 }
 class RemotePlayer extends Player {
   override newGame(gamePlay: GamePlay) {
     this.planner?.terminate()
-    //this.hgClient = (this.index == RemotePlayer.remotePlayer) ? new HgClient() : undefined
-    this.planner = newPlanner(gamePlay.hexMap, this.index, gamePlay.logWriter)
+    // this.hgClient = (this.index == RemotePlayer.remotePlayer) ? new HgClient() : undefined
+    // this.planner = newPlanner(gamePlay.hexMap, this.index, gamePlay.logWriter)
   }
 }
