@@ -1,6 +1,6 @@
 import { AT, C, Dragger, DragInfo, F, KeyBinder, S, ScaleableContainer, stime, XY } from "@thegraid/easeljs-lib";
 import { Container, DisplayObject, EventDispatcher, Graphics, MouseEvent, Shape, Stage, Text } from "@thegraid/easeljs-module";
-import { GamePlay, Progress } from "./game-play";
+import { GamePlay } from "./game-play";
 import { Hex, Hex2, HexMap, IHex } from "./hex";
 import { HexEvent } from "./hex-event";
 import { H, XYWH } from "./hex-intfs";
@@ -48,43 +48,6 @@ export class Stone extends Shape {
   }
 }
 
-class ProgressMarker extends Container {
-  static yoff = stoneColorRecord(80, 80)
-  static xoff = stoneColorRecord(-100, 50)
-  static make(sc: StoneColor, parent: Container) {
-    let p0 = { b: 0, tsec: 0, tn: 0 } as Progress
-    let pm = new ProgressMarker(p0)
-    pm.x = ProgressMarker.xoff[sc]
-    pm.y = ProgressMarker.yoff[sc]
-    parent.addChild(pm)
-    return pm
-  }
-  // Container with series of Text arranged vertically.
-  // update fills the Text.text with the given values.
-  texts: Record<string, Text> = {}
-  ymax = 0
-  constructor(p0: Progress, font: string = F.fontSpec(36), color = C.BLACK) {
-    super()
-    let y = 0, lead = 5
-    for (let pk in p0) {
-      let val = p0[pk].toString()
-      let text = new Text(val, font, color)
-      this.texts[pk] = text
-      text.y = y
-      this.addChild(text)
-      y += text.getMeasuredHeight() + lead
-    }
-    this.ymax = Math.max(this.ymax, y + lead)
-  }
-  update(progress: Progress) {
-    for (let pk in progress) {
-      this.texts[pk].text = progress[pk]?.toString() || ''
-    }
-    this.stage.update()
-  }
-}
-
-
 /** layout display components, setup callbacks to GamePlay */
 export class Table extends EventDispatcher  {
 
@@ -105,7 +68,6 @@ export class Table extends EventDispatcher  {
   winBack: Shape = new Shape(new Graphics().f(C.nameToRgbaString("lightgrey", .6)).r(-180, -5, 360, 130))
 
   dragger: Dragger
-  progressMarker: StoneColorRecord<ProgressMarker>
 
   constructor(stage: Stage) {
     super();
@@ -132,10 +94,7 @@ export class Table extends EventDispatcher  {
     this.enableHexInspector(52)
     let aiControl = this.aiControl('pink', 75); aiControl.x = 0; aiControl.y = 100
     undoC.addChild(aiControl)
-    ProgressMarker.yoff = stoneColorRecord(120, 120)
-    this.progressMarker = stoneColorRecordF((sc) => ProgressMarker.make(sc, this.undoCont))
-    let pm0 = this.progressMarker[stoneColor0]
-    let pmy = pm0.ymax + pm0.y // pm0.parent.localToLocal(0, pm0.ymax + pm0.y, undoC)
+    let pmy = 0;
     let progressBg = new Shape(), bgw = 200, bgym = 240, y0 = 0
     let bgc = C.nameToRgbaString(TP.bgColor, .8)
     progressBg.graphics.f(bgc).r(-bgw/2, y0, bgw, bgym-y0)
@@ -244,6 +203,7 @@ export class Table extends EventDispatcher  {
     this.gamePlay = gamePlay
     let hexMap = this.hexMap = gamePlay.hexMap
 
+    hexMap.addToCont();               // addToMapCont; make Hex2
     hexMap.makeAllDistricts(TP.mHexes, TP.nHexes) // typically: 3,3 or 2,4
 
     let mapCont = hexMap.mapCont;

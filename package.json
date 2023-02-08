@@ -23,6 +23,7 @@
     "@thegraid/easeljs-lib": "^1.1.7",
     "@thegraid/easeljs-module": "^1.1.9",
     "@thegraid/ezpromise": "^1.0.10",
+    "@types/wicg-file-system-access": "^2020.9.5",
     "rxjs": "~7.5.0",
     "tslib": "^2.3.0",
     "zone.js": "~0.11.4"

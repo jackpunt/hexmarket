@@ -83,13 +83,13 @@ export class GameSetup {
   }
   makeStatsPanel(gStats: TableStats, parent: Container, x: number, y: number): StatsPanel {
     let panel = new StatsPanel(gStats) // a ReadOnly ParamGUI reading gStats [& pstat(color)]
-    panel.makeParamSpec("nStones")     // implicit: opts = { chooser: StatChoice }
-    panel.makeParamSpec("nInf")
-    panel.makeParamSpec("nAttacks")
-    panel.makeParamSpec("nThreats")
-    panel.makeParamSpec("dMax")
-    panel.makeParamSpec("score", [], {name: `score: ${TP.nVictory}`})
-    panel.makeParamSpec("sStat", [1])
+    // panel.makeParamSpec("nStones")     // implicit: opts = { chooser: StatChoice }
+    // panel.makeParamSpec("nInf")
+    // panel.makeParamSpec("nAttacks")
+    // panel.makeParamSpec("nThreats")
+    // panel.makeParamSpec("dMax")
+    // panel.makeParamSpec("score", [], {name: `score: ${TP.nVictory}`})
+    // panel.makeParamSpec("sStat", [1])
 
     parent.addChild(panel)
     panel.x = x
@@ -102,24 +102,24 @@ export class GameSetup {
     let restart = false, infName = "inf:sac"
     const gui = new ParamGUI(TP, { textAlign: 'right'})
     const schemeAry = TP.schemeNames.map(n => { return { text: n, value: TP[n] } })
-    let mHex = (mh: number, nh: number) => { restart && this.restart.call(this, mh, nh) }
-    let nHex = (mh: number, nh: number) => { restart && this.restart.call(this, nh>3?Math.min(mh,3):nh>1?Math.min(mh,4):mh, nh) }
-    gui.makeParamSpec("mHexes", [2, 3, 4, 5, 6, 7, 8, 9, 10], { fontColor: "green" }) // TODO: limit nHexes for mH > 4
-    gui.makeParamSpec("nHexes", [1, 2, 3, 4, 5, 6], { fontColor: "green" })
-    gui.makeParamSpec(infName, ['1:1', '1:0', '0:1', '0:0'], { name: infName, target: table, fontColor: 'green' })
+    // let mHex = (mh: number, nh: number) => { restart && this.restart.call(this, mh, nh) }
+    // let nHex = (mh: number, nh: number) => { restart && this.restart.call(this, nh>3?Math.min(mh,3):nh>1?Math.min(mh,4):mh, nh) }
+    // gui.makeParamSpec("mHexes", [2, 3, 4, 5, 6, 7, 8, 9, 10], { fontColor: "green" }) // TODO: limit nHexes for mH > 4
+    // gui.makeParamSpec("nHexes", [1, 2, 3, 4, 5, 6], { fontColor: "green" })
+    // gui.makeParamSpec(infName, ['1:1', '1:0', '0:1', '0:0'], { name: infName, target: table, fontColor: 'green' })
     gui.makeParamSpec("maxPlys", [1, 2, 3, 4, 5, 6, 7, 8], { fontColor: "blue" }); TP.maxPlys
     gui.makeParamSpec("maxBreadth", [5, 6, 7, 8, 9, 10], { fontColor: "blue" }); TP.maxBreadth
-    gui.makeParamSpec("nPerDist", [2, 3, 4, 5, 6, 8, 11, 15, 19], { fontColor: "blue" }); TP.nPerDist
-    gui.makeParamSpec("allowSacrifice", [true, false], { chooser: BC }); TP.allowSacrifice
+    // gui.makeParamSpec("nPerDist", [2, 3, 4, 5, 6, 8, 11, 15, 19], { fontColor: "blue" }); TP.nPerDist
+    // gui.makeParamSpec("allowSacrifice", [true, false], { chooser: BC }); TP.allowSacrifice
     gui.makeParamSpec("colorScheme", schemeAry, { chooser: CycleChoice, style: { textAlign: 'center' } })
-    let infSpec = gui.spec(infName); table[infSpec.fieldName] = infSpec.choices[0].text
-    infSpec.onChange = (item: ParamItem) => {
-      let v = item.value as string
-      table.showInf = v.startsWith('1')
-      table.showSac = v.endsWith('1')
-    }
-    gui.spec("mHexes").onChange = (item: ParamItem) => { mHex(item.value, TP.nHexes) }
-    gui.spec("nHexes").onChange = (item: ParamItem) => { nHex(TP.mHexes, item.value) }
+    // let infSpec = gui.spec(infName); table[infSpec.fieldName] = infSpec.choices[0].text
+    // infSpec.onChange = (item: ParamItem) => {
+    //   let v = item.value as string
+    //   table.showInf = v.startsWith('1')
+    //   table.showSac = v.endsWith('1')
+    // }
+    // gui.spec("mHexes").onChange = (item: ParamItem) => { mHex(item.value, TP.nHexes) }
+    // gui.spec("nHexes").onChange = (item: ParamItem) => { nHex(TP.mHexes, item.value) }
     gui.spec("colorScheme").onChange = (item: ParamItem) => {
       gui.setValue(item, TP)
       let hexMap = table.hexMap
@@ -142,12 +142,12 @@ export class GameSetup {
   makeParamGUI2(table: Table, parent: Container, x: number, y: number) {
     let gui = new ParamGUI(TP, { textAlign: 'center' })
     gui.makeParamSpec("log", [-1, 0, 1, 2], { style: { textAlign: 'right' } }); TP.log
-    gui.makeParamSpec("pWeight", [1, .99, .97, .95, .9]) ; TP.pWeight
-    gui.makeParamSpec("pWorker", [true, false], { chooser: BC }); TP.pWorker
-    gui.makeParamSpec("pPlaner", [true, false], { chooser: BC, name: "parallel" }); TP.pPlaner
-    gui.makeParamSpec("pBoards", [true, false], { chooser: BC }); TP.pBoards
-    gui.makeParamSpec("pMoves",  [true, false], { chooser: BC }); TP.pMoves
-    gui.makeParamSpec("pGCM",    [true, false], { chooser: BC }); TP.pGCM
+    // gui.makeParamSpec("pWeight", [1, .99, .97, .95, .9]) ; TP.pWeight
+    // gui.makeParamSpec("pWorker", [true, false], { chooser: BC }); TP.pWorker
+    // gui.makeParamSpec("pPlaner", [true, false], { chooser: BC, name: "parallel" }); TP.pPlaner
+    // gui.makeParamSpec("pBoards", [true, false], { chooser: BC }); TP.pBoards
+    // gui.makeParamSpec("pMoves",  [true, false], { chooser: BC }); TP.pMoves
+    // gui.makeParamSpec("pGCM",    [true, false], { chooser: BC }); TP.pGCM
     parent.addChild(gui)
     gui.x = x; gui.y = y
     gui.makeLines()

@@ -5,6 +5,7 @@ import { Hex, Hex2, HexMap, HSC, IHex, S_Resign } from "./hex";
 import { H } from "./hex-intfs";
 import { Planner } from "./plan-proxy";
 import { Player } from "./player";
+import { LogWriter } from "./stream-writer";
 import { Table } from "./table";
 import { otherColor, StoneColor, stoneColors, TP } from "./table-params";
 
@@ -49,22 +50,23 @@ export class GamePlayD extends GamePlay0 {
     return
   }
 }
-export type Progress = { b?: number, tsec?: number|string, tn?: number}
 
 /** GamePlay with Table & GUI (KeyBinder, ParamGUI & Dragger) */
 export class GamePlay extends GamePlay0 {
   readonly table: Table
+  readonly logWriter: LogWriter
   readonly allPlayers: Player[] = [];
   readonly gStats;
 
   constructor(table: Table, public gameSetup: GameSetup) {
     super()            // hexMap, history, gStats...
-    let time = stime('').substring(6,15), size=`${TP.mHexes}x${TP.nHexes}`
-    let line = {time: stime.fs(), mh: TP.mHexes, nh: TP.nHexes, maxBreadth: TP.maxBreadth,
-      maxPlys: TP.maxPlys, nPerDist: TP.nPerDist, pBoards: TP.pBoards, pMoves: TP.pMoves, pWeight: TP.pWeight}
+    let time = stime('').substring(6,15)
+    let line = { time: stime.fs(), maxBreadth: TP.maxBreadth, maxPlys: TP.maxPlys }
     let line0 = json(line, false)
-    let logFile = `log${size}_${time}`
+    let logFile = `log_${time}`
     console.log(stime(this, `.constructor: -------------- ${line0} --------------`))
+    this.logWriter = new LogWriter(logFile)
+    this.logWriter.writeLine(line0)
 
     // Create and Inject all the Players:
     stoneColors.forEach((color, ndx) => this.allPlayers[ndx] = new Player(ndx, color, table))
@@ -167,6 +169,8 @@ export class GamePlay extends GamePlay0 {
    *
    * Note: 1st move: player = otherPlayer(curPlayer)
    * @param auto this.runRedo || undefined -> player.useRobo
+   * @param ev KeyBinder event, not used.
+   * @param incb increase Breadth of search
    */
   makeMove(auto = undefined, ev?: any, incb = 0) {
     let sc //= this.table.nextHex.stone?.color

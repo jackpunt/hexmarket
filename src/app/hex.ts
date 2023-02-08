@@ -375,13 +375,14 @@ export class HexMap extends Array<Array<Hex>> implements HexM {
     mapCont.markCont = new Container()    // showMark under Stones
     mapCont.infCont = new Container()     // infMark on the top
     // hexCont, stoneCont, markCont all x,y aligned
-    // mapCont.addChild(mapCont.hexCont); mapCont.hexCont[S.Aname] = "hexCont"
+    mapCont.addChild(mapCont.hexCont); mapCont.hexCont[S.Aname] = "hexCont"
     // mapCont.addChild(mapCont.stoneCont); mapCont.stoneCont[S.Aname] = "stoneCont"
     // mapCont.addChild(mapCont.markCont); mapCont.markCont[S.Aname] = "markCont"
     // mapCont.addChild(mapCont.infCont); mapCont.infCont[S.Aname] = "infCont"
     return this
   }
 
+  /** ...stage.update() */
   update() { this.mapCont.hexCont.parent?.stage.update()}
 
   /** to build this HexMap: create Hex and link it to neighbors. */
