@@ -219,23 +219,24 @@ export class Table extends EventDispatcher  {
     mapCont.x = (bgr.w) / 2
     mapCont.y = (bgr.h) / 2
 
-    this.nextHex = new Hex2(hexMap, undefined, undefined, 'nextHex')
-    this.nextHex.cont.scaleX = this.nextHex.cont.scaleY = 2
-    this.nextHex.x = minx + 2 * wide; this.nextHex.y = miny + 1.4 * high;
+    // this.nextHex = new Hex2(hexMap, undefined, undefined, 'nextHex')
+    // this.nextHex.cont.scaleX = this.nextHex.cont.scaleY = 2
+    // this.nextHex.x = minx + 2 * wide; this.nextHex.y = miny + 1.4 * high;
     // tweak when hexMap is tiny:
     let nh = TP.nHexes, mh = TP.mHexes
-    if (nh == 1 || nh + mh <= 5) { bgr.w += 3*wide; bgr.h += 50; mapCont.x += 3*wide; this.nextHex.x = minx - H.sqrt3/2*wide }
-    this.nextHex.x = Math.round(this.nextHex.x); this.nextHex.y = Math.round(this.nextHex.y)
+    // if (nh == 1 || nh + mh <= 5) { bgr.w += 3*wide; bgr.h += 50; mapCont.x += 3*wide; }
+    // this.nextHex.x = Math.round(this.nextHex.x); this.nextHex.y = Math.round(this.nextHex.y)
 
     this.bgRect = this.setBackground(this.scaleCont, bgr) // bounded by bgr
     let p00 = this.scaleCont.localToLocal(0, 0, hexMap.mapCont.hexCont)
     let pbr = this.scaleCont.localToLocal(bgr.w, bgr.h, hexMap.mapCont.hexCont)
-    hexMap.mapCont.hexCont.cache(p00.x, p00.y, pbr.x-p00.x, pbr.y-p00.y) // cache hexCont (bounded by bgr)
-    this.nextHex.cont.parent.localToLocal(this.nextHex.x, this.nextHex.y+100, this.scaleCont, this.undoCont)
-    this.scaleCont.addChild(this.undoCont)
-    this.setupUndoButtons(55, 60, 45, bgr)
+    //hexMap.mapCont.hexCont.cache(p00.x, p00.y, pbr.x-p00.x, pbr.y-p00.y) // cache hexCont (bounded by bgr)
 
-    this.makeMiniMap(this.scaleCont, -(200+TP.mHexes*TP.hexRad), 600+100*TP.mHexes)
+    // this.nextHex.cont.parent.localToLocal(this.nextHex.x, this.nextHex.y+100, this.scaleCont, this.undoCont)
+    // this.scaleCont.addChild(this.undoCont)
+    // this.setupUndoButtons(55, 60, 45, bgr)
+
+    // this.makeMiniMap(this.scaleCont, -(200+TP.mHexes*TP.hexRad), 600+100*TP.mHexes)
 
     this.on(S.add, this.gamePlay.playerMoveEvent, this.gamePlay)[S.Aname] = "playerMoveEvent"
   }

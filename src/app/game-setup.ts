@@ -75,10 +75,10 @@ export class GameSetup {
       console.groupCollapsed('initParamGUI')
       this.paramGUIs = this.makeParamGUI(table, table.scaleCont, statsx, guiy) // modify TP.params...
       let [gui, gui2] = this.paramGUIs
-      table.miniMap.mapCont.y = Math.max(gui.ymax, gui2.ymax) + gui.y + table.miniMap.wh.height / 2
+      // table.miniMap.mapCont.y = Math.max(gui.ymax, gui2.ymax) + gui.y + table.miniMap.wh.height / 2
       console.groupEnd()
     }
-    table.startGame() // setNextPlayer()
+    // table.startGame() // setNextPlayer()
     return gamePlay
   }
   makeStatsPanel(gStats: TableStats, parent: Container, x: number, y: number): StatsPanel {
