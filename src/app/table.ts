@@ -407,13 +407,12 @@ export class Table extends EventDispatcher  {
   scaleUp(cont: Container, scale = this.upscale) {
     cont.scaleX = cont.scaleY = scale;
   }
-  scaleParams = { zscale: .20, initScale: .324, zero: 0.125, max: 30, limit: 4, base: 1.1, min: -2 };
+  scaleParams = { initScale: .125, scale0: .05, scaleMax: 1, steps: 30, zscale: .20,  };
 
   /** makeScaleableBack and setup scaleParams
    * @param bindkeys true if there's a GUI/user/keyboard
    */
   makeScaleCont(bindKeys: boolean): ScaleableContainer {
-    this.scaleParams.initScale = 0.324; // .125 if full-size cards
     /** scaleCont: a scalable background */
     let scaleC = new ScaleableContainer(this.stage, this.scaleParams);
     this.dragger = new Dragger(scaleC)
