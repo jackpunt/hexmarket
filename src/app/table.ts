@@ -185,7 +185,7 @@ export class Table extends EventDispatcher  {
     let mapCont = miniMap.mapCont
     let rot = 7, rotC = (30-rot), rotH = (rot - 60)
     if (TP.nHexes == 1) rotC = rotH = 0
-    miniMap.makeAllDistricts(TP.mHexes, 1)
+    miniMap.makeAllDistricts(TP.dbp)
     let bgHex = new Shape()
     bgHex.graphics.f(TP.bgColor).dp(0, 0, TP.hexRad*(2*TP.mHexes-1), 6, 0, 60)
     mapCont.addChildAt(bgHex, 0)
@@ -204,7 +204,7 @@ export class Table extends EventDispatcher  {
     let hexMap = this.hexMap = gamePlay.hexMap
 
     hexMap.addToCont();               // addToMapCont; make Hex2
-    hexMap.makeAllDistricts(TP.mHexes, TP.nHexes) // typically: 3,3 or 2,4
+    hexMap.makeAllDistricts(TP.dbp) // typically: ~4
 
     let mapCont = hexMap.mapCont;
     this.scaleCont.addChild(mapCont)

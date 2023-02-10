@@ -35,8 +35,8 @@ export class GameSetup {
   get netState() { return this._netState }
   set playerId(val: string) { this.netGUI?.selectValue("PlayerId", val || "     ") }
 
-  /** C-s ==> kill game, start a new one, possibly with new (mh,nh) */
-  restart(mh = TP.mHexes, nh= TP.nHexes) {
+  /** C-s ==> kill game, start a new one, possibly with new dbp */
+  restart(dbp = TP.dbp) {
     let netState = this.netState
     // this.gamePlay.closeNetwork('restart')
     // this.gamePlay.logWriter?.closeFile()
@@ -49,7 +49,7 @@ export class GameSetup {
       cont.removeAllChildren()
     }
     deContainer(this.stage)
-    TP.fnHexes(mh, nh)
+    TP.fnHexes(dbp)
     let rv = this.startup()
     this.netState = " "      // onChange->noop; change to new/join/ref will trigger onChange(val)
     // next tick, new thread...

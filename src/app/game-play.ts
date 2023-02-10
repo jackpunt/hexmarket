@@ -12,7 +12,16 @@ import { otherColor, StoneColor, stoneColors, TP } from "./table-params";
 class HexEvent {}
 class Move{}
 
-/** Implement game, enforce the rules, manage GameStats & hexMap; no GUI/Table required. */
+/** Implement game, enforce the rules, manage GameStats & hexMap; no GUI/Table required.
+ *
+ * Move actions are:
+ * - move ship to hex
+ * - buy/sell commodity or upgrade
+ * - launch sub-space mine/disrupter?
+ * - alter alignment of ship
+ * - alter alignment of hex
+ *
+ */
 export class GamePlay0 {
   static gpid = 0
   readonly id = GamePlay0.gpid++
@@ -20,7 +29,7 @@ export class GamePlay0 {
 
   readonly hexMap: HexMap = new HexMap()
   readonly history   = []          // sequence of Move that bring board to its state
-  readonly allBoards = new BoardRegister()
+  readonly allBoards = new BoardRegister() // unlikely to be useful in this game *remove*
   readonly redoMoves = []
 
   constructor() {
@@ -40,13 +49,13 @@ export class GamePlay0 {
 
 }
 
-/** GamePlayD has compatible hexMap(mh, nh) but does not share components */
+/** GamePlayD has compatible hexMap(mh, nh) but does not share components. used by Planner */
 export class GamePlayD extends GamePlay0 {
   //override hexMap: HexMaps = new HexMap();
-  constructor(mh: number, nh: number) {
+  constructor(dbp: number) {
     super()
     this.hexMap[S.Aname] = `GamePlayD#${this.id}`
-    this.hexMap.makeAllDistricts(mh, nh)
+    this.hexMap.makeAllDistricts(dbp)
     return
   }
 }
@@ -61,7 +70,10 @@ export class GamePlay extends GamePlay0 {
   constructor(table: Table, public gameSetup: GameSetup) {
     super()            // hexMap, history, gStats...
     let time = stime('').substring(6,15)
-    let line = { time: stime.fs(), maxBreadth: TP.maxBreadth, maxPlys: TP.maxPlys }
+    let line = {
+      time: stime.fs(), maxBreadth: TP.maxBreadth, maxPlys: TP.maxPlys,
+      dpb: TP.dbp, mHexes: TP.mHexes, tHexes: TP.tHexes
+    }
     let line0 = json(line, false)
     let logFile = `log_${time}`
     console.log(stime(this, `.constructor: -------------- ${line0} --------------`))
