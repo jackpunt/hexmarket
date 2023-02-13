@@ -112,7 +112,7 @@ export class Table extends EventDispatcher  {
     this.winText.visible = this.winBack.visible = true
     this.hexMap.update()
   }
-  enableHexInspector(qY: number) {
+  enableHexInspector(qY: number = 52) {
     let qShape = new Shape(), toggle = true
     qShape.graphics.f("black").dp(0, 0, 20, 6, 0, 0)
     qShape.y = qY  // size of skip Triangles
@@ -132,11 +132,11 @@ export class Table extends EventDispatcher  {
         if (!hex) return
         let InfDisp = this.hexMap.mapCont.infCont.children.filter(obj => obj.x == hex.x && obj.y == hex.y)
         let InfName = InfDisp.map(i => i[S.Aname])
-        let info = { hex, stone: hex.stoneColor, InfName }
-        info[`Inf[${stoneColor0}]`] = hex.inf[stoneColor0]
-        info[`Inf[${stoneColor1}]`] = hex.inf[stoneColor1]
-        info[`Infm[${stoneColor0}]`] = hex.infm[stoneColor0]
-        info[`Infm[${stoneColor1}]`] = hex.infm[stoneColor1]
+        let info = hex; //{ hex, stone: hex.stoneColor, InfName }
+        // info[`Inf[${stoneColor0}]`] = hex.inf[stoneColor0]
+        // info[`Inf[${stoneColor1}]`] = hex.inf[stoneColor1]
+        // info[`Infm[${stoneColor0}]`] = hex.infm[stoneColor0]
+        // info[`Infm[${stoneColor1}]`] = hex.infm[stoneColor1]
         console.log(`HexInspector:`, hex.Aname, info)
       })
     let toggleText = (evt: MouseEvent, vis?: boolean) => {
@@ -145,9 +145,13 @@ export class Table extends EventDispatcher  {
       this.hexMap.mapCont.hexCont.updateCache()  // when toggleText: hexInspector
       this.hexMap.update()               // after toggleText & updateCache()
     }
+    this.toggleText = toggleText         // define method --> closure (for KeyBinding)
     qShape.on(S.click, toggleText, this) // toggle visible
     toggleText(undefined, false)         // set initial visibility
   }
+  /** method invokes closure defined in enableHexInspector. */
+  toggleText(evt: MouseEvent, vis?: boolean) {}
+
   aiControl(color = TP.bgColor, dx = 100, rad = 16) {
     let table = this
     // c m v on buttons
@@ -206,10 +210,10 @@ export class Table extends EventDispatcher  {
     hexMap.addToCont();               // addToMapCont; make Hex2
     hexMap.makeAllDistricts(TP.dbp) // typically: ~4
 
-    let mapCont = hexMap.mapCont;
+    let mapCont = hexMap.mapCont, hexCont = mapCont.hexCont; // local reference
     this.scaleCont.addChild(mapCont)
 
-    let hexRect = hexMap.mapCont.hexCont.getBounds()
+    let hexRect = hexCont.getBounds()
     // background sized for hexMap:
     let high = hexMap.height, wide = hexMap.width // h=rad*1.5; w=rad*r(3)
     let miny = hexRect.y - high, minx = hexRect.x - wide
@@ -219,22 +223,24 @@ export class Table extends EventDispatcher  {
     mapCont.x = (bgr.w) / 2
     mapCont.y = (bgr.h) / 2
 
-    // this.nextHex = new Hex2(hexMap, undefined, undefined, 'nextHex')
-    // this.nextHex.cont.scaleX = this.nextHex.cont.scaleY = 2
-    // this.nextHex.x = minx + 2 * wide; this.nextHex.y = miny + 1.4 * high;
+    let nextHex = this.nextHex = new Hex2(hexMap, undefined, undefined, 'nextHex')
+    nextHex.cont.scaleX = nextHex.cont.scaleY = 2
+    nextHex.x = minx + 2 * wide; nextHex.y = miny + 1.4 * high;
     // tweak when hexMap is tiny:
     let nh = TP.nHexes, mh = TP.mHexes
     // if (nh == 1 || nh + mh <= 5) { bgr.w += 3*wide; bgr.h += 50; mapCont.x += 3*wide; }
-    // this.nextHex.x = Math.round(this.nextHex.x); this.nextHex.y = Math.round(this.nextHex.y)
+    nextHex.x = Math.round(nextHex.x); nextHex.y = Math.round(nextHex.y)
+    nextHex.cont.visible = false;
 
     this.bgRect = this.setBackground(this.scaleCont, bgr) // bounded by bgr
-    let p00 = this.scaleCont.localToLocal(0, 0, hexMap.mapCont.hexCont)
-    let pbr = this.scaleCont.localToLocal(bgr.w, bgr.h, hexMap.mapCont.hexCont)
-    //hexMap.mapCont.hexCont.cache(p00.x, p00.y, pbr.x-p00.x, pbr.y-p00.y) // cache hexCont (bounded by bgr)
+    let p00 = this.scaleCont.localToLocal(0, 0, hexCont)
+    let pbr = this.scaleCont.localToLocal(bgr.w, bgr.h, hexCont)
+    hexCont.cache(p00.x, p00.y, pbr.x-p00.x, pbr.y-p00.y) // cache hexCont (bounded by bgr)
 
-    // this.nextHex.cont.parent.localToLocal(this.nextHex.x, this.nextHex.y+100, this.scaleCont, this.undoCont)
-    // this.scaleCont.addChild(this.undoCont)
+    nextHex.cont.parent.localToLocal(nextHex.x, nextHex.y+100, this.scaleCont, this.undoCont)
+    this.scaleCont.addChild(this.undoCont)
     // this.setupUndoButtons(55, 60, 45, bgr)
+    this.enableHexInspector(52)
 
     // this.makeMiniMap(this.scaleCont, -(200+TP.mHexes*TP.hexRad), 600+100*TP.mHexes)
 
@@ -407,7 +413,7 @@ export class Table extends EventDispatcher  {
   scaleUp(cont: Container, scale = this.upscale) {
     cont.scaleX = cont.scaleY = scale;
   }
-  scaleParams = { initScale: .125, scale0: .05, scaleMax: 1, steps: 30, zscale: .20,  };
+  scaleParams = { initScale: .125, scale0: .05, scaleMax: 4, steps: 30, zscale: .20,  };
 
   /** makeScaleableBack and setup scaleParams
    * @param bindkeys true if there's a GUI/user/keyboard

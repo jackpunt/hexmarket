@@ -60,9 +60,8 @@ class AfMark extends Shape {
 
 /** Container of AfMark Shapes */
 export class AfHex extends Container {
-  Aname: string
   /** return a cached Container with hex and AfMark[6] */
-  constructor(public aShapes: ATS[], public aColors: afColor[], public aFill: afFill[] = [AF.L, AF.F, AF.L, AF.F, AF.L, AF.F]) {
+  constructor(public aShapes: ATS[], public aColors: afColor[], public aFill: afFill[], public Aname = ``) {
     super()
     for (let ndx in aShapes) {
       let ats = aShapes[ndx], afc = aColors[ndx], aff = aFill[ndx], ds = H.ewDirs[ndx]
@@ -71,6 +70,9 @@ export class AfHex extends Container {
     }
     let w = TP.hexRad * H.sqrt3, h = TP.hexRad * 2 // see also: Hex2.cache()
     this.cache(-w/2, -h/2, w, h)
+  }
+  override clone() {
+    return new AfHex(this.aShapes, this.aColors, this.aFill, this.Aname)
   }
 
   static allAfHexMap: Map<string, AfHex> = new Map();
@@ -86,35 +88,28 @@ export class AfHex extends Container {
    * each annotation rotated to align with ewDirs
    */
   static makeAllAfHex() {
-    let aShapes: ATS[] = [AF.A, AF.T, AF.S]
-    let aColors: afColor[] = [AF.R, AF.G, AF.B]
-    let aFill: afFill[] = [AF.L, AF.F]
     // TODO synthesize all permutations
-    // let atsPerm = AfHex.findPermutations([AF.A, AF.A, AF.T, AF.T, AF.S, AF.S]) // for ATS & afColor [16]
-    let sixOfThreePerms = AfHex.findPermutations([0, 0, 1, 1, 2, 2]) // for ATS & afColor [16]
-    let sixOfTwoPerms = AfHex.findPermutations([0, 0, 0, 1, 1, 1])   // for afFill  [4]
-    let sixOfZero = AfHex.findPermutations([0, 0, 0, 0, 0, ,0])   // for initial view [1]
-    let sixOfOne = AfHex.findPermutations([1, 1, 1, 1, 1, 1])   // for initial view [1]
-    let sixOfTwo = AfHex.findPermutations([2, 2, 2, 2, 2, 2])   // for initial view [1]
-    console.log(stime(`AfHex`, `.makeAllAfHex`), sixOfThreePerms, sixOfTwoPerms)
-    let atsp = sixOfTwo, afcp = sixOfThreePerms, affp = sixOfTwo
+    let atsPerm = AfHex.findPermutations([AF.S, AF.S, AF.S, AF.S, AF.S, AF.S])
+    //let atsPerm = AfHex.findPermutations([AF.A, AF.A, AF.T, AF.T, AF.S, AF.S])
+    let afcPerm = AfHex.findPermutations([AF.R, AF.R, AF.G, AF.G, AF.B, AF.B])
+    let affPerm = AfHex.findPermutations([AF.F, AF.F, AF.F, AF.F, AF.F, AF.F])
+    console.log(stime(`AfHex`, `.makeAllAfHex: atsPerm`), atsPerm)
+    console.log(stime(`AfHex`, `.makeAllAfHex: afcPerm`), afcPerm)
+    console.log(stime(`AfHex`, `.makeAllAfHex: affPerm`), affPerm)
 
     // pick a random rotation of each factor:
     // expect 16 x 16 x 4 = 1024 generated.
-    for (let atsn in atsp) {
+    for (let ats of atsPerm) {
       // let atsr = AfHex.rotateAf(atsn, Math.round(Math.random() * atsn.length))
       // rotated when placed on Hex2
-      let ats = atsp[atsn].map(n => aShapes[n])
       let atss = ats.join('');
-      for (let afcn in afcp) {
-        let afcr = AfHex.rotateAf(afcp[afcn], Math.round(Math.random() * afcp.length))
-        let afc = afcr.map(n => aColors[n])
-        let afcs = afc.join('')
-        for (let affn in affp) {
-          let affr = AfHex.rotateAf(affp[affn], Math.round(Math.random() * affp.length))
-          let aff = affr.map(n => aFill[n])
-          let affs = aff.join('')
-          let afhex = new AfHex(ats, afc, aff);
+      for (let afc of afcPerm) {
+        let afcr = AfHex.rotateAf(afc, Math.round(Math.random() * afcPerm.length))
+        let afcs = afcr.join('')
+        for (let aff of affPerm) {
+          let affr = AfHex.rotateAf(aff, Math.round(Math.random() * affPerm.length))
+          let affs = affr.join('')
+          let afhex = new AfHex(ats, afc, aff, `${atss}:${afcs}:${affs}`);
           afhex.Aname = `${atss}:${afcs}:${affs}`;
           AfHex.allAfHexMap.set(afhex.Aname, afhex);
           AfHex.allAfHex.push(afhex);
@@ -122,7 +117,7 @@ export class AfHex extends Container {
       }
     }
   }
-  static findPermutations(ary: number[]) {
+  static findPermutations(ary: any[]) {
     return AfHex.chooseNext(ary)
   }
   /**
@@ -134,7 +129,7 @@ export class AfHex extends Container {
    * @param chosen items already chosen (in order)
    * @returns
    */
-  static chooseNext(items: number[], found: number[][] = [], chosen: number[] = []) {
+  static chooseNext(items: any[], found: any[][] = [], chosen: any[] = []) {
     // assert: left is sorted
     // done: 0012 left: 12 --> 001212, 001221
     // append lowest(left) to done, then chooseNext
@@ -153,10 +148,7 @@ export class AfHex extends Container {
     }
     return found
   }
-  static newFound(target: number[], exists: number[][]) {
-    let rt0 = AfHex.rotateAf(target, 0);
-    let rt1 = AfHex.rotateAf(target, 1);
-    let rt2 = AfHex.rotateAf(target, 2);
+  static newFound(target: any[], exists: any[][]) {
     let rt = target.slice()
     for (let r = 0; r < rt.length; r++) {
       if (exists.find(exary => !exary.find((v, ndx) => rt[ndx] !== v))) return false;
@@ -166,7 +158,7 @@ export class AfHex extends Container {
   }
 
   /** rotate elements of array by n positions. */
-  static rotateAf(str: number[], n = 1) {
+  static rotateAf(str: any[], n = 1) {
     let head = str.slice(0, n)
     let tail = str.slice(n)
     tail.push(...head)

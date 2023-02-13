@@ -1,5 +1,6 @@
-import { C, F, RC, S } from "@thegraid/easeljs-lib";
+import { C, F, RC, S, stime } from "@thegraid/easeljs-lib";
 import { Container, DisplayObject, Graphics, Shape, Text } from "@thegraid/easeljs-module";
+import { AfHex } from "./AfHex";
 import { GamePlay0 } from "./game-play";
 import { EwDir, H, HexAxis, HexDir, InfDir, NsDir } from "./hex-intfs";
 import { otherColor, StoneColor, stoneColor0, StoneColorRecord, stoneColorRecord, stoneColorRecordF, stoneColors, TP } from "./table-params";
@@ -27,6 +28,9 @@ class HexCont extends Container {
   }
 }
 
+class HexShape extends Shape {
+
+}
 
 /** Base Hex, has no connection to graphics.
  *
@@ -230,8 +234,11 @@ export class Hex2 extends Hex {
     super(map, row, col, name);
     map.mapCont.hexCont.addChild(this.cont)
     this.radius = TP.hexRad;
+    this.cache(true)
 
-    this.setHexColor("grey")  // until setHexColor(by district)
+    this.setHexColor("grey")  // new Hex2: until setHexColor(by district)
+    this.addAfHex()           // even when (name == 'nextHex')
+
     this.stoneIdText = new Text('', F.fontSpec(26))
     this.stoneIdText.textAlign = 'center'; this.stoneIdText.regY = -20
 
@@ -251,35 +258,62 @@ export class Hex2 extends Hex {
     this.distText = new Text(``, F.fontSpec(20));
     this.distText.textAlign = 'center'; this.distText.y = tdy + 46 // yc + 26+20
     this.cont.addChild(this.distText)
-    this.showText(true)
+    this.showText(true); // & this.cache()
+  }
+  addAfHex(affn = Math.floor(Math.random() * AfHex.allAfHex.length)) {
+    if (this.district !== undefined) return
+    let afhex2 = AfHex.allAfHex[affn].clone();
+    afhex2.rotation = 60 * Math.floor(Math.random() * 6); // degrees, not radians
+    this.cont.addChild(afhex2)
+    this.cache()
+  }
+  /** remove AfHex from planet Hex */
+  rmAfHex() {
+    let afh = this.cont.children.find(c => (c instanceof AfHex))
+    if (afh) {
+      this.cont.removeChild(afh)
+      this.cache()
+    }
+  }
+  /** cache() or updateCache() */
+  cache(initial = false) {
+    if (initial) {
+      let width = (this.radius + 2) * H.sqrt3, height = (this.radius + 1) * 2
+      let b = { x: -width / 2, y: -height / 2, width, height }
+      this.cont.cache(b.x, b.y, b.width, b.height);
+    } else {
+      this.cont.updateCache()
+    }
   }
   /** set visibility of rcText & distText */
   showText(vis = !this.rcText.visible) {
     this.rcText.visible = this.distText.visible = vis
+    this.cache()
   }
 
-  /** set hexShape using color */
+  /** set hexShape using color: draw border and fill
+   * @param color
+   * @param district if supplied, set this.district
+   */
   setHexColor(color: string, district?: number | undefined) {
     if (district !== undefined) this.district = district // hex.setHexColor update district
     this.distColor = color
-    let hexShape = this.paintHexShape(color, this.hexShape)
+    let hexShape = this.paintHexShape(color, this.hexShape, this.radius)
     if (hexShape !== this.hexShape) {
       this.cont.removeChild(this.hexShape)
       this.cont.addChildAt(hexShape, 0)
       this.cont.hitArea = hexShape
       this.hexShape = hexShape
+      this.cache()
     }
   }
+
   /** makes a colored hex, outlined with bgColor */
   paintHexShape(color: string, ns = new Shape(), rad = this.radius): Shape {
-    let tilt = 30
+    let tilt = H.dirRot['NE']
     ns.graphics.s(TP.borderColor).dp(0, 0, rad+1, 6, 0, tilt) // s = beginStroke(color) dp:drawPolyStar
     ns.graphics.f(color).dp(0, 0, rad, 6, 0, tilt)             // f = beginFill(color)
-    //ns.rotation = H.dirRot[H.N]
-  return ns
-  }
-  override lastHex(ds: InfDir): Hex {
-    return super.lastHex(ds) as Hex
+    return ns
   }
 }
 export class MapCont extends Container {
@@ -327,9 +361,9 @@ export class HexMap extends Array<Array<Hex>> implements HexM {
   rcLinear(row: number, col: number): number { return col + row * (1 + (this.maxCol || 0) - (this.minCol||0)) }
 
   radius: number = TP.hexRad
-  /** height of hexagonal cell (1.5 * radius) */
+  /** height of hexagonal cell (1.5 * radius) with NS axis */
   height: number = this.radius * 1.5;
-  /** width of hexagonal cell  (H.sqrt3 * radius */
+  /** width of hexagonal cell  (H.sqrt3 * radius with NS axis */
   width: number = this.radius * H.sqrt3
   mark: DisplayObject | undefined                              // a cached DisplayObject, used by showMark
   private minCol: number | undefined = undefined               // Array.forEach does not look at negative indices!
@@ -510,12 +544,21 @@ export class HexMap extends Array<Array<Hex>> implements HexM {
     mapCont.hexCont.y = mapCont.markCont.y = mapCont.stoneCont.y = mapCont.infCont.y = -(hexRect.y + hexRect.height/2)
   }
 
+  planets: Map<HexDir | 'C', Hex2> = new Map();
+  /** color center and 6 planets, dist = 1 ... 7 */  // TODO: random location (1-step)
   colorPlanets(coff = TP.dbp) {
     let cr = Math.floor((this.maxRow + this.minRow) / 2), cc = Math.floor((this.minCol + this.maxCol) / 2);
     let cHex = this[cr][cc] as Hex2
-    cHex.setHexColor("blue")
-    for (let ds of H.ewdirs) {
-      (cHex.nextHex(ds, coff+1) as Hex2).setHexColor("green")
+    let dist = 0;
+    let colorPlanet = (key: HexDir | 'C', color: string, hex: Hex2) => {
+      this.planets.set(key, hex)
+      hex.rmAfHex()
+      hex.setHexColor(color, ++dist) // colorPlanets: 1..7
+    }
+    colorPlanet(H.C, C.BLUE, cHex)
+    for (let ds of H.ewDirs) {
+      let pHex = cHex.nextHex(ds, coff + 1) as Hex2;
+      colorPlanet(ds, C.GREEN, pHex)
     }
   }
 
@@ -567,7 +610,7 @@ export class HexMap extends Array<Array<Hex>> implements HexM {
     if (hexAry[0] instanceof Hex2) {
       let hex2Ary = hexAry as Hex2[]
       let dcolor = district == 0 ? HexMap.distColor[0] : this.pickColor(hex2Ary)
-      hex2Ary.forEach(hex => hex.setHexColor(dcolor))
+      hex2Ary.forEach(hex => hex.setHexColor(dcolor)) // makeDistrict: dcolor=lightgrey
     }
     return hexAry
   }
