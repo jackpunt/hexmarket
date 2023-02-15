@@ -3,12 +3,12 @@ import { GamePlay } from "./game-play"
 import { IHex } from "./hex"
 import { IPlanner, newPlanner } from "./plan-proxy"
 import { Table } from "./table"
-import { StoneColor, TP } from "./table-params"
+import { PlayerColor, TP } from "./table-params"
 
 export class Player {
   name: string
   index: number; // serial number of Player
-  color: StoneColor
+  color: PlayerColor
   otherPlayer: Player
   table: Table
   planner: IPlanner
@@ -16,7 +16,7 @@ export class Player {
   useRobo: boolean = false
   get colorn() { return TP.colorScheme[this.color] }
 
-  constructor(index: number, color: StoneColor, table: Table) {
+  constructor(index: number, color: PlayerColor, table: Table) {
     this.index = index
     this.color = color
     this.table = table
@@ -38,7 +38,7 @@ export class Player {
     this.planner?.roboMove(false)
   }
   /** if Planner is not running, maybe start it; else wait for GUI */ // TODO: move Table.dragger to HumanPlanner
-  playerMove(sc: StoneColor, useRobo = this.useRobo, incb = 0) {
+  playerMove(sc: PlayerColor, useRobo = this.useRobo, incb = 0) {
     let running = this.plannerRunning
     // feedback for KeyMove:
 
@@ -51,7 +51,7 @@ export class Player {
     return      // robo or GUI will invoke gamePlay.doPlayerMove(...)
   }
   plannerRunning = false
-  plannerMove(sc: StoneColor, incb = 0) {
+  plannerMove(sc: PlayerColor, incb = 0) {
     this.planner?.roboMove(true)
     this.plannerRunning = true
     // let iHistory = this.table.gamePlay.iHistory

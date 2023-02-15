@@ -7,7 +7,7 @@ import { H, XYWH } from "./hex-intfs";
 //import { TablePlanner } from "./planner";
 import { Player } from "./player";
 //import { StatsPanel } from "./stats";
-import { otherColor, StoneColor, stoneColor0, stoneColor1, StoneColorRecord, stoneColorRecord, stoneColorRecordF, TP } from "./table-params";
+import { otherColor, PlayerColor, playerColor0, playerColor1, PlayerColorRecord, playerColorRecord, playerColorRecordF, TP } from "./table-params";
 
 
 /** to own file... */
@@ -24,10 +24,10 @@ export class Stone extends Shape {
   static radius: number = TP.hexRad
   static height: number = Stone.radius*H.sqrt3/2
   get radius() { return Stone.height -1 }
-  readonly color: StoneColor;
+  readonly color: PlayerColor;
 
-  /** Stone is a Shape with a StoneColor */
-  constructor(color?: StoneColor) {
+  /** Stone is a Shape with a PlayerColor */
+  constructor(color?: PlayerColor) {
     super()
     this.color = color
     if (color) this.paint(color)
@@ -132,11 +132,11 @@ export class Table extends EventDispatcher  {
         if (!hex) return
         let InfDisp = this.hexMap.mapCont.infCont.children.filter(obj => obj.x == hex.x && obj.y == hex.y)
         let InfName = InfDisp.map(i => i[S.Aname])
-        let info = hex; //{ hex, stone: hex.stoneColor, InfName }
-        // info[`Inf[${stoneColor0}]`] = hex.inf[stoneColor0]
-        // info[`Inf[${stoneColor1}]`] = hex.inf[stoneColor1]
-        // info[`Infm[${stoneColor0}]`] = hex.infm[stoneColor0]
-        // info[`Infm[${stoneColor1}]`] = hex.infm[stoneColor1]
+        let info = hex; //{ hex, stone: hex.playerColor, InfName }
+        // info[`Inf[${playerColor0}]`] = hex.inf[playerColor0]
+        // info[`Inf[${playerColor1}]`] = hex.inf[playerColor1]
+        // info[`Infm[${playerColor0}]`] = hex.infm[playerColor0]
+        // info[`Infm[${playerColor1}]`] = hex.infm[playerColor1]
         console.log(`HexInspector:`, hex.Aname, info)
       })
     let toggleText = (evt: MouseEvent, vis?: boolean) => {
@@ -169,7 +169,7 @@ export class Table extends EventDispatcher  {
       return cont
     }
     let bpanel = new Container()
-    let c0 = TP.colorScheme[stoneColor0], c1 = TP.colorScheme[stoneColor1]
+    let c0 = TP.colorScheme[playerColor0], c1 = TP.colorScheme[playerColor1]
     let cm = "rgba(100,100,100,.5)"
     let bc = makeButton(-dx, c0, c1, 'C', 'c')
     let bv = makeButton(dx, c1, c0, 'V', 'v')
@@ -306,11 +306,11 @@ export class Table extends EventDispatcher  {
    * @param color shift-key overrides curPlayer.color
    * @param show dragFunc sets 'true' to force show (overriding !showSac || !color)
    */
-  markAllSacrifice(color: StoneColor = this.gamePlay.curPlayer?.color, show = false) {
+  markAllSacrifice(color: PlayerColor = this.gamePlay.curPlayer?.color, show = false) {
     if (!this.showSac || !color) return
     let capColor = H.sacColor1
     this.hexMap.forEachHex((hex: Hex2) => {
-      if (hex.stoneColor !== undefined) return
+      if (hex.playerColor !== undefined) return
       if (this.gamePlay.history[0]?.captured.includes(hex)) return
       // ...
     })
@@ -400,7 +400,7 @@ export class Table extends EventDispatcher  {
   doTableMove(ihex: IHex) {
   }
   /** All moves (GUI & player) feed through this: */
-  moveStoneToHex(ihex: IHex, sc: StoneColor) {
+  moveStoneToHex(ihex: IHex, sc: PlayerColor) {
     this.unmarkAllSacrifice()
     let hex = Hex.ofMap(ihex, this.hexMap)
     this.hexMap.showMark(hex)

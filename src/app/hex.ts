@@ -3,7 +3,7 @@ import { Container, DisplayObject, Graphics, Shape, Text } from "@thegraid/easel
 import { AfHex } from "./AfHex";
 import { GamePlay0 } from "./game-play";
 import { EwDir, H, HexAxis, HexDir, InfDir, NsDir } from "./hex-intfs";
-import { otherColor, StoneColor, stoneColor0, StoneColorRecord, stoneColorRecord, stoneColorRecordF, stoneColors, TP } from "./table-params";
+import { otherColor, PlayerColor, playerColor0, PlayerColorRecord, playerColorRecord, playerColorRecordF, playerColors, TP } from "./table-params";
 
 export const S_Resign = 'Hex@Resign'
 export const S_Skip = 'Hex@skip '
@@ -18,8 +18,8 @@ type TopoEW = { [key in EwDir]: DCR }
 type TopoNS = { [key in NsDir]: DCR }
 type Topo = TopoEW | TopoNS
 
-export type HSC = { hex: Hex, sc: StoneColor, Aname: string }
-export function newHSC(hex: Hex, sc: StoneColor, Aname = hex.Aname) { return { Aname, hex, sc } }
+export type HSC = { hex: Hex, sc: PlayerColor, Aname: string }
+export function newHSC(hex: Hex, sc: PlayerColor, Aname = hex.Aname) { return { Aname, hex, sc } }
 
 /** to recognize this class in hexUnderPoint and obtain the contained Hex. */
 class HexCont extends Container {
@@ -68,14 +68,14 @@ export class Hex {
   }
   readonly Aname: string
   /** color of current Stone on this Hex (or undefined) */
-  stoneColor: StoneColor = undefined;
+  playerColor: PlayerColor = undefined;
   /** reduce to serializable IHex (removes map, inf, links, etc) */
   get iHex(): IHex { return { Aname: this.Aname, row: this.row, col: this.col } }
   /** [row,col] OR S_Resign OR S_Skip */
   get rcs(): string { return (this.row >= 0) ? `[${this.row},${this.col}]` : this.Aname.substring(4)}
   get rowsp() { return (this.row?.toString() || '-1').padStart(2) }
   get colsp() { return (this.col?.toString() || '-1').padStart(2) } // col== -1 ? S_Skip; -2 ? S_Resign
-  json(sc = this.stoneColor) { return `{"p":"${sc || 'u'}","r":${this.rowsp},"c":${this.colsp}}` }
+  json(sc = this.playerColor) { return `{"p":"${sc || 'u'}","r":${this.rowsp},"c":${this.colsp}}` }
   /** [row,col] OR S_Resign OR S_Skip */
   get rcsp(): string { return (this.row >= 0) ? `[${this.rowsp},${this.colsp}]` : this.Aname.substring(4).padEnd(7)}
   /** compute ONCE, *after* HexMap is populated with all the Hex! */
@@ -90,60 +90,60 @@ export class Hex {
   readonly map: HexMap;  // Note: this.parent == this.map.hexCont [cached]
   readonly row: number
   readonly col: number
-  readonly inf = stoneColorRecord<INF>({},{})
-  readonly infm = stoneColorRecord<INF>({},{})
+  readonly inf = playerColorRecord<INF>({},{})
+  readonly infm = playerColorRecord<INF>({},{})
   /** Link to neighbor in each H.dirs direction [NE, E, SE, SW, W, NW] */
   readonly links: LINKS = {}
   // metaLinks: LINKS;           // defined only for hex0 (the center Hex of a district)
 
-  /** set hex.stoneColor and push HSC on allStones */
-  setColor(stoneColor: StoneColor): Hex {
-    if (this.stoneColor !== undefined) {
-      console.warn(`hex already occupied ${this.Aname}: ${stoneColor} -> ${this.stoneColor}`)
+  /** set hex.playerColor and push HSC on allStones */
+  setColor(playerColor: PlayerColor): Hex {
+    if (this.playerColor !== undefined) {
+      console.warn(`hex already occupied ${this.Aname}: ${playerColor} -> ${this.playerColor}`)
       debugger; // hex already occupied
     }
-    this.stoneColor = stoneColor
-    //let hexm = new HexMapLayer(this.map, this, stoneColor)
+    this.playerColor = playerColor
+    //let hexm = new HexMapLayer(this.map, this, playerColor)
     //let hex = hexm.addHex(this)
-    let hsc: HSC = newHSC(this, stoneColor)
+    let hsc: HSC = newHSC(this, playerColor)
     this.map?.allStones.push(hsc) // no push: Aname == nextHex
     return this
   }
-  clearColor(): StoneColor {
-    let color = this.stoneColor, hscAry = this.map.allStones
+  clearColor(): PlayerColor {
+    let color = this.playerColor, hscAry = this.map.allStones
     if (color !== undefined && this.map !== undefined) {
       // put filtered result back into original array:
       hscAry.splice(0, hscAry.length,...hscAry.filter(hsc => hsc.hex !== this))
     }
-    this.stoneColor = undefined
+    this.playerColor = undefined
     return color
   }
-  /** colorScheme(stoneColor)@rcs */
-  toString(stoneColor = this.stoneColor) {
-    return `${TP.colorScheme[stoneColor]}@${this.rcs}` // hex.toString => COLOR@[r,c] | COLOR@Skip , COLOR@Resign
+  /** colorScheme(playerColor)@rcs */
+  toString(playerColor = this.playerColor) {
+    return `${TP.colorScheme[playerColor]}@${this.rcs}` // hex.toString => COLOR@[r,c] | COLOR@Skip , COLOR@Resign
   }
   /** hex.rcspString => COLOR@[ r, c] | 'COLOR@Skip   ' , 'COLOR@Resign ' */
-  rcspString(sc = this.stoneColor) {
+  rcspString(sc = this.playerColor) {
     return `${TP.colorScheme[sc]}@${this.rcsp}`
   }
 
   /**
    * Is this Hex [already] influenced by color/dn? [for skipAndSet()]
-   * @param color StoneColor
+   * @param color PlayerColor
    * @param dn dir of Influence: ds | revDir[ds]
-   * @returns true if Hex is StoneColor or has InfMark(color, dn)
+   * @returns true if Hex is PlayerColor or has InfMark(color, dn)
    */
-  isInf(color: StoneColor, dn: InfDir) { return this.inf[color][dn] > 0}
-  getInf(color: StoneColor, dn: InfDir) { return this.inf[color][dn] || 0 }
-  setInf(color: StoneColor, dn: InfDir, inf: number) { return this.inf[color][dn] = inf }
+  isInf(color: PlayerColor, dn: InfDir) { return this.inf[color][dn] > 0}
+  getInf(color: PlayerColor, dn: InfDir) { return this.inf[color][dn] || 0 }
+  setInf(color: PlayerColor, dn: InfDir, inf: number) { return this.inf[color][dn] = inf }
 
   /**
    * @param inc is influence *passed-in* to Hex; hex get [inc or inc+1]; *next* gets [inc or inc-1]
    */
-  propagateIncr(color: StoneColor, dn: InfDir, inc: number, test?: (hex: Hex) => void) {
-    let inf = this.stoneColor === color ? inc + 1 : inc // inc >= 0, inf > 0
+  propagateIncr(color: PlayerColor, dn: InfDir, inc: number, test?: (hex: Hex) => void) {
+    let inf = this.playerColor === color ? inc + 1 : inc // inc >= 0, inf > 0
     this.setInf(color, dn, inf)
-    let nxt = this.stoneColor === color ? inf : inf - 1
+    let nxt = this.playerColor === color ? inf : inf - 1
     if (nxt > 0) this.links[dn]?.propagateIncr(color, dn, nxt, test)
     test && test(this)
   }
@@ -151,23 +151,23 @@ export class Hex {
    * Pass on based on *orig/current* inf, not the new/decremented inf.
    * @param inc is influence *passed-in* from prev Hex; *this* gets inc; pass-on [inc or inc-1]
    */
-  propagateDecr(color: StoneColor, dn: InfDir, inc: number, test?: (hex: Hex) => void) {
+  propagateDecr(color: PlayerColor, dn: InfDir, inc: number, test?: (hex: Hex) => void) {
     let inf = this.getInf(color, dn)
-    let infn = this.stoneColor === color ? inc + 1 : inc
+    let infn = this.playerColor === color ? inc + 1 : inc
     this.setInf(color, dn, infn)
-    let nxt = this.stoneColor === color ? infn : Math.max(0, infn - 1)
+    let nxt = this.playerColor === color ? infn : Math.max(0, infn - 1)
     if (inf > 0) this.links[dn]?.propagateDecr(color, dn, nxt, test) // pass-on a smaller number
     test && test(this)
   }
 
   /** create empty INF for each color */
-  clearInf() { stoneColors.forEach(c => this.inf[c] = {}) }
+  clearInf() { playerColors.forEach(c => this.inf[c] = {}) }
 
   /** true if hex influence by 1 or more Axies of color */
-  isThreat(color: StoneColor) {
+  isThreat(color: PlayerColor) {
     return !!Object.values(this.inf[color]).find(inf => (inf > 0))
   }
-  isAttack2(color: StoneColor) {
+  isAttack2(color: PlayerColor) {
     let attacks = 0, infs = this.inf[color], adds = {}
     H.axis.forEach(ds => adds[ds] = 0)
     return !!Object.entries(infs).find(([dn, inf]) =>
@@ -175,15 +175,15 @@ export class Hex {
     )
   }
   /** @return true if Hex is influenced on 2 or more Axies of color */
-  isAttack(color: StoneColor): boolean {
+  isAttack(color: PlayerColor): boolean {
     let attacks = new Set<HexAxis>(), infs = this.inf[color]
     return !!Object.entries(infs).find(([dn, inf]) =>
       (inf > 0) && (attacks.add(H.dnToAxis[dn]).size >= 2)
     )
   }
   /** @return true if Hex has a Stone (of other color), and is attacked */
-  isCapture(color: StoneColor): boolean {
-    return (this.stoneColor !== undefined) && (this.stoneColor !== color) && this.isAttack(color)
+  isCapture(color: PlayerColor): boolean {
+    return (this.playerColor !== undefined) && (this.playerColor !== color) && this.isAttack(color)
   }
   nextHex(ds: HexDir, ns: number = 1) {
     let hex: Hex = this, nhex: Hex
@@ -318,7 +318,7 @@ export class Hex2 extends Hex {
 }
 export class MapCont extends Container {
   hexCont: Container     // hex shapes on bottom stats: addChild(dsText), parent.rotation
-  stoneCont: Container   // Stone in middle      Hex2.setStoneId, setStoneColor [localToLocla]
+  stoneCont: Container   // Stone in middle      Hex2.setStoneId, setPlayerColor [localToLocla]
   markCont: Container    // showMark over Stones new CapMark [localToLocal]
   infCont: Container     // infMark on the top   Hex2.showInf
 }
@@ -352,7 +352,7 @@ export class HexMap extends Array<Array<Hex>> implements HexM {
   // A color for each District:
   static readonly distColor = ["lightgrey","limegreen","deepskyblue","rgb(255,165,0)","violet","rgb(250,80,80)","yellow"]
 
-  /** Each occupied Hex, with the occupying StoneColor  */
+  /** Each occupied Hex, with the occupying PlayerColor  */
   readonly allStones: HSC[] = []                    // aka hexStones in Board (readonly when we stop remove/filter)
   readonly district: Array<Hex[]> = []
   readonly mapCont: MapCont = new MapCont     // if using Hex2
@@ -649,7 +649,7 @@ export class HexMap extends Array<Array<Hex>> implements HexM {
     oldMap.allStones.forEach(hsc => {
       let oldHex = hsc.hex, row = oldHex.row, col = oldHex.col
       let hex = this[row][col] || this.addHex(row, col, oldHex.district)
-      hex.setColor(oldHex.stoneColor)
+      hex.setColor(oldHex.playerColor)
     })
   }
 

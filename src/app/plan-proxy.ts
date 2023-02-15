@@ -12,7 +12,7 @@ interface IPlannerMethods {
   /** enable Planner to continue/stop searching */
   roboMove(run: boolean): void;
   /** provoke Planner to search for next Move */
-  //makeMove(stoneColor: StoneColor, history: IMove[], incb?: number): Promise<IHex>;
+  //makeMove(playerColor: PlayerColor, history: IMove[], incb?: number): Promise<IHex>;
   /** permanently stop this IPlanner */
   terminate(): void;
 }

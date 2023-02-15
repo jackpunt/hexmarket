@@ -7,7 +7,7 @@ import { Planner } from "./plan-proxy";
 import { Player } from "./player";
 import { LogWriter } from "./stream-writer";
 import { Table } from "./table";
-import { otherColor, StoneColor, stoneColors, TP } from "./table-params";
+import { otherColor, PlayerColor, playerColors, TP } from "./table-params";
 
 class HexEvent {}
 class Move{}
@@ -38,8 +38,8 @@ export class GamePlay0 {
   turnNumber: number = 0    // = history.lenth + 1 [by this.setNextPlayer]
   curPlayerNdx: number = 0  // curPlayer defined in GamePlay extends GamePlay0
 
-  newMoveFunc: (hex: Hex, sc: StoneColor, caps: Hex[], gp: GamePlay0) => Move
-  newMove(hex: Hex, sc: StoneColor, caps: Hex[], gp: GamePlay0) {
+  newMoveFunc: (hex: Hex, sc: PlayerColor, caps: Hex[], gp: GamePlay0) => Move
+  newMove(hex: Hex, sc: PlayerColor, caps: Hex[], gp: GamePlay0) {
     return this.newMoveFunc? this.newMoveFunc(hex,sc, caps, gp) : new Move()
   }
   undoRecs: Undo = new Undo().enableUndo();
@@ -81,7 +81,7 @@ export class GamePlay extends GamePlay0 {
     this.logWriter.writeLine(line0)
 
     // Create and Inject all the Players:
-    stoneColors.forEach((color, ndx) => this.allPlayers[ndx] = new Player(ndx, color, table))
+    playerColors.forEach((color, ndx) => this.allPlayers[ndx] = new Player(ndx, color, table))
     // setTable(table)
     this.table = table
     if (this.table.stage.canvas) this.bindKeys()
@@ -132,7 +132,7 @@ export class GamePlay extends GamePlay0 {
   }
 
   curPlayer: Player;
-  getPlayer(color: StoneColor): Player {
+  getPlayer(color: PlayerColor): Player {
     return this.allPlayers.find(p => p.color == color)
   }
 
@@ -273,7 +273,7 @@ export class GamePlay extends GamePlay0 {
   localMoveEvent(hev: HexEvent): void {
     let redo = this.redoMoves.shift()   // pop one Move, maybe pop them all:
     //if (!!redo && redo.hex !== hev.hex) this.redoMoves.splice(0, this.redoMoves.length)
-    //this.doPlayerMove(hev.hex, hev.stoneColor)
+    //this.doPlayerMove(hev.hex, hev.playerColor)
     this.setNextPlayer()
     this.ll(2) && console.log(stime(this, `.localMoveEvent: after doPlayerMove - setNextPlayer =`), this.curPlayer.color)
 
@@ -291,19 +291,19 @@ export class GamePlay extends GamePlay0 {
 class BoardRegister extends Map<string, Board> {}
 /** Identify state of HexMap by itemizing all the extant Stones
  * id: string = Board(nextPlayer.color, captured)resigned?, allStones
- * resigned: StoneColor
+ * resigned: PlayerColor
  * repCount: number
  */
 export class Board {
   readonly id: string = ""   // Board(nextPlayer,captured[])Resigned?,Stones[]
-  readonly resigned: StoneColor //
+  readonly resigned: PlayerColor //
   repCount: number = 1;
 
   /**
    * Record the current state of the game: {Stones, turn, captures}
    * @param move Move: color, resigned & captured [not available for play by next Player]
    */
-  constructor(id: string, resigned: StoneColor) {
+  constructor(id: string, resigned: PlayerColor) {
     this.resigned = resigned
     this.id = id
   }
