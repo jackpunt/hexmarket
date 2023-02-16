@@ -21,7 +21,10 @@ export class GameSetup {
   paramGUIs: ParamGUI[]
   netGUI: ParamGUI // paramGUIs[2]
 
-  /** @param canvasId supply undefined for 'headless' Stage */
+  /**
+   * ngAfterViewInit --> start here!
+   * @param canvasId supply undefined for 'headless' Stage
+   */
   constructor(canvasId: string, ext?: string[]) {
     stime.fmt = "MM-DD kk:mm:ss.SSS"
     this.stage = makeStage(canvasId, false)
@@ -72,7 +75,7 @@ export class GameSetup {
     gamePlay.forEachPlayer(p => p.newGame(gamePlay))        // make Planner *after* table & gamePlay are setup
     if (this.stage.canvas) {
       let statsPanel = this.makeStatsPanel(gamePlay.gStats, table.scaleCont, statsx, statsy)
-      //table.statsPanel = statsPanel
+      table.statsPanel = statsPanel
       let guiy = statsPanel.y + statsPanel.ymax + statsPanel.lead * 2
       console.groupCollapsed('initParamGUI')
       this.paramGUIs = this.makeParamGUI(table, table.scaleCont, statsx, guiy) // modify TP.params...
@@ -80,12 +83,12 @@ export class GameSetup {
       // table.miniMap.mapCont.y = Math.max(gui.ymax, gui2.ymax) + gui.y + table.miniMap.wh.height / 2
       console.groupEnd()
     }
-    // table.startGame() // setNextPlayer()
+    table.startGame() // setNextPlayer()
     return gamePlay
   }
   makeStatsPanel(gStats: TableStats, parent: Container, x: number, y: number): StatsPanel {
     let panel = new StatsPanel(gStats) // a ReadOnly ParamGUI reading gStats [& pstat(color)]
-    // panel.makeParamSpec("nStones")     // implicit: opts = { chooser: StatChoice }
+    panel.makeParamSpec("nCoins")     // implicit: opts = { chooser: StatChoice }
     // panel.makeParamSpec("nInf")
     // panel.makeParamSpec("nAttacks")
     // panel.makeParamSpec("nThreats")

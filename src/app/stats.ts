@@ -6,6 +6,7 @@ import { Text } from "@thegraid/easeljs-module";
 import { Board, GamePlay } from "./game-play";
 import { Hex, Hex2, HexM } from "./hex";
 import { H } from "./hex-intfs";
+import { Player } from "./player";
 import { Table } from "./table";
 import { otherColor, PlayerColor, playerColor0, playerColor1, PlayerColorRecord, playerColorRecordF, playerColors, TP } from "./table-params";
 export type WINARY = [Board, PlayerColor, number, number]
@@ -14,8 +15,8 @@ export class PlayerStats {
   readonly dStones: number[] = [0];      // per-district (initialize district 0)
   readonly dMinControl: boolean[] = [];  // per-district true if minControl of district
   dMax: number = 0;      // max dStones in non-Central District
-  nStones: number = 0;   // total on board
-  nInf: number = 0;      // (= nStones*6 - edge effects - E/W-overlap)
+  nCoins: number = 0;    // total on board
+  nInf: number = 0;      // (= nCoins*6 - edge effects - E/W-overlap)
   hThreats: Hex[] = [];  // Hexes with opponent & 1 threat (possible attack)
   nThreats: number = 0;  // (Hex w/ inf && [op].stone) 'jeopardy' (hThreats.length)
   nAttacks: number = 0;  // (Hex w/ inf >= 2) 'unplayable by opponent'
@@ -29,17 +30,14 @@ export class PlayerStats {
 }
 
 export class GameStats {
-  readonly hexMap: HexM
-  readonly pStats: PlayerColorRecord<PlayerStats>
-  readonly inControl: PlayerColor[] = Array(TP.ftHexes(TP.mHexes)) // (nStones[color] - nStones[oc] >= TP.diffControl) -> [district]=color
   winVP: PlayerColor = undefined;
   get s0() { return this.score(playerColor0) }
   get s1() { return this.score(playerColor1) }
   get ds() { return this.score(playerColor0) - this.score(playerColor1) }
 
-  get n0() { return this.pStats[playerColor0].nStones }
-  get n1() { return this.pStats[playerColor1].nStones }
-  get dn() { return this.pStats[playerColor0].nStones - this.pStats[playerColor1].nStones }
+  get n0() { return this.pStats[playerColor0].nCoins }
+  get n1() { return this.pStats[playerColor1].nCoins }
+  get dn() { return this.pStats[playerColor0].nCoins - this.pStats[playerColor1].nCoins }
 
   winAny: PlayerColor = undefined;
   score(color: PlayerColor): number {
@@ -47,12 +45,10 @@ export class GameStats {
   }
 
   /** extract the useful bits for maintaining stats. */
-  constructor(hexMap: HexM,
-    pStats: Record<PlayerColor, PlayerStats> = playerColorRecordF(() => new PlayerStats()),
-    inControl: PlayerColor[] = Array(TP.ftHexes(TP.mHexes))) {
-    this.hexMap = hexMap
-    this.pStats = pStats
-    this.inControl = inControl
+  constructor(
+    public readonly hexMap: HexM,
+    public readonly pStats: Record<PlayerColor, PlayerStats> = playerColorRecordF(() => new PlayerStats()),
+    public readonly inControl: PlayerColor[] = Array(TP.ftHexes(TP.mHexes))) {
     this.setupStatVector()           // use default wVector
   }
 
@@ -73,7 +69,7 @@ export class GameStats {
     let hColor = hex.playerColor
     if (hColor !== undefined) {
       let district = hex.district, pstats = this.pStats[hColor]
-      pstats.nStones += 1
+      pstats.nCoins += 1
       let dStones = pstats.dStones[district] = (pstats.dStones[district] || 0) + 1
       if (district !== 0 && dStones > pstats.dMax) pstats.dMax = dStones
       for (let nHex of Object.values(hex.links)) {
@@ -99,7 +95,7 @@ export class GameStats {
   updateStats(board?: Board): [PlayerColor, WINARY] {
     this.zeroCounters()
     let distLen = this.inControl.length; // = TP.ftHexes(TP.mHexes) -  1
-    this.hexMap.forEachHex((hex) => this.incCounters(hex)) // set nStones, dStones, etc
+    this.hexMap.forEachHex((hex) => this.incCounters(hex)) // set nCoins, dStones, etc
     let winVP: PlayerColor
     // forEachDistrict(d => {})
     for (let d = 0; d < distLen; d++) {
@@ -134,14 +130,14 @@ export class GameStats {
     let distLen = this.inControl.length
     let dStonesM = new Array<number>(distLen).fill(1, 0, distLen)
     dStonesM[0] = 1.1
-    let scoreM = 1.3, dMaxM = 1, nStonesM = 1.1, nInfM = .3, nThreatsM = .2, nAttacksM = .5, nAdjM = .1
-    this.wVector = dStonesM.concat([scoreM, dMaxM, nStonesM, nInfM, nThreatsM, nAttacksM, nAdjM])
+    let scoreM = 1.3, dMaxM = 1, nCoinsM = 1.1, nInfM = .3, nThreatsM = .2, nAttacksM = .5, nAdjM = .1
+    this.wVector = dStonesM.concat([scoreM, dMaxM, nCoinsM, nInfM, nThreatsM, nAttacksM, nAdjM])
   }
   statVector(color: PlayerColor): number[] {
     let pstat = this.pStat(color)
     let score = this.score(color)
-    let { dStones, dMax, nStones, nInf, nThreats, nAttacks, nAdj } = pstat
-    return dStones.concat(score, dMax, nStones, nInf, nThreats, nAttacks, nAdj)
+    let { dStones, dMax, nCoins: nCoins, nInf, nThreats, nAttacks, nAdj } = pstat
+    return dStones.concat(score, dMax, nCoins, nInf, nThreats, nAttacks, nAdj)
   }
   mulVector(v0: number[], v1: number[]): number[] { // v0 = dotProd(v0, v1)
     for (let i in v0 ) v0[i] *= v1[i]
@@ -161,6 +157,7 @@ export class GameStats {
  */
 export class TableStats extends GameStats {
   // provide nextHex, hexMap.mapCont, statsPanel, miniMap
+  gamePlay: GamePlay;
   table: Table         // presence indicates a GUI environment: showControl, showBoardRep
   boardRep: Text       // display repeatCount
   dStonesText: Text[] = []
@@ -171,6 +168,7 @@ export class TableStats extends GameStats {
   // TableStats:
   constructor(gamePlay: GamePlay, table: Table) {
     super(gamePlay.hexMap)
+    this.gamePlay = gamePlay
     this.table = table
   }
 
@@ -193,17 +191,21 @@ export class TableStats extends GameStats {
    */
   override updateStats(board?: Board): [PlayerColor, WINARY] {
     const winAry = super.updateStats(board)
+    this.gamePlay.forEachPlayer(p => {
+      this.pStats[p.color].nCoins = p.coins
+    })
+
     const [win] = winAry
     if (!!this.table) {
       !!board && this.showBoardRep(board.repCount)
-      //this.table.statsPanel?.update()
-      this.showControl(this.table)
+      this.table.statsPanel?.update()
+      this.table.stage?.update()
     }
     if (win !== undefined) {
       let pc = win, pcr = TP.colorScheme[pc], pStats = this.pStat(pc)
       let opc = otherColor(pc), opcr = TP.colorScheme[opc], opStats = this.pStat(opc)
       if (board.resigned) this.showWin(pc, `${opcr} RESIGNS`)
-      else if (board.repCount == 3) this.showWin(pc, `STALEMATE (${pStats.nStones} -- ${opStats.nStones})`)
+      else if (board.repCount == 3) this.showWin(pc, `STALEMATE (${pStats.nCoins} -- ${opStats.nCoins})`)
       else this.showWin(pc, `${opcr} loses`)
     }
     return winAry
@@ -217,30 +219,7 @@ export class TableStats extends GameStats {
     this.table.showWinText(msg)
     return win
   }
-  /** show count Stones in each District (on miniMap) */
-  showControl(table: Table) {
-    this.table.winText.visible = this.table.winBack.visible = false
-    let hexMap = table.miniMap; hexMap[S.Aname] = 'miniMap'
-    hexMap?.forEachHex<Hex2>(hex => {
-      hex.clearColor()     // from mimi-map
-      let ic = this.inControl[hex.district]
-      if (ic !== undefined) {
-        hex.setColor(ic)
-      }
-      this.showDSText(hex)
-    })
-  }
-  setupDSText(table: Table) {
-    // setup dStoneText:
-    let nd = TP.ftHexes(TP.mHexes)
-    for (let district = 0; district< nd; district++){
-      let dsText = new Text(``, F.fontSpec(26)); // radius/2 ?
-      dsText.textAlign = 'center';
-      dsText.color = C.WHITE
-      dsText.rotation = -table.miniMap.mapCont.hexCont.parent.rotation
-      this.dStonesText[district] = dsText
-    }
-  }
+
   getDSText(hex: Hex2) {
     let district = hex.district, dsText = this.dStonesText[district]
     if (!dsText) {
@@ -270,8 +249,8 @@ export class TableStats extends GameStats {
   dStones: number[] = Array(7);       // per-district
   dMinControl: boolean[] = Array(7);  // per-district true if minControl of district
   dMax: number                        // max dStones in non-central district
-  nStones: number = 0;   // total on board
-  nInf: number = 0;      // (= nStones*6 - edge effects - E/W-underlap)
+  nCoins: number = 0;    // total on board
+  nInf: number = 0;      // (= nCoins*6 - edge effects - E/W-underlap)
   nThreats: number = 0;  // (Hex w/ inf && [op].stone)
   nAttacks: number = 0;  // (Hex w/ inf >= 2)
   inControl(d: PlayerColor)  { return this.gStats.inControl[this.plyr.color][d]; }
@@ -282,7 +261,7 @@ export class StatsPanel extends ParamGUI {
 
   gStats: TableStats
   bFields = ['score', 'sStat'] //
-  pFields = ['nStones', 'nInf', 'nThreats', 'nAttacks', 'dMax'] // 'dStones', 'dMinControl',
+  pFields = ['nCoins', 'nInf', 'nThreats', 'nAttacks', 'dMax'] // 'dStones', 'dMinControl',
   valueSpace = "                   "       // could be set in constructor...
 
   /**  StatsPanel.setValue() does nothing; StatsPanel.selectValue() -> setValueText(stat) */

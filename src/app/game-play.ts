@@ -5,6 +5,7 @@ import { Hex, Hex2, HexMap, HSC, IHex, S_Resign } from "./hex";
 import { H } from "./hex-intfs";
 import { Planner } from "./plan-proxy";
 import { Player } from "./player";
+import { GameStats, TableStats } from "./stats";
 import { LogWriter } from "./stream-writer";
 import { Table } from "./table";
 import { otherColor, PlayerColor, playerColors, TP } from "./table-params";
@@ -30,9 +31,11 @@ export class GamePlay0 {
   readonly hexMap: HexMap = new HexMap()
   readonly history   = []          // sequence of Move that bring board to its state
   readonly allBoards = new BoardRegister() // unlikely to be useful in this game *remove*
+  readonly gStats: GameStats       // 'readonly' (set once by clone constructor)
   readonly redoMoves = []
 
   constructor() {
+    this.gStats = new GameStats(this.hexMap) // AFTER allPlayers are defined so can set pStats
   }
 
   turnNumber: number = 0    // = history.lenth + 1 [by this.setNextPlayer]
@@ -64,8 +67,8 @@ export class GamePlayD extends GamePlay0 {
 export class GamePlay extends GamePlay0 {
   readonly table: Table
   readonly logWriter: LogWriter
+  declare readonly gStats: TableStats // https://github.com/TypeStrong/typedoc/issues/1597
   readonly allPlayers: Player[] = [];
-  readonly gStats;
 
   constructor(table: Table, public gameSetup: GameSetup) {
     super()            // hexMap, history, gStats...
@@ -84,6 +87,7 @@ export class GamePlay extends GamePlay0 {
     playerColors.forEach((color, ndx) => this.allPlayers[ndx] = new Player(ndx, color, table))
     // setTable(table)
     this.table = table
+    this.gStats = new TableStats(this, table) // upgrade to TableStats
     if (this.table.stage.canvas) this.bindKeys()
   }
   bindKeys() {
@@ -121,6 +125,7 @@ export class GamePlay extends GamePlay0 {
     // diagnostics:
     KeyBinder.keyBinder.setKey('x', { thisArg: this, func: () => {this.table.enableHexInspector(); }})
     KeyBinder.keyBinder.setKey('t', { thisArg: this, func: () => {this.table.toggleText(undefined, undefined); }})
+    KeyBinder.keyBinder.setKey('z', { thisArg: this, func: () => {this.gStats.updateStats(); }})
 
     KeyBinder.keyBinder.setKey('M-r', { thisArg: this, func: () => { this.gameSetup.netState = "ref" } })
     KeyBinder.keyBinder.setKey('M-J', { thisArg: this, func: () => { this.gameSetup.netState = "new" } })

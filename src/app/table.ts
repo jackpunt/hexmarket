@@ -6,6 +6,8 @@ import { HexEvent } from "./hex-event";
 import { H, XYWH } from "./hex-intfs";
 //import { TablePlanner } from "./planner";
 import { Player } from "./player";
+import { Ship } from "./ship";
+import { StatsPanel } from "./stats";
 //import { StatsPanel } from "./stats";
 import { otherColor, PlayerColor, playerColor0, playerColor1, PlayerColorRecord, playerColorRecord, playerColorRecordF, TP } from "./table-params";
 
@@ -15,43 +17,10 @@ class TablePlanner {
   constructor(gamePlay: GamePlay) {}
 }
 
-/**
- * Graphical representation of the 'color' of a Move onto the HexMap.
- *
- * can be repainted temporarily by 'shift', but that does not change the underlying color.
- */
-export class Stone extends Shape {
-  static radius: number = TP.hexRad
-  static height: number = Stone.radius*H.sqrt3/2
-  get radius() { return Stone.height -1 }
-  readonly color: PlayerColor;
-
-  /** Stone is a Shape with a PlayerColor */
-  constructor(color?: PlayerColor) {
-    super()
-    this.color = color
-    if (color) this.paint(color)
-    else this.visible = false
-  }
-  paint(color = this.color) {
-    this.paint1(TP.colorScheme[color])
-  }
-  paint2(color: string) {
-    this.paint1(color)
-    this.graphics.c().f(C.BLACK).dc(0, 0, this.radius/2) // put a hole in it!
-    this.updateCache("destination-out") // clear center of Stone!
-  }
-  paint1(color: string) {
-    let rad = this.radius
-    this.graphics.c().f(color).dc(0, 0, rad)
-    this.cache(-rad, -rad, 2*rad, 2*rad) // Stone
-  }
-}
-
 /** layout display components, setup callbacks to GamePlay */
 export class Table extends EventDispatcher  {
 
-  //statsPanel: StatsPanel;
+  statsPanel: StatsPanel;
   gamePlay: GamePlay;
   stage: Stage;
   scaleCont: Container
@@ -183,25 +152,6 @@ export class Table extends EventDispatcher  {
     bpanel.addChild(bs)
     return bpanel
   }
-  miniMap: HexMap;
-  makeMiniMap(parent: Container, x: number, y: number) {
-    let miniMap = this.miniMap = new HexMap(Stone.radius, true)
-    let mapCont = miniMap.mapCont
-    let rot = 7, rotC = (30-rot), rotH = (rot - 60)
-    if (TP.nHexes == 1) rotC = rotH = 0
-    miniMap.makeAllDistricts(TP.dbp)
-    let bgHex = new Shape()
-    bgHex.graphics.f(TP.bgColor).dp(0, 0, TP.hexRad*(2*TP.mHexes-1), 6, 0, 60)
-    mapCont.addChildAt(bgHex, 0)
-    mapCont.x = x; mapCont.y = y
-    mapCont.rotation = rotC
-    miniMap.forEachHex<Hex2>(h => {
-      h.distText.visible = h.rcText.visible = false;
-      h.cont.rotation = rotH; h.cont.scaleX = h.cont.scaleY = .985
-    })
-    parent.addChild(mapCont)
-    mapCont.visible = (TP.nHexes > 1)
-  }
 
   layoutTable(gamePlay: GamePlay) {
     this.gamePlay = gamePlay
@@ -249,7 +199,7 @@ export class Table extends EventDispatcher  {
 
   startGame() {
     // NextPlayer is BLACK, but gamePlay will set curPlayer = WHITE
-    this.gamePlay.setNextPlayer(this.gamePlay.allPlayers[0])   // make a placeable Stone for Player[0]
+    // this.gamePlay.setNextPlayer(this.gamePlay.allPlayers[0])   // make a placeable Stone for Player[0]
   }
   logCurPlayer(curPlayer: Player) {
     const history = this.gamePlay.history
@@ -337,20 +287,20 @@ export class Table extends EventDispatcher  {
     this.dragger.stopDrag()
   }
 
-  dragFunc(stone: Stone, ctx: DragInfo): void {
-    const hex: Hex2 | false = this.hexUnderObj(stone)
+  dragFunc(ship: Ship, ctx: DragInfo): void {
+    const hex: Hex2 | false = this.hexUnderObj(ship)
     const shiftKey = ctx.event.nativeEvent ? ctx.event.nativeEvent.shiftKey : false
-    const color = shiftKey ? otherColor(stone.color) : stone.color
+    const color = shiftKey ? otherColor(ship.color) : ship.color
     const nonTarget = (hexn: Hex) => { this.dropTarget = this.nextHex }
     if (ctx.first) {
       this.dragShift = false
       this.dropTarget = this.nextHex
       this.dragHex = this.nextHex   // indicate DRAG in progress
-      this.markAllSacrifice(stone.color, true)
+      this.markAllSacrifice(ship.color, true)
     }
     let remarkFromShift = false
     if (shiftKey != this.dragShift) {
-      stone.paint(shiftKey ? color : undefined) // otherColor or orig color
+      ship.paint(shiftKey ? color : undefined) // otherColor or orig color
       if (shiftKey) { this.unmarkAllSacrifice() } else { remarkFromShift = true }
     }
     if (shiftKey == this.dragShift && hex == this.dragHex) return    // nothing new

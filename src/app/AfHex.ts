@@ -3,7 +3,7 @@ import { Shape, Container } from "@thegraid/easeljs-module"
 import { HexDir, H } from "./hex-intfs"
 import { TP } from "./table-params"
 
-namespace AF {
+export namespace AF {
   export const A = 'a' // Arc (was C for circle...)
   export const T = 't'
   export const S = 's'
@@ -12,8 +12,9 @@ namespace AF {
   export const B = 'b'
   export const L = 'l'
   export const F = 'f'
-  export const color = { r: C.RED, g: C.GREEN, b: C.BLUE }
-  export const fill = { l: 'line', f: 'fill'}
+  // to get type Zcolor, we can't use: C.RED, C.GREEN, C.BLUE
+  export const zcolor = { r: 'RED', g: 'GREEN', b: 'BLUE' } as const
+  export const fill = { l: 'line', f: 'fill'} as const
 }
 const ATSa = [AF.A, AF.T, AF.S] as const
 type ATS = typeof ATSa[number];
@@ -24,11 +25,14 @@ type afColor = typeof RGBa[number];
 const LSa = [AF.L, AF.F] as const
 type afFill = typeof LSa[number];
 
+export type ZcolorKey = keyof typeof AF.zcolor;
+export type Zcolor = typeof AF.zcolor[ZcolorKey];
+
 /** a Mark (one of six) on the edge of Hex2 to indicate affinity */
 class AfMark extends Shape {
 
   drawAfMark(afType: ATS, afc: afColor, aff: afFill) {
-    let color = AF.color[afc]
+    let color: Zcolor = AF.zcolor[afc]
     let k = 8, wl = 2, y0 = TP.hexRad - k, wm = (TP.hexRad * .4), w2 = wm / 2;
     let arc0 = 0 * (Math.PI / 2), arclen = Math.PI
     let g = this.graphics

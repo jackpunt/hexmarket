@@ -1,6 +1,6 @@
 import { C } from "@thegraid/common-lib"
 import { BoolChoice, ChoiceItem, ChoiceStyle, Chooser, DropdownButton, DropdownChoice, DropdownItem, DropdownStyle, EditBox, KeyBinder, ParamItem, ParamLine, TextStyle } from "@thegraid/easeljs-lib"
-import { Stone } from "./table"
+import { Ship } from "./ship"
 import { playerColors } from "./table-params"
 
 /** no choice: a DropdownChoice with 1 mutable item that can be set by setValue(...) */
@@ -51,22 +51,22 @@ export class EBC extends Chooser {
 
 /** like StatsPanel: read-only output field */
 export class PidChoice extends NC {
-  readonly playerStone: Stone = new Stone()
-  paintStone(pid: number) {
-    let stone = this.playerStone
-    stone.paint(playerColors[pid])
-    stone.visible = true
-    if (!stone.parent) {
+  readonly playerShip: Ship = new Ship()
+  paintPid(pid: number) {
+    let ship = this.playerShip
+    ship.paint(playerColors[pid])
+    ship.visible = true
+    if (!ship.parent) {
       let line = this.parent as ParamLine
-      stone.scaleX = stone.scaleY = (line.height-2)/Stone.height/2
-      stone.x = stone.scaleY * Stone.height + 1
-      stone.y = line.height / 2
-      this.addChild(stone)
+      ship.scaleX = ship.scaleY = (line.height - 2) / ship.radius
+      ship.x = ship.scaleY * ship.radius * 2 + 1
+      ship.y = line.height / 2
+      this.addChild(ship)
     }
   }
   override setValue(value: any, item: ParamItem, target: object) {
     //target[item.fieldName] = item.value
-    this.paintStone(item ? item.value : "   ") // do NOT set any fieldName/value
+    this.paintPid(item ? item.value : "   ") // do NOT set any fieldName/value
     return false
   }
 }

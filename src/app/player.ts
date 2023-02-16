@@ -6,11 +6,13 @@ import { Table } from "./table"
 import { PlayerColor, TP } from "./table-params"
 
 export class Player {
+  static initialCoins = 400;
   name: string
   index: number; // serial number of Player
   color: PlayerColor
-  otherPlayer: Player
   table: Table
+  coins: number = Player.initialCoins;
+  otherPlayer: Player
   planner: IPlanner
   /** if true then invoke plannerMove */
   useRobo: boolean = false
@@ -26,7 +28,8 @@ export class Player {
     this.planner?.terminate()
     this.planner = undefined
   }
-  static remotePlayer = 1 // temporary, bringup-debug
+  static remotePlayer = 1 // temporary, bringup-debug: index of 'remotePlayer' (see below)
+  /** make newPlanner for this Player */
   newGame(gamePlay: GamePlay, url = TP.networkUrl) {
     this.planner?.terminate()
     // this.hgClient = (this.index == Player.remotePlayer) ? new HgClient(url, (hgClient) => {
