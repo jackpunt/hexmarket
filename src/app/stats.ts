@@ -53,9 +53,7 @@ export class GameStats {
   }
 
   adjDistrict(hex: Hex, color: PlayerColor) {
-    let inc = (hex.playerColor === color) ? +1 : -1
     let pstat = this.pStat(color)
-    pstat.dStones[hex.district] += inc
     pstat.dMax = Math.max(...pstat.dStones.slice(1))
   }
 
@@ -64,38 +62,11 @@ export class GameStats {
     this.inControl.fill(undefined, 0, distLen)
     playerColors.forEach((color) => this.pStats[color] = new PlayerStats())
   }
-  incCounters(hex: Hex) {
-    // count Stones of color (& in District)
-    let hColor = hex.playerColor
-    if (hColor !== undefined) {
-      let district = hex.district, pstats = this.pStats[hColor]
-      pstats.nCoins += 1
-      let dStones = pstats.dStones[district] = (pstats.dStones[district] || 0) + 1
-      if (district !== 0 && dStones > pstats.dMax) pstats.dMax = dStones
-      for (let nHex of Object.values(hex.links)) {
-        if (nHex.playerColor === hColor) this.pStats[hColor].nAdj++
-      }
-    }
-    // count influence, threats, & attacks
-    playerColors.forEach(pColor => {
-      let pstats = this.pStats[pColor]
-      if (hex.playerColor == pColor) return // do not count pColor influence on pColor Stones
-      let infColor = H.infDirs.filter(dn => hex.isInf(pColor,dn)).length
-      if (infColor > 0) {
-        pstats.nInf++
-        if (infColor > 1) pstats.nAttacks++
-        if (hColor !== undefined && hColor !== pColor) {
-          pstats.nThreats++
-          pstats.hThreats.push(hex)
-        }
-      }
-    })
-  }
+
   /** compute pstats, return PlayerColor of winner (or undefined) */
   updateStats(board?: Board): [PlayerColor, WINARY] {
     this.zeroCounters()
     let distLen = this.inControl.length; // = TP.ftHexes(TP.mHexes) -  1
-    this.hexMap.forEachHex((hex) => this.incCounters(hex)) // set nCoins, dStones, etc
     let winVP: PlayerColor
     // forEachDistrict(d => {})
     for (let d = 0; d < distLen; d++) {

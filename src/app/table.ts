@@ -198,7 +198,10 @@ export class Table extends EventDispatcher  {
   }
 
   startGame() {
-    // NextPlayer is BLACK, but gamePlay will set curPlayer = WHITE
+    // initialize Players & Ships & Commodities
+    this.gamePlay.forEachPlayer(p => {
+
+    })
     // this.gamePlay.setNextPlayer(this.gamePlay.allPlayers[0])   // make a placeable Stone for Player[0]
   }
   logCurPlayer(curPlayer: Player) {
@@ -221,13 +224,9 @@ export class Table extends EventDispatcher  {
     if (log) this.logCurPlayer(curPlayer)
     this.showRedoUndoCount()
     this.showNextStone(curPlayer);
-    this.markAllSacrifice(curPlayer.color)
     this.hexMap.update()
   }
   showNextStone(player: Player) {
-    let color = player.color
-    this.nextHex.clearColor()           // remove prior Stone from the game [thank you for your service]
-    this.nextHex.setColor(color)        // make a Stone to drag
     // ...
     this.hexMap.update()   // after showNextStone
   }
@@ -240,40 +239,6 @@ export class Table extends EventDispatcher  {
   get dropTarget() { return this._dropTarget}
   set dropTarget(hex: Hex2) { hex = (hex || this.nextHex); this._dropTarget = hex; this.hexMap.showMark(hex)}
 
-  /** would be 'captured' by dropTarget. (like: history[-1].captured) */
-  viewCaptured: Hex2[] = []
-  /** display captured mark on would be captured Hex(s) */
-  markViewCaptured(captured: Hex2[]) {
-    this.viewCaptured = captured
-  }
-  /** remove captured mark from would be captured Hex(s) */
-  unmarkViewCaptured() {
-    this.viewCaptured = []
-  }
-
-  allSacrifices: Set<Hex2> = new Set()
-  /**
-   * @param color shift-key overrides curPlayer.color
-   * @param show dragFunc sets 'true' to force show (overriding !showSac || !color)
-   */
-  markAllSacrifice(color: PlayerColor = this.gamePlay.curPlayer?.color, show = false) {
-    if (!this.showSac || !color) return
-    let capColor = H.sacColor1
-    this.hexMap.forEachHex((hex: Hex2) => {
-      if (hex.playerColor !== undefined) return
-      if (this.gamePlay.history[0]?.captured.includes(hex)) return
-      // ...
-    })
-  }
-  unmarkAllSacrifice() {
-    this.allSacrifices.clear()
-  }
-  set showInf(val) { (this.hexMap.mapCont.infCont.visible = val) ? this.markAllSacrifice() : this.unmarkAllSacrifice() }
-  get showInf() { return this.hexMap.mapCont.infCont.visible }
-  _showSac = true
-  get showSac() { return this._showSac }
-  set showSac(val: boolean) { (this._showSac = val) ? this.markAllSacrifice() : this.unmarkAllSacrifice() }
-
   dragShift = false // last shift state in dragFunc
   dragHex: Hex2 = undefined // last hex in dragFunc
   protoHex: Hex2 = undefined // hex showing protoMove influence & captures
@@ -282,7 +247,6 @@ export class Table extends EventDispatcher  {
   stopDragging(target: Hex2 = this.nextHex) {
     //console.log(stime(this, `.stopDragging: target=`), this.dragger.dragCont.getChildAt(0), {noMove, isDragging: this.isDragging()})
     if (!this.isDragging()) return
-    this.unmarkAllSacrifice()
     target && (this.dropTarget = target)
     this.dragger.stopDrag()
   }
@@ -296,19 +260,17 @@ export class Table extends EventDispatcher  {
       this.dragShift = false
       this.dropTarget = this.nextHex
       this.dragHex = this.nextHex   // indicate DRAG in progress
-      this.markAllSacrifice(ship.color, true)
     }
     let remarkFromShift = false
     if (shiftKey != this.dragShift) {
       ship.paint(shiftKey ? color : undefined) // otherColor or orig color
-      if (shiftKey) { this.unmarkAllSacrifice() } else { remarkFromShift = true }
+      if (shiftKey) {  } else { remarkFromShift = true }
     }
     if (shiftKey == this.dragShift && hex == this.dragHex) return    // nothing new
     this.dragShift = shiftKey
 
     // close previous dragHex:
     // if (this.protoHex) { this.gamePlay.undoProtoMove(); this.protoHex = undefined }
-    if (remarkFromShift) this.markAllSacrifice(color, true)
 
     this.dragHex = hex
     if (!hex || hex == this.nextHex) return nonTarget(hex)
@@ -351,7 +313,6 @@ export class Table extends EventDispatcher  {
   }
   /** All moves (GUI & player) feed through this: */
   moveStoneToHex(ihex: IHex, sc: PlayerColor) {
-    this.unmarkAllSacrifice()
     let hex = Hex.ofMap(ihex, this.hexMap)
     this.hexMap.showMark(hex)
     this.dispatchEvent(new HexEvent(S.add, hex, sc)) // -> GamePlay.playerMoveEvent(hex, sc)

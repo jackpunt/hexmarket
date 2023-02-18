@@ -1,6 +1,7 @@
 import { C } from "@thegraid/common-lib";
 import { Container, Shape } from "@thegraid/easeljs-module";
 import { AF, Zcolor } from "./AfHex";
+import { Hex } from "./hex";
 import { Player } from "./player";
 import { PlayerColor, TP } from "./table-params";
 
@@ -14,6 +15,9 @@ export class Ship extends Container {
 
   readonly outr = 8;
   shape: Shape = new Shape();
+
+  /** current location of this Ship. */
+  hex: Hex;
 
   zshape = null;
   zcolor: Zcolor = AF.zcolor[AF.B]

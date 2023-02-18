@@ -2,6 +2,7 @@ import { stime, S } from "@thegraid/common-lib"
 import { GamePlay } from "./game-play"
 import { IHex } from "./hex"
 import { IPlanner, newPlanner } from "./plan-proxy"
+import { Ship } from "./ship"
 import { Table } from "./table"
 import { PlayerColor, TP } from "./table-params"
 
@@ -12,6 +13,7 @@ export class Player {
   color: PlayerColor
   table: Table
   coins: number = Player.initialCoins;
+  ships: Ship[] = []
   otherPlayer: Player
   planner: IPlanner
   /** if true then invoke plannerMove */
@@ -23,6 +25,15 @@ export class Player {
     this.color = color
     this.table = table
     this.name = `Player${index}-${this.colorn}`
+  }
+  initShips() {
+    let ship0 = new Ship(this);  // initial default Ship (Freighter)
+    this.ships.push(ship0)
+
+  }
+  chooseShipHex(ship) {
+    let map = this.table.hexMap, cp = map.planet0;
+    cp
   }
   endGame(): void {
     this.planner?.terminate()
