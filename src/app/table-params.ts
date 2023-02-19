@@ -64,8 +64,9 @@ export class TP {
   static flashDwell: number = 500
   static flipDwell:  number = 200 // chooseStartPlayer dwell between each card flip
 
-  static bgColor: string = 'wheat'// C.BROWN
+  static bgColor: string = 'tan' //'wheat'// C.BROWN
   static borderColor: string = 'peru'//TP.bgColor; //'burlywood'
+
   static ghost: string = 'cgserver'   // game-setup.network()
   static gdomain: string = 'thegraid.com'
   static gport: number = 8447

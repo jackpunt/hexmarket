@@ -223,12 +223,7 @@ export class Table extends EventDispatcher  {
     let curPlayer = this.gamePlay.curPlayer // after gamePlay.setNextPlayer()
     if (log) this.logCurPlayer(curPlayer)
     this.showRedoUndoCount()
-    this.showNextStone(curPlayer);
     this.hexMap.update()
-  }
-  showNextStone(player: Player) {
-    // ...
-    this.hexMap.update()   // after showNextStone
   }
 
   hexUnderObj(dragObj: DisplayObject) {

@@ -13,7 +13,7 @@ export namespace AF {
   export const L = 'l'
   export const F = 'f'
   // to get type Zcolor, we can't use: C.RED, C.GREEN, C.BLUE
-  export const zcolor = { r: 'RED', g: 'GREEN', b: 'BLUE' } as const
+  export const zcolor = { r: 'RED', g: 'GREEN', b: 'ORANGE' } as const
   export const fill = { l: 'line', f: 'fill'} as const
 }
 const ATSa = [AF.A, AF.T, AF.S] as const
@@ -33,7 +33,8 @@ class AfMark extends Shape {
 
   drawAfMark(afType: ATS, afc: afColor, aff: afFill) {
     let color: Zcolor = AF.zcolor[afc]
-    let k = 8, wl = 2, y0 = TP.hexRad - k, wm = (TP.hexRad * .4), w2 = wm / 2;
+    let wm = (TP.hexRad * .4), w2 = wm / 2;
+    let k = -1, wl = 2, y0 = k + TP.hexRad * H.sqrt3 / 2, y1 = w2 * .87 - y0
     let arc0 = 0 * (Math.PI / 2), arclen = Math.PI
     let g = this.graphics
     // ss(wl) = setStrokeStyle(width, caps, joints, miterlimit, ignoreScale)
@@ -41,12 +42,12 @@ class AfMark extends Shape {
     if (aff == AF.L) { g.ss(wl).s(color) } else { g.f(color) }
     g.mt(-w2, 0 - y0);
     (afType == AF.A) ?
-      //g.at(0, w2 - y0, w2, 0 - y0, w2) : // one Arc
+      //g.at(0, y1, w2, 0 - y0, w2) : // one Arc
       g.arc(0, 0 - y0, w2, arc0, arc0 + arclen, false) :
       (afType == AF.T) ?
-        g.lt(0, w2 - y0).lt(w2, 0 - y0) : // two Lines
+        g.lt(0, y1).lt(w2, 0 - y0) : // two Lines
         (afType == AF.S) ?
-          g.lt(-w2, w2 - y0).lt(w2, w2 - y0).lt(w2, 0 - y0) : // three Lines
+          g.lt(-w2, y1).lt(w2, y1).lt(w2, 0 - y0) : // three Lines
           undefined;
           // endStroke() or endFill()
     if (aff == AF.L) { g.es() } else { g.ef() }

@@ -146,7 +146,7 @@ export class Hex2 extends Hex {
     this.distText.text = `${d}`
   }
   readonly radius: number;   // determines width & height
-  hexShape: Shape   // shown on this.cont: colored hexagon
+  hexShape: HexShape   // shown on this.cont: colored hexagon
   distColor: string // district color of hexShape (paintHexShape)
   distText: Text    // shown on this.cont
   rcText: Text      // shown on this.cont
@@ -247,8 +247,8 @@ export class Hex2 extends Hex {
   /** makes a colored hex, outlined with bgColor */
   paintHexShape(color: string, ns = new HexShape(), rad = this.radius): Shape {
     let tilt = H.dirRot['NE']
-    ns.graphics.s(TP.borderColor).dp(0, 0, rad+1, 6, 0, tilt)  // s = beginStroke(color) dp:drawPolyStar
-    ns.graphics.f(color).dp(0, 0, rad, 6, 0, tilt)             // f = beginFill(color)
+    //ns.graphics.s(TP.borderColor).dp(0, 0, rad+1, 6, 0, tilt)  // s = beginStroke(color) dp:drawPolyStar
+    ns.graphics.f(color).dp(0, 0, rad-1, 6, 0, tilt)             // f = beginFill(color)
     return ns
   }
 }
@@ -498,10 +498,10 @@ export class HexMap extends Array<Array<Hex>> implements HexM {
       hex.planet = Planet.planets[dist++]
       hex.setHexColor(color, dist)   // colorPlanets: district = 1..7
     }
-    placePlanet(H.C, C.BLUE, cHex)
+    placePlanet(H.C, 'lightblue', cHex)
     for (let ds of H.ewDirs) {
       let pHex = cHex.nextHex(ds, coff + 1) as Hex2;
-      placePlanet(ds, C.GREEN, pHex)
+      placePlanet(ds, 'lightgreen', pHex)
     }
   }
 
