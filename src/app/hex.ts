@@ -3,6 +3,7 @@ import { Container, DisplayObject, Graphics, Shape, Text } from "@thegraid/easel
 import { AfHex } from "./AfHex";
 import { GamePlay0 } from "./game-play";
 import { EwDir, H, HexAxis, HexDir, InfDir, NsDir } from "./hex-intfs";
+import { Planet } from "./planet";
 import { Ship } from "./ship";
 import { otherColor, PlayerColor, playerColor0, PlayerColorRecord, playerColorRecord, playerColorRecordF, playerColors, TP } from "./table-params";
 
@@ -31,7 +32,7 @@ class HexCont extends Container {
 
 /** Base Hex, has no connection to graphics.
  *
- * each Hex may contain a Planet or a Ship.
+ * each Hex may contain a Planet [and?] or a Ship.
  *
  * non-Planet Hex is unexplored or contains a AfHex.
  */
@@ -66,7 +67,13 @@ export class Hex {
     return [x, y, w, h]
   }
   readonly Aname: string
-  ship: Ship;
+  _planet: Planet;
+  get planet() { return this._planet; }
+  set planet(planet: Planet) { this._planet = planet; }
+
+  _ship: Ship;
+  get ship() { return this.ship; }
+  set ship(ship: Ship) { this._ship = ship; }
 
   /** reduce to serializable IHex (removes map, inf, links, etc) */
   get iHex(): IHex { return { Aname: this.Aname, row: this.row, col: this.col } }
@@ -145,6 +152,19 @@ export class Hex2 extends Hex {
   rcText: Text      // shown on this.cont
   stoneIdText: Text     // shown on this.map.markCont
 
+  override get planet() { return super.planet; }
+  override set planet(planet: Planet) {
+    if (this.planet !== undefined) this.cont.removeChild(this.planet)
+    super.planet = planet
+    if (this.planet !== undefined) this.cont.addChild(this.planet)
+  }
+
+  override get ship() { return super.ship; }
+  override set ship(ship: Ship) {
+    if (this.ship !== undefined) this.cont.removeChild(this.ship)
+    super.ship = ship
+    if (this.ship !== undefined) this.cont.addChild(this.ship)
+  }
   /** Hex2 cell with graphics; shown as a polyStar Shape of radius @ (XY=0,0) */
   constructor(map: HexMap, row: number, col: number, name?: string) {
     super(map, row, col, name);
@@ -465,22 +485,23 @@ export class HexMap extends Array<Array<Hex>> implements HexM {
     mapCont.hexCont.y = mapCont.markCont.y = mapCont.stoneCont.y = mapCont.infCont.y = -(hexRect.y + hexRect.height/2)
   }
 
-  get planet0() { return this.planets['C'] }
-  planets: Map<HexDir | 'C', Hex2> = new Map();
+  get planet0() { return this.hexPlanets['C'] } // Planet.planets[0]
+  hexPlanets: Map<HexDir | 'C', Hex2> = new Map();
   /** color center and 6 planets, dist = 1 ... 7 */  // TODO: random location (1-step)
   placePlanets(coff = TP.dbp) {
     let cr = Math.floor((this.maxRow + this.minRow) / 2), cc = Math.floor((this.minCol + this.maxCol) / 2);
     let cHex = this[cr][cc] as Hex2
     let dist = 0;
-    let colorPlanet = (key: HexDir | 'C', color: string, hex: Hex2) => {
-      this.planets.set(key, hex)
+    let placePlanet = (key: HexDir | 'C', color: string, hex: Hex2) => {
+      this.hexPlanets.set(key, hex)    // find planet in the given direction
       hex.rmAfHex()
-      hex.setHexColor(color, ++dist) // colorPlanets: 1..7
+      hex.planet = Planet.planets[dist++]
+      hex.setHexColor(color, dist)   // colorPlanets: district = 1..7
     }
-    colorPlanet(H.C, C.BLUE, cHex)
+    placePlanet(H.C, C.BLUE, cHex)
     for (let ds of H.ewDirs) {
       let pHex = cHex.nextHex(ds, coff + 1) as Hex2;
-      colorPlanet(ds, C.GREEN, pHex)
+      placePlanet(ds, C.GREEN, pHex)
     }
   }
 
