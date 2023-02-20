@@ -149,8 +149,8 @@ export class TableStats extends GameStats {
       repText = this.boardRep =  new Text('0', F.fontSpec(36), C.YELLOW)
       repText.textAlign = 'center'
       if (!!this.table) {
-        this.table.nextHex.cont.localToLocal(0, -46, this.table.hexMap.mapCont.stoneCont, repText)
-        this.table.hexMap.mapCont.stoneCont.addChild(repText)
+        this.table.nextHex.cont.localToLocal(0, -46, this.table.hexMap.mapCont.shipCont, repText)
+        this.table.hexMap.mapCont.shipCont.addChild(repText)
       }
     }
     repText.text = `${n}`

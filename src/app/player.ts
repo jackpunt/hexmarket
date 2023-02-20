@@ -1,6 +1,7 @@
 import { stime, S } from "@thegraid/common-lib"
 import { GamePlay } from "./game-play"
-import { IHex } from "./hex"
+import { Hex2, IHex } from "./hex"
+import { H } from "./hex-intfs"
 import { IPlanner, newPlanner } from "./plan-proxy"
 import { Ship } from "./ship"
 import { Table } from "./table"
@@ -29,11 +30,17 @@ export class Player {
   initShips() {
     let ship0 = new Ship(this);  // initial default Ship (Freighter)
     this.ships.push(ship0)
-
+    let shex = this.chooseShipHex(ship0)
+    while (shex.ship !== undefined) shex = this.chooseShipHex(ship0)
+    shex.ship = ship0
   }
-  chooseShipHex(ship) {
-    let map = this.table.hexMap, cp = map.planet0;
-    cp
+  /** place ship initially on a hex adjacent to planet0 */
+  chooseShipHex(ship: Ship) {
+    let map = this.table.hexMap, cphex = map.planet0
+    let dir = Math.floor(Math.random() * H.ewDirs.length);
+    let hex = cphex.nextHex(H.ewDirs[dir]) as Hex2;
+    console.log(stime(this, `.chooseShipHex: `), ship, hex)
+    return hex
   }
   endGame(): void {
     this.planner?.terminate()

@@ -23,10 +23,10 @@ export class Planet extends Container {
     public cons,
   ) {
     super()
-    let nameText = new Text(this.Aname, F.fontSpec(16))
-    nameText.textAlign = 'center'
-    nameText.y = - 8
     this.addChild(this.gShape)
+    let textSize = 16, nameText = new Text(this.Aname, F.fontSpec(textSize))
+    nameText.textAlign = 'center'
+    nameText.y = -textSize/2;
     this.addChild(nameText)
     this.paint()
   }

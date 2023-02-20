@@ -30,7 +30,7 @@ export class TP {
   static Black_White = playerColorRecord('BLACK', 'WHITE')
   static Blue_Red = playerColorRecord('BLUE', 'RED')
   static schemeNames = ['Black_White', 'Blue_Red']
-  static colorScheme = TP.Black_White
+  static colorScheme = TP.Blue_Red
   static numPlayers = 2;
   /** distance between planets */
   static dbp = 4; // nCows = nCols = 3*dbp+3

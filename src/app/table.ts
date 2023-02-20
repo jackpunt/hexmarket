@@ -88,10 +88,7 @@ export class Table extends EventDispatcher  {
     this.undoCont.addChild(qShape)
     this.dragger.makeDragable(qShape, this,
       // dragFunc:
-      (qShape: Shape, ctx: DragInfo) => {
-        let hex = this.hexUnderObj(qShape)
-        this.dropTarget = hex
-      },
+      (qShape: Shape, ctx: DragInfo) => { },
       // dropFunc:
       (qShape: Shape, ctx: DragInfo) => {
         toggle = false
@@ -111,7 +108,6 @@ export class Table extends EventDispatcher  {
     let toggleText = (evt: MouseEvent, vis?: boolean) => {
       if (!toggle) return (toggle = true, undefined) // skip one 'click' when pressup/dropfunc
       this.hexMap.forEachHex<Hex2>(hex => hex.showText(vis))
-      this.hexMap.mapCont.hexCont.updateCache()  // when toggleText: hexInspector
       this.hexMap.update()               // after toggleText & updateCache()
     }
     this.toggleText = toggleText         // define method --> closure (for KeyBinding)
@@ -157,7 +153,7 @@ export class Table extends EventDispatcher  {
     this.gamePlay = gamePlay
     let hexMap = this.hexMap = gamePlay.hexMap
 
-    hexMap.addToCont();               // addToMapCont; make Hex2
+    hexMap.addToMapCont();               // addToMapCont; make Hex2
     hexMap.makeAllDistricts(TP.dbp) // typically: ~4
 
     let mapCont = hexMap.mapCont, hexCont = mapCont.hexCont; // local reference
@@ -200,7 +196,20 @@ export class Table extends EventDispatcher  {
   startGame() {
     // initialize Players & Ships & Commodities
     this.gamePlay.forEachPlayer(p => {
-
+      p.initShips()
+      p.ships.forEach(ship => this.dragger.makeDragable(ship, this,
+        // dragFunc
+        (ship, ctx) => {
+        },
+        // dropFunc
+        (ship, ctx) => {
+          let hex = this.hexUnderObj(ship)
+          if (hex) {
+            ship.x = hex.x; ship.y = hex.y // return to regular location
+          }
+        })
+      )
+      this.hexMap.update()
     })
     // this.gamePlay.setNextPlayer(this.gamePlay.allPlayers[0])   // make a placeable Stone for Player[0]
   }

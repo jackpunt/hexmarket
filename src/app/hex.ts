@@ -72,7 +72,7 @@ export class Hex {
   set planet(planet: Planet) { this._planet = planet; }
 
   _ship: Ship;
-  get ship() { return this.ship; }
+  get ship() { return this._ship; }
   set ship(ship: Ship) { this._ship = ship; }
 
   /** reduce to serializable IHex (removes map, inf, links, etc) */
@@ -154,16 +154,24 @@ export class Hex2 extends Hex {
 
   override get planet() { return super.planet; }
   override set planet(planet: Planet) {
-    if (this.planet !== undefined) this.cont.removeChild(this.planet)
+    let cont: Container = this.map.mapCont.shipCont
+    if (this.planet !== undefined) cont.removeChild(this.planet)
     super.planet = planet
-    if (this.planet !== undefined) this.cont.addChild(this.planet)
+    if (planet !== undefined) {
+      planet.x = this.x; planet.y = this.y;
+      cont.addChild(planet)
+    }
   }
 
   override get ship() { return super.ship; }
   override set ship(ship: Ship) {
-    if (this.ship !== undefined) this.cont.removeChild(this.ship)
+    let cont: Container = this.map.mapCont.shipCont
+    if (this.ship !== undefined) cont.removeChild(this.ship)
     super.ship = ship
-    if (this.ship !== undefined) this.cont.addChild(this.ship)
+    if (ship !== undefined) {
+      ship.x = this.x; ship.y = this.y;
+      cont.addChild(ship)
+    }
   }
   /** Hex2 cell with graphics; shown as a polyStar Shape of radius @ (XY=0,0) */
   constructor(map: HexMap, row: number, col: number, name?: string) {
@@ -259,7 +267,7 @@ class HexShape extends Shape {
 }
 export class MapCont extends Container {
   hexCont: Container     // hex shapes on bottom stats: addChild(dsText), parent.rotation
-  stoneCont: Container   // Stone in middle      Hex2.setStoneId, setPlayerColor [localToLocla]
+  shipCont: Container   // Stone in middle      Hex2.setStoneId, setPlayerColor [localToLocla]
   markCont: Container    // showMark over Stones new CapMark [localToLocal]
   infCont: Container     // infMark on the top   Hex2.showInf
 }
@@ -345,26 +353,29 @@ export class HexMap extends Array<Array<Hex>> implements HexM {
     this.width = radius * 1.5
     this.skipHex = new Hex(this, -1, -1, S_Skip)
     this.resignHex = new Hex(this, -1, -2, S_Resign)
-    if (addToMapCont) this.addToCont()
+    if (addToMapCont) this.addToMapCont()
   }
 
-  addToCont(): this {
+  addToMapCont(): this {
     this.mark = this.makeMark(this.radius, this.radius/2.5)
     let mapCont = this.mapCont
     mapCont.hexCont = new Container()     // hex shapes on bottom
-    mapCont.stoneCont = new Container()   // Stone in middle
+    mapCont.shipCont = new Container()   // Stone in middle
     mapCont.markCont = new Container()    // showMark under Stones
     mapCont.infCont = new Container()     // infMark on the top
     // hexCont, stoneCont, markCont all x,y aligned
     mapCont.addChild(mapCont.hexCont); mapCont.hexCont[S.Aname] = "hexCont"
-    // mapCont.addChild(mapCont.stoneCont); mapCont.stoneCont[S.Aname] = "stoneCont"
+    mapCont.addChild(mapCont.shipCont); mapCont.shipCont[S.Aname] = "stoneCont"
     // mapCont.addChild(mapCont.markCont); mapCont.markCont[S.Aname] = "markCont"
     // mapCont.addChild(mapCont.infCont); mapCont.infCont[S.Aname] = "infCont"
     return this
   }
 
   /** ...stage.update() */
-  update() { this.mapCont.hexCont.parent?.stage.update()}
+  update() {
+    this.mapCont.hexCont.updateCache()  // when toggleText: hexInspector
+    this.mapCont.hexCont.parent?.stage.update()
+  }
 
   /** to build this HexMap: create Hex and link it to neighbors. */
   addHex(row: number, col: number, district: number ): Hex {
@@ -481,19 +492,19 @@ export class HexMap extends Array<Array<Hex>> implements HexM {
   centerOnContainer() {
     let mapCont = this.mapCont
     let hexRect = mapCont.hexCont.getBounds()
-    mapCont.hexCont.x = mapCont.markCont.x = mapCont.stoneCont.x = mapCont.infCont.x = -(hexRect.x + hexRect.width/2)
-    mapCont.hexCont.y = mapCont.markCont.y = mapCont.stoneCont.y = mapCont.infCont.y = -(hexRect.y + hexRect.height/2)
+    mapCont.hexCont.x = mapCont.markCont.x = mapCont.shipCont.x = mapCont.infCont.x = -(hexRect.x + hexRect.width/2)
+    mapCont.hexCont.y = mapCont.markCont.y = mapCont.shipCont.y = mapCont.infCont.y = -(hexRect.y + hexRect.height/2)
   }
 
-  get planet0() { return this.hexPlanets['C'] } // Planet.planets[0]
-  hexPlanets: Map<HexDir | 'C', Hex2> = new Map();
+  hexDirPlanets = new Map<HexDir | typeof H.C, Hex2>();
+  get planet0() { return this.hexDirPlanets.get(H.C) };
   /** color center and 6 planets, dist = 1 ... 7 */  // TODO: random location (1-step)
   placePlanets(coff = TP.dbp) {
     let cr = Math.floor((this.maxRow + this.minRow) / 2), cc = Math.floor((this.minCol + this.maxCol) / 2);
     let cHex = this[cr][cc] as Hex2
     let dist = 0;
-    let placePlanet = (key: HexDir | 'C', color: string, hex: Hex2) => {
-      this.hexPlanets.set(key, hex)    // find planet in the given direction
+    let placePlanet = (key: HexDir | typeof H.C, color: string, hex: Hex2) => {
+      this.hexDirPlanets.set(key, hex)    // find planet in the given direction
       hex.rmAfHex()
       hex.planet = Planet.planets[dist++]
       hex.setHexColor(color, dist)   // colorPlanets: district = 1..7

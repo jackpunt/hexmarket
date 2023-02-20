@@ -1,4 +1,4 @@
-import { C } from "@thegraid/common-lib";
+import { C, F } from "@thegraid/common-lib";
 import { Container, Shape, Text } from "@thegraid/easeljs-module";
 import { AF, Zcolor } from "./AfHex";
 import { Hex } from "./hex";
@@ -22,7 +22,7 @@ export class Ship extends Container {
   hex: Hex;
 
   zshape = null;
-  zcolor: Zcolor = AF.zcolor[AF.B]
+  zcolor: Zcolor = AF.zcolor[AF.G]
   zfill = AF.fill[AF.F]
 
   //initially: expect maxFuel = (10 + z0*5) = {15, 20, 25}
@@ -33,7 +33,10 @@ export class Ship extends Container {
   ) {
     super()
     this.addChild(this.gShape)
-    this.addChild(new Text(this.Aname))
+    let textSize = 16, nameText = new Text(this.Aname, F.fontSpec(textSize))
+    nameText.textAlign = 'center'
+    nameText.y = -textSize/2;
+    this.addChild(nameText)
     this.paint()  // TODO: makeDraggable/Dropable on hexMap
   }
 
