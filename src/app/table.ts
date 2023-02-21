@@ -258,7 +258,7 @@ export class Table extends EventDispatcher  {
   dragFunc(ship: Ship, ctx: DragInfo): void {
     const hex: Hex2 | false = this.hexUnderObj(ship)
     const shiftKey = ctx.event.nativeEvent ? ctx.event.nativeEvent.shiftKey : false
-    const color = shiftKey ? otherColor(ship.color) : ship.color
+    const color = ship.color
     const nonTarget = (hexn: Hex) => { this.dropTarget = this.nextHex }
     if (ctx.first) {
       this.dragShift = false

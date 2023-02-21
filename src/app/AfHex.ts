@@ -17,13 +17,13 @@ export namespace AF {
   export const fill = { l: 'line', f: 'fill'} as const
 }
 const ATSa = [AF.A, AF.T, AF.S] as const
-type ATS = typeof ATSa[number];
+export type ATS = typeof ATSa[number];
 
-const RGBa = [AF.R, AF.G, AF.B] as const
-type afColor = typeof RGBa[number];
+export const ZColor = [AF.R, AF.B, AF.G] as const
+export type AfColor = typeof ZColor[number];
 
-const LSa = [AF.L, AF.F] as const
-type afFill = typeof LSa[number];
+const LSa = [AF.F, AF.L] as const
+export type AfFill = typeof LSa[number];
 
 export type ZcolorKey = keyof typeof AF.zcolor;
 export type Zcolor = typeof AF.zcolor[ZcolorKey];
@@ -31,7 +31,7 @@ export type Zcolor = typeof AF.zcolor[ZcolorKey];
 /** a Mark (one of six) on the edge of Hex2 to indicate affinity */
 class AfMark extends Shape {
 
-  drawAfMark(afType: ATS, afc: afColor, aff: afFill) {
+  drawAfMark(afType: ATS, afc: AfColor, aff: AfFill) {
     let color: Zcolor = AF.zcolor[afc]
     let wm = (TP.hexRad * .4), w2 = wm / 2;
     let k = -1, wl = 2, y0 = k + TP.hexRad * H.sqrt3 / 2, y1 = w2 * .87 - y0
@@ -54,7 +54,7 @@ class AfMark extends Shape {
     return g
   }
   // draw in N orientation
-  constructor(shape: ATS, color: afColor, fill: afFill, ds: HexDir) {
+  constructor(shape: ATS, color: AfColor, fill: AfFill, ds: HexDir) {
     super()
     this.drawAfMark(shape, color, fill)
     this.mouseEnabled = false
@@ -66,7 +66,12 @@ class AfMark extends Shape {
 /** Container of AfMark Shapes */
 export class AfHex extends Container {
   /** return a cached Container with hex and AfMark[6] */
-  constructor(public aShapes: ATS[], public aColors: afColor[], public aFill: afFill[], public Aname = ``) {
+  constructor(
+    public aShapes: ATS[],
+    public aColors: AfColor[],
+    public aFill: AfFill[],
+    public Aname = ``
+  ) {
     super()
     for (let ndx in aShapes) {
       let ats = aShapes[ndx], afc = aColors[ndx], aff = aFill[ndx], ds = H.ewDirs[ndx]
@@ -74,7 +79,7 @@ export class AfHex extends Container {
       this.addChild(afm)
     }
     let w = TP.hexRad * H.sqrt3, h = TP.hexRad * 2 // see also: Hex2.cache()
-    this.cache(-w/2, -h/2, w, h)
+    this.cache(-w / 2, -h / 2, w, h)
   }
   override clone() {
     return new AfHex(this.aShapes, this.aColors, this.aFill, this.Aname)

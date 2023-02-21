@@ -68,7 +68,7 @@ export class GamePlay extends GamePlay0 {
   readonly table: Table
   readonly logWriter: LogWriter
   declare readonly gStats: TableStats // https://github.com/TypeStrong/typedoc/issues/1597
-  readonly allPlayers: Player[] = [];
+  get allPlayers() { return Player.allPlayers; }
 
   constructor(table: Table, public gameSetup: GameSetup) {
     super()            // hexMap, history, gStats...
@@ -84,7 +84,8 @@ export class GamePlay extends GamePlay0 {
     this.logWriter.writeLine(line0)
 
     // Create and Inject all the Players:
-    playerColors.forEach((color, ndx) => this.allPlayers[ndx] = new Player(ndx, color, table))
+    Player.allPlayers = [];
+    playerColors.forEach((color, ndx) => new Player(ndx, color, table))
     // setTable(table)
     this.table = table
     this.gStats = new TableStats(this, table) // upgrade to TableStats

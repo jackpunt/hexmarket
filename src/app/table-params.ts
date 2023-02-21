@@ -27,10 +27,11 @@ export class TP {
   static maxPlys = 5      // for robo-player lookahead
   static maxBreadth = 7   // for robo-player lookahead
   static nPerDist = 4     // samples per district
-  static Black_White = playerColorRecord('BLACK', 'WHITE')
-  static Blue_Red = playerColorRecord('BLUE', 'RED')
-  static schemeNames = ['Black_White', 'Blue_Red']
-  static colorScheme = TP.Blue_Red
+  static Black_White = playerColorRecord<'BLACK' | 'WHITE'>('BLACK', 'WHITE')
+  static Blue_Red = playerColorRecord<'BLUE' | 'RED'>('BLUE', 'RED')
+  static Red_Blue = playerColorRecord<'RED' | 'BLUE'>('RED', 'BLUE')
+  static schemeNames = ['Red_Blue']
+  static colorScheme = TP.Blue_Red // as AfColor !?
   static numPlayers = 2;
   /** distance between planets */
   static dbp = 4; // nCows = nCols = 3*dbp+3

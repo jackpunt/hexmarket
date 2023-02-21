@@ -98,6 +98,7 @@ export class Hex {
   readonly col: number
   /** Link to neighbor in each H.dirs direction [NE, E, SE, SW, W, NW] */
   readonly links: LINKS = {}
+  afhex: AfHex;
 
   /** colorScheme(playerColor)@rcs */
   toString(sc = this.ship?.player.color) {
@@ -124,6 +125,16 @@ export class Hex {
     let [tx, ty, tw] = this.xywh(), [hx, hy] = hex.xywh()
     let dx = tx-hx, dy = ty - hy
     return Math.sqrt(dx*dx + dy*dy)/tw // tw == H.sqrt3
+  }
+  addAfHex(affn = Math.floor(Math.random() * AfHex.allAfHex.length)) {
+    if (this.district !== undefined) return
+    let afhex2 = AfHex.allAfHex[affn].clone();
+    afhex2.rotation = 60 * Math.floor(Math.random() * 6); // degrees, not radians
+    this.afhex = afhex2;
+  }
+  /** remove AfHex from planet Hex */
+  rmAfHex() {
+    this.afhex = undefined;
   }
 
 }
@@ -204,20 +215,16 @@ export class Hex2 extends Hex {
     this.cont.addChild(this.distText)
     this.showText(true); // & this.cache()
   }
-  addAfHex(affn = Math.floor(Math.random() * AfHex.allAfHex.length)) {
-    if (this.district !== undefined) return
-    let afhex2 = AfHex.allAfHex[affn].clone();
-    afhex2.rotation = 60 * Math.floor(Math.random() * 6); // degrees, not radians
-    this.cont.addChild(afhex2)
+  override addAfHex(affn = Math.floor(Math.random() * AfHex.allAfHex.length)) {
+    super.addAfHex(affn)
+    this.cont.addChild(this.afhex)
     this.cache()
   }
   /** remove AfHex from planet Hex */
-  rmAfHex() {
-    let afh = this.cont.children.find(c => (c instanceof AfHex))
-    if (afh) {
-      this.cont.removeChild(afh)
-      this.cache()
-    }
+  override rmAfHex() {
+    this.cont.removeChild(this.afhex)
+    this.cache()
+    super.rmAfHex()
   }
   /** cache() or updateCache() */
   cache(initial = false) {
@@ -521,7 +528,7 @@ export class HexMap extends Array<Array<Hex>> implements HexM {
     let adjColor: string[] = [HexMap.distColor[0]] // colors not to use
     H.dirs.forEach(hd => {
       let nhex: Hex2 = hex
-      while (!!(nhex = nhex.links[hd])) {
+      while (!!(nhex = nhex.nextHex(hd) as Hex2)) {
         if (nhex.district != hex.district) { adjColor.push(nhex.distColor); return }
       }
     })

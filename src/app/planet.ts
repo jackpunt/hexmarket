@@ -3,13 +3,22 @@ import { Container, Shape, Text } from "@thegraid/easeljs-module";
 import { TP } from "./table-params";
 
 /** production/commodity */
-class PC {
-  static F1 = { max: 30, min: 10, lim: 20, color: 'yellow' }
-  static F2 = { max: 45, min: 15, lim: 16, color: 'green' }
-  static O1 = { max: 20, min: 10, lim: 32, color: 'orange' }
-  static O2 = { max: 30, min: 20, lim: 40, color: 'red' }
-  static L1 = { max: 50, min: 30, lim:  4, color: 'blue' }
-  static L2 = { max: 80, min: 40, lim:  4, color: 'purple' }
+export class PC {
+  constructor(
+    public readonly max: number,
+    public readonly min: number,
+    public readonly lim: number,
+    public readonly color: string,
+    public readonly rate: number = 1,
+  ) { }
+
+  static F1 = new PC(30, 10, 20, 'yellow');
+  static F2 = new PC(45, 15, 16, 'green' );
+  static O1 = new PC(20, 10, 32, 'orange');
+  static O2 = new PC(30, 20, 40, 'red'   );
+  static L1 = new PC(50, 30,  4, 'blue'  );
+  static L2 = new PC(80, 40,  4, 'purple');
+
 }
 export class Planet extends Container {
 

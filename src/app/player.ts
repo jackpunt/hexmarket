@@ -1,17 +1,20 @@
 import { stime, S } from "@thegraid/common-lib"
+import { AF, AfColor, ZColor } from "./AfHex"
 import { GamePlay } from "./game-play"
-import { Hex2, IHex } from "./hex"
+import { Hex, Hex2, IHex } from "./hex"
 import { H } from "./hex-intfs"
 import { IPlanner, newPlanner } from "./plan-proxy"
 import { Ship } from "./ship"
 import { Table } from "./table"
-import { PlayerColor, TP } from "./table-params"
+import { PlayerColor, playerColors, TP } from "./table-params"
 
 export class Player {
+  static allPlayers: Player[] = [];
   static initialCoins = 400;
   name: string
-  index: number; // serial number of Player
-  color: PlayerColor
+  index: number = 0; // index in playerColors & allPlayers
+  color: PlayerColor = playerColors[this.index]
+  get afColor() { return ZColor[this.index]; }
   table: Table
   coins: number = Player.initialCoins;
   ships: Ship[] = []
@@ -26,6 +29,7 @@ export class Player {
     this.color = color
     this.table = table
     this.name = `Player${index}-${this.colorn}`
+    Player.allPlayers[index] = this;
   }
   initShips() {
     let ship0 = new Ship(this);  // initial default Ship (Freighter)
