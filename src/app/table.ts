@@ -96,13 +96,7 @@ export class Table extends EventDispatcher  {
         qShape.x = 0; qShape.y = qY // return to regular location
         this.undoCont.addChild(qShape)
         if (!hex) return
-        let InfDisp = this.hexMap.mapCont.infCont.children.filter(obj => obj.x == hex.x && obj.y == hex.y)
-        let InfName = InfDisp.map(i => i[S.Aname])
         let info = hex; //{ hex, stone: hex.playerColor, InfName }
-        // info[`Inf[${playerColor0}]`] = hex.inf[playerColor0]
-        // info[`Inf[${playerColor1}]`] = hex.inf[playerColor1]
-        // info[`Infm[${playerColor0}]`] = hex.infm[playerColor0]
-        // info[`Infm[${playerColor1}]`] = hex.infm[playerColor1]
         console.log(`HexInspector:`, hex.Aname, info)
       })
     let toggleText = (evt: MouseEvent, vis?: boolean) => {
@@ -192,21 +186,22 @@ export class Table extends EventDispatcher  {
 
     this.on(S.add, this.gamePlay.playerMoveEvent, this.gamePlay)[S.Aname] = "playerMoveEvent"
   }
-
+  dragShip: Ship; // last ship to be dragged [debug]
   startGame() {
     // initialize Players & Ships & Commodities
     this.gamePlay.forEachPlayer(p => {
       p.initShips()
       p.ships.forEach(ship => this.dragger.makeDragable(ship, this,
         // dragFunc
-        (ship, ctx) => {
+        (ship: Ship, ctx) => {
+          this.dragShip = ship
+          let hex = this.hexUnderObj(ship)
+          ship.dragFunc(hex, ctx)
         },
         // dropFunc
-        (ship, ctx) => {
+        (ship: Ship, ctx) => {
           let hex = this.hexUnderObj(ship)
-          if (hex) {
-            ship.x = hex.x; ship.y = hex.y // return to regular location
-          }
+          ship.dropFunc(hex, ctx)
         })
       )
       this.hexMap.update()
@@ -255,55 +250,6 @@ export class Table extends EventDispatcher  {
     this.dragger.stopDrag()
   }
 
-  dragFunc(ship: Ship, ctx: DragInfo): void {
-    const hex: Hex2 | false = this.hexUnderObj(ship)
-    const shiftKey = ctx.event.nativeEvent ? ctx.event.nativeEvent.shiftKey : false
-    const color = ship.color
-    const nonTarget = (hexn: Hex) => { this.dropTarget = this.nextHex }
-    if (ctx.first) {
-      this.dragShift = false
-      this.dropTarget = this.nextHex
-      this.dragHex = this.nextHex   // indicate DRAG in progress
-    }
-    let remarkFromShift = false
-    if (shiftKey != this.dragShift) {
-      ship.paint(shiftKey ? color : undefined) // otherColor or orig color
-      if (shiftKey) {  } else { remarkFromShift = true }
-    }
-    if (shiftKey == this.dragShift && hex == this.dragHex) return    // nothing new
-    this.dragShift = shiftKey
-
-    // close previous dragHex:
-    // if (this.protoHex) { this.gamePlay.undoProtoMove(); this.protoHex = undefined }
-
-    this.dragHex = hex
-    if (!hex || hex == this.nextHex) return nonTarget(hex)
-    // if isLegalMove then leave protoMove on display:
-    // if (this.gamePlay.isMoveLegal(hex, color, false)[0]) this.protoHex = hex
-    // else return nonTarget(hex)
-
-    if (shiftKey) {
-      nonTarget(hex)
-      this.hexMap.showMark(hex)  // just showMark(hex)
-    } else {
-      this.dropTarget = hex  // dropTarget & showMark(hex)
-    }
-  }
-
-  /** when nextHex.stone is dropped
-   * @param stone will be === nextHex.stone
-   */
-  dropFunc(stone?: DisplayObject, ctx?: DragInfo) {
-    // stone.parent == hexMap.stoneCont; nextHex.stone == stone
-    this.dragHex = undefined       // indicate NO DRAG in progress
-
-    let target = this.dropTarget
-    stone.x = target.x
-    stone.y = target.y
-    if (target === this.nextHex) return
-    this.dragger.stopDragable(stone)
-    this.doTableMove(target.iHex) // TODO: migrate to doTableMove vs dispatchEVent
-  }
   _tablePlanner: TablePlanner
   get tablePlanner() {
     return this._tablePlanner ||

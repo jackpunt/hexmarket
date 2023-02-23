@@ -37,6 +37,7 @@ export class Player {
     let shex = this.chooseShipHex(ship0)
     while (shex.ship !== undefined) shex = this.chooseShipHex(ship0)
     shex.ship = ship0
+    ship0.hex = shex
   }
   /** place ship initially on a hex adjacent to planet0 */
   chooseShipHex(ship: Ship) {

@@ -1,11 +1,10 @@
-import { C, F, RC, S, stime } from "@thegraid/easeljs-lib";
-import { Container, DisplayObject, Graphics, Shape, Text } from "@thegraid/easeljs-module";
+import { C, F, RC, S } from "@thegraid/easeljs-lib";
+import { Container, DisplayObject, Point, Shape, Text } from "@thegraid/easeljs-module";
 import { AfHex } from "./AfHex";
-import { GamePlay0 } from "./game-play";
-import { EwDir, H, HexAxis, HexDir, InfDir, NsDir } from "./hex-intfs";
+import { EwDir, H, HexDir, InfDir, NsDir } from "./hex-intfs";
 import { Planet } from "./planet";
 import { Ship } from "./ship";
-import { otherColor, PlayerColor, playerColor0, PlayerColorRecord, playerColorRecord, playerColorRecordF, playerColors, TP } from "./table-params";
+import { PlayerColor, TP } from "./table-params";
 
 export const S_Resign = 'Hex@Resign'
 export const S_Skip = 'Hex@skip '
@@ -60,7 +59,7 @@ export class Hex {
     this.links = {}
   }
   /** (x,y): center of hex; (width,height) of hex; scaled by radius if supplied */
-  xywh(row = this.row, col = this.col, radius = 1) {
+  xywh(radius = 1, row = this.row, col = this.col) {
     let w = radius * H.sqrt3, h = radius * 1.5
     let x = w * col + w * Math.abs(row % 2) / 2
     let y = h * row
@@ -73,7 +72,7 @@ export class Hex {
 
   _ship: Ship;
   get ship() { return this._ship; }
-  set ship(ship: Ship) { this._ship = ship; }
+  set ship(ship: Ship) { this._ship = ship; ship.hex = this}
 
   /** reduce to serializable IHex (removes map, inf, links, etc) */
   get iHex(): IHex { return { Aname: this.Aname, row: this.row, col: this.col } }
@@ -120,16 +119,16 @@ export class Hex {
     while (!!(nhex = hex.links[ds])) { hex = nhex }
     return hex
   }
-  /** distance between Hexes: adjacent = 1 */
-  radialDist(hex: Hex): number {
-    let [tx, ty, tw] = this.xywh(), [hx, hy] = hex.xywh()
-    let dx = tx-hx, dy = ty - hy
-    return Math.sqrt(dx*dx + dy*dy)/tw // tw == H.sqrt3
-  }
+
   addAfHex(affn = Math.floor(Math.random() * AfHex.allAfHex.length)) {
     if (this.district !== undefined) return
     let afhex2 = AfHex.allAfHex[affn].clone();
-    afhex2.rotation = 60 * Math.floor(Math.random() * 6); // degrees, not radians
+    let spin = Math.floor(Math.random() * 6)
+    afhex2['spin'] = spin
+    afhex2.rotation = 60 * spin; // degrees, not radians
+    afhex2.aColors = AfHex.rotateAf(afhex2.aColors, spin)
+    afhex2.aShapes = AfHex.rotateAf(afhex2.aShapes, spin)
+    afhex2.aFill = AfHex.rotateAf(afhex2.aFill, spin)
     this.afhex = afhex2;
   }
   /** remove AfHex from planet Hex */
@@ -198,7 +197,7 @@ export class Hex2 extends Hex {
     this.stoneIdText.textAlign = 'center'; this.stoneIdText.regY = -20
 
     if (row === undefined || col === undefined) return // args not supplied: nextHex
-    let [x, y, w, h] = this.xywh(row, col, this.radius)
+    let [x, y, w, h] = this.xywh(this.radius)
     this.x += x
     this.y += y
     this.cont.setBounds(-w/2, -h/2, w, h)
@@ -266,6 +265,27 @@ export class Hex2 extends Hex {
     ns.graphics.f(color).dp(0, 0, rad-1, 6, 0, tilt)             // f = beginFill(color)
     return ns
   }
+
+  /** distance between Hexes: adjacent = 1 */
+  metricDist(hex: Hex): number {
+    let [tx, ty, tw] = this.xywh(), [hx, hy] = hex.xywh()
+    let dx = tx - hx, dy = ty - hy
+    return Math.sqrt(dx * dx + dy * dy) / tw // tw == H.sqrt3
+  }
+  /** location of corner between dir0 and dir1; in parent coordinates. */
+  cornerPoint(dir0: HexDir, dir1: HexDir) {
+    let d0 = H.dirRot[dir0], d1 = H.dirRot[dir1]
+    let a2 = (d0 + d1) / 2, h = this.radius
+    if (Math.abs(d0 - d1) > 180) a2 += 180
+    let a = a2 * this.degToRadians
+    return new Point(this.x + Math.sin(a) * h, this.y - Math.cos(a) * h)
+  }
+  readonly degToRadians = Math.PI/180;
+  /** location of edge point in dir; in parent coordinates. */
+  edgePoint(dir: HexDir) {
+    let a = H.dirRot[dir] * this.degToRadians, h = this.radius * H.sqrt3 / 2
+    return new Point(this.x + Math.sin(a) * h, this.y - Math.cos(a) * h)
+  }
 }
 
 /** the colored Shape the fills a Hex. */
@@ -276,7 +296,7 @@ export class MapCont extends Container {
   hexCont: Container     // hex shapes on bottom stats: addChild(dsText), parent.rotation
   shipCont: Container   // Stone in middle      Hex2.setStoneId, setPlayerColor [localToLocla]
   markCont: Container    // showMark over Stones new CapMark [localToLocal]
-  infCont: Container     // infMark on the top   Hex2.showInf
+  pathCont: Container     // infMark on the top   Hex2.showInf
 }
 
 export interface HexM {
@@ -369,12 +389,12 @@ export class HexMap extends Array<Array<Hex>> implements HexM {
     mapCont.hexCont = new Container()     // hex shapes on bottom
     mapCont.shipCont = new Container()   // Stone in middle
     mapCont.markCont = new Container()    // showMark under Stones
-    mapCont.infCont = new Container()     // infMark on the top
+    mapCont.pathCont = new Container()     // infMark on the top
     // hexCont, stoneCont, markCont all x,y aligned
     mapCont.addChild(mapCont.hexCont); mapCont.hexCont[S.Aname] = "hexCont"
-    mapCont.addChild(mapCont.shipCont); mapCont.shipCont[S.Aname] = "stoneCont"
-    // mapCont.addChild(mapCont.markCont); mapCont.markCont[S.Aname] = "markCont"
-    // mapCont.addChild(mapCont.infCont); mapCont.infCont[S.Aname] = "infCont"
+    mapCont.addChild(mapCont.pathCont); mapCont.pathCont[S.Aname] = "pathCont"
+    mapCont.addChild(mapCont.shipCont); mapCont.shipCont[S.Aname] = "shipCont"
+    mapCont.addChild(mapCont.markCont); mapCont.markCont[S.Aname] = "markCont"
     return this
   }
 
@@ -499,8 +519,8 @@ export class HexMap extends Array<Array<Hex>> implements HexM {
   centerOnContainer() {
     let mapCont = this.mapCont
     let hexRect = mapCont.hexCont.getBounds()
-    mapCont.hexCont.x = mapCont.markCont.x = mapCont.shipCont.x = mapCont.infCont.x = -(hexRect.x + hexRect.width/2)
-    mapCont.hexCont.y = mapCont.markCont.y = mapCont.shipCont.y = mapCont.infCont.y = -(hexRect.y + hexRect.height/2)
+    mapCont.hexCont.x = mapCont.markCont.x = mapCont.shipCont.x = mapCont.pathCont.x = -(hexRect.x + hexRect.width/2)
+    mapCont.hexCont.y = mapCont.markCont.y = mapCont.shipCont.y = mapCont.pathCont.y = -(hexRect.y + hexRect.height/2)
   }
 
   hexDirPlanets = new Map<HexDir | typeof H.C, Hex2>();

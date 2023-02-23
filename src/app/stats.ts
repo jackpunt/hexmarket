@@ -190,31 +190,6 @@ export class TableStats extends GameStats {
     this.table.showWinText(msg)
     return win
   }
-
-  getDSText(hex: Hex2) {
-    let district = hex.district, dsText = this.dStonesText[district]
-    if (!dsText) {
-      dsText = new Text(``, F.fontSpec(26)); // radius/2 ?
-      dsText.textAlign = 'center';
-      dsText.color = C.WHITE
-      dsText.rotation = - hex.map.mapCont.hexCont.parent.rotation
-      this.dStonesText[district] = dsText
-    }
-    return dsText
-  }
-  showDSText(hex: Hex2) {
-    let district = hex.district
-    let n0 = this.pStat(playerColor0).dStones[district]
-    let n1 = this.pStat(playerColor1).dStones[district]
-    let dsText = this.getDSText(hex)
-    hex.map.mapCont.infCont.addChild(dsText)
-    if (hex.cont.rotation == 0)
-      hex.cont.localToLocal(0, -12, hex.map.mapCont.infCont, dsText) // no rotation
-    else
-      hex.cont.localToLocal(7, -10, hex.map.mapCont.infCont, dsText) // rotation from (0,-12)
-    dsText.text = (n0 == 0 && n1 == 0) ? `` : `${n0}:${n1}`
-    //dsText.color = (hex.stone?.color === undefined || C.dist(TP.colorScheme[hex.stone.color], C.WHITE)<100) ? C.BLACK : C.WHITE
-  }
 }
 /**
   dStones: number[] = Array(7);       // per-district

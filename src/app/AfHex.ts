@@ -168,9 +168,12 @@ export class AfHex extends Container {
   }
 
   /** rotate elements of array by n positions. */
-  static rotateAf(str: any[], n = 1) {
-    let head = str.slice(0, n)
+  static rotateAf(str: any[], n = 1, cw = true) {
+    // abcdef: n=1 -> bcdefa; n=2 -> cdefab (CCW)
+    // abcdef: n=1 -> fabcde; n=2 -> efabcd (CW)
+    if (cw) n = str.length - n
     let tail = str.slice(n)
+    let head = str.slice(0, n)
     tail.push(...head)
     return tail
   }
