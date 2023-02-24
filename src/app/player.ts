@@ -35,8 +35,7 @@ export class Player {
     let ship0 = new Ship(this);  // initial default Ship (Freighter)
     this.ships.push(ship0)
     let shex = this.chooseShipHex(ship0)
-    while (shex.ship !== undefined) shex = this.chooseShipHex(ship0)
-    shex.ship = ship0
+    while (shex.occupied) shex = this.chooseShipHex(ship0)
     ship0.hex = shex
   }
   /** place ship initially on a hex adjacent to planet0 */

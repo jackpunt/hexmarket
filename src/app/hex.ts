@@ -72,7 +72,9 @@ export class Hex {
 
   _ship: Ship;
   get ship() { return this._ship; }
-  set ship(ship: Ship) { this._ship = ship; ship.hex = this}
+  set ship(ship: Ship) { this._ship = ship }
+
+  get occupied() { return this.ship || this.planet }
 
   /** reduce to serializable IHex (removes map, inf, links, etc) */
   get iHex(): IHex { return { Aname: this.Aname, row: this.row, col: this.col } }
@@ -80,7 +82,7 @@ export class Hex {
   get rcs(): string { return (this.row >= 0) ? `[${this.row},${this.col}]` : this.Aname.substring(4)}
   get rowsp() { return (this.row?.toString() || '-1').padStart(2) }
   get colsp() { return (this.col?.toString() || '-1').padStart(2) } // col== -1 ? S_Skip; -2 ? S_Resign
-  json(sc = this.ship?.player.color) { return `{"p":"${sc || 'u'}","r":${this.rowsp},"c":${this.colsp}}` }
+  // json(sc = this.ship?.player.color) { return `{"p":"${sc || 'u'}","r":${this.rowsp},"c":${this.colsp}}` }
   /** [row,col] OR S_Resign OR S_Skip */
   get rcsp(): string { return (this.row >= 0) ? `[${this.rowsp},${this.colsp}]` : this.Aname.substring(4).padEnd(7)}
   /** compute ONCE, *after* HexMap is populated with all the Hex! */
@@ -118,6 +120,13 @@ export class Hex {
     let hex: Hex = this, nhex: Hex
     while (!!(nhex = hex.links[ds])) { hex = nhex }
     return hex
+  }
+  /** distance between Hexes: adjacent = 1, based on row, col, sqrt3 */
+  radialDist(hex: Hex): number {
+    let unit = 1 / H.sqrt3 // so w = delta(col) = 1
+    let [tx, ty] = this.xywh(unit), [hx, hy] = hex.xywh(unit)
+    let dx = tx - hx, dy = ty - hy
+    return Math.sqrt(dx * dx + dy * dy);
   }
 
   addAfHex(affn = Math.floor(Math.random() * AfHex.allAfHex.length)) {
@@ -205,7 +214,7 @@ export class Hex2 extends Hex {
     let rc = `${row},${col}`, tdy = -25
     this.hexShape.name = this.Aname
 
-    let rct = this.rcText = new Text(rc, F.fontSpec(26)); // radius/2 ?
+    let rct = this.rcText = new Text(rc, F.fontSpec(26), 'white'); // radius/2 ?
     rct.textAlign = 'center'; rct.y = tdy // based on fontSize? & radius
     this.cont.addChild(rct)
 
@@ -293,10 +302,13 @@ class HexShape extends Shape {
 
 }
 export class MapCont extends Container {
+  constructor() {
+    super()
+  }
   hexCont: Container     // hex shapes on bottom stats: addChild(dsText), parent.rotation
-  shipCont: Container   // Stone in middle      Hex2.setStoneId, setPlayerColor [localToLocla]
+  pathCont: Container    // under ships to hide endpoints
+  shipCont: Container    // Ship/Planets
   markCont: Container    // showMark over Stones new CapMark [localToLocal]
-  pathCont: Container     // infMark on the top   Hex2.showInf
 }
 
 export interface HexM {
@@ -331,7 +343,7 @@ export class HexMap extends Array<Array<Hex>> implements HexM {
   /** Each occupied Hex, with the occupying PlayerColor  */
   readonly allStones: HSC[] = []                    // aka hexStones in Board (readonly when we stop remove/filter)
   readonly district: Array<Hex[]> = []
-  readonly mapCont: MapCont = new MapCont     // if using Hex2
+  readonly mapCont: MapCont = new MapCont()   // if using Hex2
   readonly skipHex: Hex;
   readonly resignHex: Hex;
   rcLinear(row: number, col: number): number { return col + row * (1 + (this.maxCol || 0) - (this.minCol||0)) }
@@ -505,7 +517,7 @@ export class HexMap extends Array<Array<Hex>> implements HexM {
    */
   hexUnderPoint(x: number, y: number): Hex2 {
     let obj = this.mapCont.hexCont.getObjectUnderPoint(x, y, 1) // 0=all, 1=mouse-enabled (Hex, not Stone)
-    return (obj instanceof HexCont) && obj.hex
+    return (obj instanceof HexCont) ? obj.hex : undefined
   }
   /**
    *

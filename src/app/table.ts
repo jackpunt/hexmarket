@@ -196,12 +196,12 @@ export class Table extends EventDispatcher  {
         (ship: Ship, ctx) => {
           this.dragShip = ship
           let hex = this.hexUnderObj(ship)
-          ship.dragFunc(hex, ctx)
+          if (hex) ship.dragFunc(hex, ctx)
         },
         // dropFunc
         (ship: Ship, ctx) => {
           let hex = this.hexUnderObj(ship)
-          ship.dropFunc(hex, ctx)
+          if (hex) ship.dropFunc(hex, ctx)
         })
       )
       this.hexMap.update()
