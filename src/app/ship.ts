@@ -95,6 +95,7 @@ export class Ship extends Container {
   /**
    * cost for change in config (shape, color, fill)
    * @param nconfig updated zconfig after spending re-configuration cost
+   * @return cost to re-config + curload + shipCost
    */
   configCost(hex0: Hex, ds: EwDir, hex1 = hex0.nextHex(ds), nconfig = { ...this.zconfig }) {
     if (!hex0.afhex || !hex1.afhex) return undefined
@@ -129,24 +130,24 @@ export class Ship extends Container {
    * @param tLimit stop searching if path length is tLimit longer than best path.
    */
   findPaths(targetHex: Hex, limit = 2) {
+    if (targetHex.occupied) return []    // includes: this.hex === targetHex
     let transitCost = 2.5 + this.shipCost + this.curload; // approximate 'worst-case' impedance of distance
-    let minMetric = targetHex.radialDist(this.hex) * transitCost
-    if (targetHex.occupied) return []
-    let paths: Step<Hex>[]
+    let minMetric = this.hex.radialDist(targetHex) * transitCost
+    let done: Step<Hex>[], closed: Step<Hex>[]
     do {
-      paths = this.findPathWithMetric(targetHex, limit, minMetric = minMetric + 5)
-    } while (paths.length == 0)
-    return paths
+      [done, closed] = this.findPathWithMetric(targetHex, limit, minMetric = minMetric + 5)
+    } while (done.length == 0)
+    return [done, closed]
   }
   findPathWithMetric(targetHex: Hex, limit, minMetric) {
-    let loop = (nStep: Step<Hex>) => {
+    let isLoop = (nStep: Step<Hex>) => {
       let nHex = nStep.curHex, pStep = nStep.prevStep
       while (pStep && pStep.curHex !== nHex) pStep = pStep.prevStep
       return pStep?.curHex === nHex
     }
     // BFS, doing rings (H.ewDirs) around the starting hex.
     let open: Step<Hex>[] = [], closed: Step<Hex>[] = [], done: Step<Hex>[] = []
-    let step = new Step(0, this.hex, undefined, undefined, this.zconfig, 0)
+    let step = new Step(0, this.hex, undefined, undefined, this.zconfig, 0, targetHex)
     let mins = minMetric.toFixed(1), Hex0 = this.hex.Aname, Hex1 = targetHex.Aname, hex0 = this.hex
     console.log(stime(this, `.findPaths`), { ship: this, mins, Hex0, Hex1, hex0, targetHex })
     open.push(step)
@@ -165,25 +166,26 @@ export class Ship extends Container {
           turn += 1
           nConfig.fuel = this.maxFuel - cost;
         }
-        let nStep = new Step(turn, nHex, dir, step, nConfig, cost)
-        if (closed.find(step.isMatchingElement, step)) continue    // already evaluated & expanded
-        if (open.find(step.isBetterElement, step) ) continue     // already a [better] path to nHex
+        let nStep = new Step(turn, nHex, dir, step, nConfig, cost, targetHex)
+        if (closed.find(nStep.isMatchingElement, nStep)) continue  // already evaluated & expanded
+        if (open.find(nStep.isExistingPath, nStep) ) continue     // already a [better] path to nHex
+        // assert: open contains only 1 path to any Step(Hex, config) that path has minimal metric
 
         let metric = nStep.metric
-        if (metric >= minMetric + limit) continue // abandon path: too expensive
+        if (metric > minMetric + limit) continue // abandon path: too expensive
         if (nHex == targetHex) {
+          if (done.length == 0) console.log(stime(this, `.findPathWithMetric: first done ${metric}`), nStep, )
           done.push(nStep)
           if (metric < minMetric) minMetric = metric
         } else {
-          if (loop(nStep)) continue; // abandon path: looping
-          nStep.radial = nHex.radialDist(targetHex)
+          if (isLoop(nStep)) continue; // abandon path: looping
           open.push(nStep); // save path, check back later
         }
       }
       closed.push(step)
-      open.sort((a, b) => a.radial - b.radial)
+      open.sort((a, b) => a.metricb - b.metricb)
     }
-    return done
+    return [done, closed]
   }
   pathMetric(step: Step<Hex>) {
     return step.toPath().map(([dir, hex, step]) => step.cost).reduce((pv, cv) => pv + cv, 0)
@@ -270,12 +272,12 @@ export class Ship extends Container {
   }
 
   showPath(hex: Hex2, cont = hex.map.mapCont.pathCont) {
-    let paths = this.findPaths(hex, 1), n = 0;
-    paths.sort((a,b) => a.metric - b.metric)
-    let mina = paths[0]?.metric || -1
-    let pathm = paths.map(p => { return { turn: p.turn, fuel: p.config.fuel, metric: this.pathMetric(p), p: p.toString(), s0: p } })
-    console.log(stime(this, `.showPath`), this.hex.Aname, this.targetHex.Aname, this.color, this.curload, mina, `paths:`, pathm)
-    for (let path of paths) {
+    let [done, closed] = this.findPaths(hex, 1), n = 0;
+    done.sort((a,b) => a.metric - b.metric)
+    let mina = done[0]?.metric || -1
+    let pathm = done.map(p => { return { turn: p.turn, fuel: p.config.fuel, metric: this.pathMetric(p), p: p.toString(), s0: p } })
+    console.log(stime(this, `.showPath`), this.hex.Aname, this.targetHex.Aname, this.color, this.curload, mina, closed.length, `paths:`, pathm)
+    for (let path of done) {
       let pcolor = this.pathColor(n, 1, path.metric == mina ? 20 : 30)
       let pshape = new Shape()
       this.drawPath(path as Step<Hex2>, pshape.graphics, pcolor, 2)
@@ -318,34 +320,34 @@ class Step<T extends Hex> {
     public dir: EwDir,
     public prevStep: Step<T>,
     public config: ZConfig,
-    public cost: number,
+    public cost: number,             // cost for this Step
+    targetHex: T,  // crow-fly distance to target from curHex
   ) {
-    this.metric = cost + (prevStep?.metric || 0)
+    this.metricb = this.metric + this.curHex.radialDist(targetHex)
   }
-  readonly metric: number;
-  radial: number  // crow-fly distance to target from curHex
+  /** Actual cost from original Hex to this Step */
+  readonly metric = this.cost + (this.prevStep?.metric || 0);
+  /** best-case metric from this(curHex & config) to targetHex, assume zero config cost */
+  readonly metricb: number;
 
+  /** used as predicate for find (ignore ndx & obj) */
   isMatchingElement(s: Step<T>, ndx?: number, obj?: Step<T>[]) {
-    return true &&
-      s.curHex === this.curHex &&
+    return s.curHex === this.curHex &&
       s.config.zcolor === this.config.zcolor &&
       s.config.zshape === this.config.zshape &&
-      s.config.zfill === this.config.zfill &&
-      true
+      s.config.zfill === this.config.zfill
   }
-  isBetterPath(s: Step<T>) {
-    return s.metric <= this.metric &&
-      s.curHex === this.curHex &&
-      s.config.zcolor === this.config.zcolor &&
-      s.config.zshape === this.config.zshape &&
-      s.config.zfill === this.config.zfill &&
-      true
-  }
-  /** if matching element, reject this or replace previous */
-  isBetterElement(s: Step<T>, ndx: number, obj: Step<T>[]) {
-    if (s.isBetterPath(this)) return true
-    if (this.isBetterPath(s)) { obj[ndx] = this; return true }
-    return false   // new hex & config
+
+  /**
+   * find (and possibly replace) best metric to this Step)
+   * if this is better than existing open Step, replace 's' with this */
+  isExistingPath(s: Step<T>, ndx: number, obj: Step<T>[]) {
+    if (!s.isMatchingElement(this)) return false
+    //if (this.metric == s.metric) return false  // try see parallel/equiv paths
+    if (this.metric < s.metric) {
+      obj[ndx] = this
+    }
+    return true
   }
 
   toPath() {
