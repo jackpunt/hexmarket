@@ -551,7 +551,10 @@ export class HexMap extends Array<Array<Hex>> implements HexM {
     placePlanet(H.C, 'lightblue', cHex)
     for (let ds of H.ewDirs) {
       let pHex = cHex.nextHex(ds, coff + 1) as Hex2;
-      placePlanet(ds, 'lightgreen', pHex)
+      // offset pHex in random direction (or not)
+      let odir = H.ewDirs[Math.floor(Math.random() * H.ewDirs.length)]
+      let oHex = (odir != H.dirRev[ds]) ? pHex.nextHex(odir, 1) as Hex2 : pHex;
+      placePlanet(ds, 'lightgreen', oHex)
     }
   }
 
