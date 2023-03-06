@@ -395,6 +395,7 @@ export class HexMap extends Array<Array<Hex>> implements HexM {
     if (addToMapCont) this.addToMapCont()
   }
 
+  /** create/attach Graphical components for HexMap */
   addToMapCont(): this {
     this.mark = this.makeMark(this.radius, this.radius/2.5)
     let mapCont = this.mapCont
@@ -404,8 +405,8 @@ export class HexMap extends Array<Array<Hex>> implements HexM {
     mapCont.pathCont = new Container()     // infMark on the top
     // hexCont, stoneCont, markCont all x,y aligned
     mapCont.addChild(mapCont.hexCont); mapCont.hexCont[S.Aname] = "hexCont"
-    mapCont.addChild(mapCont.pathCont); mapCont.pathCont[S.Aname] = "pathCont"
     mapCont.addChild(mapCont.shipCont); mapCont.shipCont[S.Aname] = "shipCont"
+    mapCont.addChild(mapCont.pathCont); mapCont.pathCont[S.Aname] = "pathCont"
     mapCont.addChild(mapCont.markCont); mapCont.markCont[S.Aname] = "markCont"
     return this
   }
@@ -416,7 +417,7 @@ export class HexMap extends Array<Array<Hex>> implements HexM {
     this.mapCont.hexCont.parent?.stage.update()
   }
 
-  /** to build this HexMap: create Hex and link it to neighbors. */
+  /** to build this HexMap: create Hex (or Hex2) and link it to neighbors. */
   addHex(row: number, col: number, district: number ): Hex {
     // If we have an on-screen Container, then use Hex2: (addToCont *before* makeAllDistricts)
     let hex = !!this.mapCont.hexCont ? new Hex2(this, row, col) : new Hex(this, row, col)
@@ -521,10 +522,11 @@ export class HexMap extends Array<Array<Hex>> implements HexM {
   }
   /**
    *
-   * @param dbp Distance Between Planets; determines size of main map meta-hex
+   * @param dbp Distance Between Planets; determines size of main map meta-hex (~4)
+   * @param dop Dsitance Outside Planets; extra hexes beyond planets (~2)
    */
-  makeAllDistricts(dbp = TP.dbp) {
-    this.makeDistrict(dbp + 4, 0, 1, 0); // 2 hexes on outer ring
+  makeAllDistricts(dbp = TP.dbp, dop = TP.dop) {
+    this.makeDistrict(dbp + 2 + dop, 0, 1, 0);    // dop hexes on outer ring; single meta-hex
     this.mapCont.hexCont && this.placePlanets();  // for initial testing: highlight planets
     this.mapCont.hexCont && this.centerOnContainer()
   }
@@ -553,7 +555,7 @@ export class HexMap extends Array<Array<Hex>> implements HexM {
       let pHex = cHex.nextHex(ds, coff + 1) as Hex2;
       // offset pHex in random direction (or not)
       let odir = H.ewDirs[Math.floor(Math.random() * H.ewDirs.length)]
-      let oHex = (odir != H.dirRev[ds]) ? pHex.nextHex(odir, 1) as Hex2 : pHex;
+      let oHex = TP.offP && (odir != H.dirRev[ds]) ? pHex.nextHex(odir, 1) as Hex2 : pHex;
       placePlanet(ds, 'lightgreen', oHex)
     }
   }

@@ -148,7 +148,7 @@ export class Table extends EventDispatcher  {
     let hexMap = this.hexMap = gamePlay.hexMap
 
     hexMap.addToMapCont();               // addToMapCont; make Hex2
-    hexMap.makeAllDistricts(TP.dbp) // typically: ~4
+    hexMap.makeAllDistricts();           // typically: (4,2)
 
     let mapCont = hexMap.mapCont, hexCont = mapCont.hexCont; // local reference
     this.scaleCont.addChild(mapCont)

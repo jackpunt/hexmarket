@@ -1,3 +1,4 @@
+import { stime } from "@thegraid/common-lib";
 import { HexMap } from "./hex";
 
 /** Local/Direct methods of Planner */
@@ -31,7 +32,7 @@ class mockPlanner implements IPlanner {
     throw new Error("Method not implemented.");
   }
   terminate(): void {
-    throw new Error("Method not implemented.");
+    console.log(stime(this, `.terminate: TBD`))
   }
 }
 export class Planner extends mockPlanner {

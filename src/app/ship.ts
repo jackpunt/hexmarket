@@ -15,11 +15,14 @@ type ZConfig = {
   fuel: number,
 }
 export class Ship extends Container {
+  /** intrinsic cost for each Step (0 or 1); start of turn pays 1 for null 'shape' */
   static step1 = 1
+  static maxZ = 2  // for now: {color + shape}
   static idCounter = 0
   static fuelPerStep = 0
 
   readonly outr = 8;
+  readonly radius = this.z0 * 10 + 2 + this.outr;
   gShape: Shape = new Shape();
   Aname: string = `S${Ship.idCounter++}`
 
@@ -30,31 +33,37 @@ export class Ship extends Container {
     if (this.hex !== undefined) this.hex.ship = undefined
     this._hex = hex
     hex.ship = this
+    this.pCont = hex.map.mapCont.pathCont
   }
+  pCont: Container
   cargo: Array<[PC, number]> = [[PC.F1, 5]];
 
   get curload() {
     return this.cargo.map(c => c[1]).reduce((n, p) => n + p, 0 )
   }
 
-  get maxLoad() { return this.maxFuel - this.z0 - Ship.step1 }
-  get radius() { return this.maxFuel + 2 + this.outr }
   get color() { return this.player?.afColor } // as AfColor!
   readonly colorValues = C.nameToRgba(AF.zcolor[this.color]); // with alpha component
-  readonly shipCost = Math.round((this.maxFuel - 10) / 5);
 
   /** current Z-configuration */
   zconfig: ZConfig = { zshape: null, zcolor: this.color, zfill: AF.F, fuel: 0 };
   get zshape() { return this.zconfig.zshape; }
   get zcolor() { return this.zconfig.zcolor; }
-  get zfill() { return this.zconfig.zfill }
-  get fuel() { return this.zconfig.fuel }
+  get zfill() { return this.zconfig.zfill; }
+  get fuel() { return this.zconfig.fuel; }
+  readonly maxFuel = [0, 20, 30, 40][this.z0];
+  readonly maxLoad = (this.maxFuel - this.z0 - Ship.step1) / Ship.maxZ; // calc maxLoad
 
   //initially: expect maxFuel = (10 + z0*5) = {15, 20, 25}
+  /**
+   *
+   * @param player
+   * @param z0 = basic impedance of ship (== this.size !!)
+   * @param size 1: scout, 2: freighter, 3: heavy
+   */
   constructor(
     public readonly player?: Player,
     public readonly z0 = 2,
-    public readonly maxFuel = 20,
   ) {
     super()
     this.addChild(this.gShape)
@@ -67,18 +76,21 @@ export class Ship extends Container {
     this.paint()  // TODO: makeDraggable/Dropable on hexMap
   }
 
+  /**
+   * show ship with current zcolor (from last transit config)
+   * @param pcolor AF.zcolor of inner ring ("player" color)
+   */
   paint(pcolor = this.player?.afColor) {
-    let pColor = AF.zcolor[pcolor]
-    this.paint1(undefined, pColor)  // TODO: define source/type of Zcolor
+    this.paint1(undefined, pcolor)  // TODO: define source/type of Zcolor
   }
 
   /** repaint with new Zcolor or TP.colorScheme */
-  paint1(zcolor: AfColor = this.zcolor, pColor?: string) {
-    let r2 = this.radius, r1 = this.maxFuel, g = this.gShape.graphics.c()
+  paint1(zcolor: AfColor = this.zcolor, pColor?: AfColor) {
+    let r2 = this.radius, r1 = r2 - this.outr, r0 = r1 - 2, g = this.gShape.graphics.c()
     if (pColor) {
       g.f(AF.zcolor[zcolor]).dc(0, 0, r2);
-      g.f(C.BLACK).dc(0, 0, r1 + 2)
-      g.f(pColor).dc(0, 0, r1)
+      g.f(C.BLACK).dc(0, 0, r1)
+      g.f(AF.zcolor[pColor]).dc(0, 0, r0)
     }
     this.cache(-r2, -r2, 2 * r2, 2 * r2); // Container of Shape & Text
   }
@@ -101,7 +113,7 @@ export class Ship extends Container {
     if (!hex0.afhex || !hex1.afhex) return undefined
     let od = H.ewDirs.findIndex(d => d == ds)
     let id = H.ewDirs.findIndex(d => d == H.dirRev[ds])
-    let dc = 0
+    let dc = 0    // number of config changes incured in transition from hex0 to hex1
     for (let x of this.zkeys) {
       let hex0Conf = hex0.afhex[this.azmap[x]][od]
       if (nconfig[x] !== hex0Conf) dc++
@@ -109,7 +121,7 @@ export class Ship extends Container {
       if (hex1Conf !== hex0Conf) dc++
       nconfig[x] = hex1Conf
     }
-    return dc + this.curload + this.shipCost;
+    return dc * (this.curload + this.z0) + Ship.step1;
   }
 
   /** move to hex, incur cost to fuel. */
@@ -130,12 +142,13 @@ export class Ship extends Container {
    * @param tLimit stop searching if path length is tLimit longer than best path.
    */
   findPaths(targetHex: Hex, limit = 2) {
-    if (targetHex.occupied) return []    // includes: this.hex === targetHex
-    let transitCost = 2.5 + this.shipCost + this.curload; // approximate 'worst-case' impedance of distance
+    if (targetHex.occupied) return [[], []]    // includes: this.hex === targetHex
+    let transitCost = Ship.maxZ * (this.z0 + this.curload) + Ship.step1; // approximate 'worst-case' impedance of distance
     let minMetric = this.hex.radialDist(targetHex) * transitCost
     let done: Step<Hex>[], closed: Step<Hex>[]
     do {
       [done, closed] = this.findPathWithMetric(targetHex, limit, minMetric = minMetric + 5)
+      if (targetHex !== this.targetHex) return [done, closed]
     } while (done.length == 0)
     return [done, closed]
   }
@@ -153,6 +166,7 @@ export class Ship extends Container {
     open.push(step)
     // loop through all [current/future] open nodes:
     while (step = open.shift()) {
+      if (targetHex !== this.targetHex) return [[], []] // ABORT Search
       // cycle turns until Step(s) reach targetHex
       // loop here so we can continue vs return; move each dir from prev step:
       for (let dir of H.ewDirs) {
@@ -162,8 +176,9 @@ export class Ship extends Container {
         if (cost === undefined) continue; // off-map or planet or occupied?
         let turn = step.turn
         nConfig.fuel = nConfig.fuel - cost
-        if (nConfig.fuel < 0) {
+        if (nConfig.fuel < 0) {   // Oops: we need to refuel before this Step!
           turn += 1
+          nConfig.zshape = null;  // shape resets each turn
           nConfig.fuel = this.maxFuel - cost;
         }
         let nStep = new Step(turn, nHex, dir, step, nConfig, cost, targetHex)
@@ -202,9 +217,15 @@ export class Ship extends Container {
    * @param cl color of line
    * @param wl width of line
    */
-  drawPath(fStep: Step<Hex2>, g: Graphics, cl: string, wl = 2) {
+  drawPath(fStep: Step<Hex2>, cont: Container, cl: string, wl = 2) {
     // setStrokeStyle().beginStroke(color).moveto(center).lineto(edge=hex0,dir)
     // [arcto(hex1,~dir)]*, lineto(center), endStroke
+    let pShape = new Shape(), g = pShape.graphics
+    let showTurn = (hex, turn, c = cl) => {
+      let tn = new Text(turn.toFixed(0), F.fontSpec(12), c)
+        tn.x = hex.x - 3; tn.y = hex.y - 39
+        cont.addChildAt(tn, 0) // turn number on hexN
+    }
     let path = fStep.toPath();  // Path: [dir, hex] in proper order
     let [, hex0] = path[0]
     let [dir0, ] = path[1]      // direction of FIRST step
@@ -213,6 +234,7 @@ export class Ship extends Container {
 
     // all the intermediate steps of the path: coming in on pdir, out on ndir
     path.slice(1, - 1).forEach(([pdir, hexN, step], index) => {
+      if (step.turn !== step.prevStep.turn) showTurn(hexN, step.turn)
       // step into & across hexN
       let [ndir] = path[index + 2] // exit direction
       ep = hexN.edgePoint(ndir)
@@ -222,9 +244,11 @@ export class Ship extends Container {
         g.at(hexN.x, hexN.y, ep.x, ep.y, hexN.radius/2) // arcTo
       }
     })
-    let [, hexZ] = path[path.length - 1]
+    let [, hexZ, step] = path[path.length - 1]
+    if (step.turn !== step.prevStep.turn) showTurn(hexZ, step.turn)
     g.lt(hexZ.x, hexZ.y)        // draw line (final step)
     g.es()
+    return pShape
   }
 
   pathColor(n: number = 0, alpha?: number | string, decr = 20) {
@@ -247,18 +271,20 @@ export class Ship extends Container {
       this.originHex = this.hex as Hex2
       this.lastShift = undefined
     }
+    if (hex == this.originHex) {
+      this.targetHex = hex
+      this.pCont.removeAllChildren()
+    }
     if (!hex || hex.occupied) return; // do not move over non-existant or occupied hex
     const shiftKey = ctx?.event?.nativeEvent?.shiftKey
     if (shiftKey === this.lastShift && !ctx?.first && this.targetHex === hex) return;   // nothing new (unless/until ShiftKey)
     this.lastShift = shiftKey
-    let cont = hex.map.mapCont.pathCont
-    if (this.targetHex !== hex) cont.removeAllChildren()
+    if (this.targetHex !== hex) this.pCont.removeAllChildren()
     this.targetHex = hex;
     if (hex === this.hex) return; // no path to originating hex
+    if (!shiftKey) return         // no path requested
     this.drawDirect2(hex).then(() => {
-      if (!shiftKey) return         // no path requested
-      this.originHex = this.hex as Hex2;
-      this.showPath(hex, cont)
+      this.showPath(hex, this.pCont)
     })
   }
   async drawDirect2(hex: Hex2, cont = hex.map.mapCont.pathCont) {
@@ -270,31 +296,33 @@ export class Ship extends Container {
       setTimeout(() => { resolve() }, 1);
     });
   }
-
-  showPath(hex: Hex2, cont = hex.map.mapCont.pathCont) {
-    let [done, closed] = this.findPaths(hex, 1), n = 0;
+  path0: Step<Hex>
+  showPath(targetHex: Hex2, cont = targetHex.map.mapCont.pathCont) {
+    let [done, closed] = this.findPaths(targetHex, 1)
+    if (targetHex !== this.targetHex) return // without changing display! [if target has moved]
     done.sort((a,b) => a.metric - b.metric)
-    let mina = done[0]?.metric || -1
+    let mina = done[0]?.metric || -1, n = 0;
     let pathm = done.map(p => { return { turn: p.turn, fuel: p.config.fuel, metric: this.pathMetric(p), p: p.toString(), s0: p } })
     console.log(stime(this, `.showPath`), this.hex.Aname, this.targetHex.Aname, this.color, this.curload, mina, closed.length, `paths:`, pathm)
+    this.path0 = done[0]
     for (let path of done) {
       let pcolor = this.pathColor(n, 1, path.metric == mina ? 20 : 30)
-      let pshape = new Shape()
-      this.drawPath(path as Step<Hex2>, pshape.graphics, pcolor, 2)
+      let pshape = this.drawPath(path as Step<Hex2>, cont, pcolor, 2)
       pshape.x += n * (-1 + 2 * Math.random()); pshape.y -= n * (-1 + 2 * Math.random())
       cont.addChildAt(pshape, 0) // push under the better paths
       n += 1;
     }
-    hex.map.update();
+    targetHex.map.update();
   }
 
   dropFunc(hex: Hex2, ctx: DragInfo) {
-    if (!!this.targetHex) {
-      this.hex = this.targetHex
-    }
-    let cont = hex.map.mapCont.pathCont
+    // TODO: move ship to hex --> do each Step, pay Fuel, change zconfig
+    this.zconfig = { ... this.path0.config, zshape: null, fuel: this.maxFuel }
+    this.paint()
+    //
+    this.hex = this.targetHex || hex
     const shiftKey = ctx?.event?.nativeEvent?.shiftKey
-    if (!shiftKey) cont.removeAllChildren();
+    if (!shiftKey) this.pCont.removeAllChildren();
     this.lastShift = undefined
   }
 
@@ -305,6 +333,7 @@ export class Ship extends Container {
   }
   dragAgain() {
     let targetHex = this.targetHex;
+    this.pCont.removeAllChildren()
     this.dragBack()
     this.dragFunc(this.hex as Hex2, undefined); // targetHex = this; removeChildren
     this.showPath(this.targetHex = targetHex);
@@ -360,6 +389,6 @@ class Step<T extends Hex> {
   }
 
   toString() {
-    return this.toPath().map(([dir, hex, step]) => `${dir||'0'}->${hex.Aname}$${step.cost}`).toString()
+    return this.toPath().map(([dir, hex, step]) => `${dir||'0'}->${hex.Aname}$${step.cost}#${step.turn}`).toString()
   }
 }

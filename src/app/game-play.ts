@@ -55,10 +55,10 @@ export class GamePlay0 {
 /** GamePlayD has compatible hexMap(mh, nh) but does not share components. used by Planner */
 export class GamePlayD extends GamePlay0 {
   //override hexMap: HexMaps = new HexMap();
-  constructor(dbp: number) {
+  constructor(dbp: number = TP.dbp, dop: number = TP.dop) {
     super()
     this.hexMap[S.Aname] = `GamePlayD#${this.id}`
-    this.hexMap.makeAllDistricts(dbp)
+    this.hexMap.makeAllDistricts(dbp, dop)
     return
   }
 }

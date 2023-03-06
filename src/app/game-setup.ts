@@ -1,9 +1,12 @@
+import { ParamMap } from "@angular/router";
 import { C, CycleChoice, DropdownStyle, makeStage, ParamGUI, ParamItem, S, stime } from "@thegraid/easeljs-lib";
 import { Container, Stage } from "@thegraid/easeljs-module";
 import { AfHex } from "./AfHex";
 import { BC, EBC, PidChoice } from "./choosers";
 import { GamePlay } from "./game-play";
 import { Hex2, HexMap } from "./hex";
+import { PC } from "./planet";
+import { Player } from "./player";
 import { StatsPanel, TableStats } from "./stats";
 import { Table } from "./table";
 import { TP } from "./table-params";
@@ -40,7 +43,7 @@ export class GameSetup {
   set playerId(val: string) { this.netGUI?.selectValue("PlayerId", val || "     ") }
 
   /** C-s ==> kill game, start a new one, possibly with new dbp */
-  restart(dbp = TP.dbp) {
+  restart(dbp = TP.dbp, dop = TP.dop) {
     let netState = this.netState
     // this.gamePlay.closeNetwork('restart')
     // this.gamePlay.logWriter?.closeFile()
@@ -53,7 +56,7 @@ export class GameSetup {
       cont.removeAllChildren()
     }
     deContainer(this.stage)
-    TP.fnHexes(dbp)
+    TP.fnHexes(dbp, dop)
     let rv = this.startup()
     this.netState = " "      // onChange->noop; change to new/join/ref will trigger onChange(val)
     // next tick, new thread...
@@ -86,6 +89,7 @@ export class GameSetup {
     table.startGame() // setNextPlayer()
     return gamePlay
   }
+  /** reporting stats. values also used by AI Player. */
   makeStatsPanel(gStats: TableStats, parent: Container, x: number, y: number): StatsPanel {
     let panel = new StatsPanel(gStats) // a ReadOnly ParamGUI reading gStats [& pstat(color)]
     panel.makeParamSpec("nCoins")     // implicit: opts = { chooser: StatChoice }
@@ -93,8 +97,8 @@ export class GameSetup {
     // panel.makeParamSpec("nAttacks")
     // panel.makeParamSpec("nThreats")
     // panel.makeParamSpec("dMax")
-    // panel.makeParamSpec("score", [], {name: `score: ${TP.nVictory}`})
-    // panel.makeParamSpec("sStat", [1])
+    panel.makeParamSpec("score", [], {name: `score: ${TP.nVictory}`})
+    panel.makeParamSpec("sStat", [1])
 
     parent.addChild(panel)
     panel.x = x
@@ -103,50 +107,53 @@ export class GameSetup {
     panel.stage.update()
     return panel
   }
+  /** affects the rules of the game & board
+   *
+   * ParamGUI   --> board & rules [under stats panel]
+   * ParamGUI2  --> AI Player     [left of ParamGUI]
+   * NetworkGUI --> network       [below ParamGUI2]
+   */
   makeParamGUI(table: Table, parent: Container, x: number, y: number) {
     let restart = false, infName = "inf:sac"
     const gui = new ParamGUI(TP, { textAlign: 'right'})
     const schemeAry = TP.schemeNames.map(n => { return { text: n, value: TP[n] } })
-    // let mHex = (mh: number, nh: number) => { restart && this.restart.call(this, mh, nh) }
-    // let nHex = (mh: number, nh: number) => { restart && this.restart.call(this, nh>3?Math.min(mh,3):nh>1?Math.min(mh,4):mh, nh) }
-    // gui.makeParamSpec("mHexes", [2, 3, 4, 5, 6, 7, 8, 9, 10], { fontColor: "green" }) // TODO: limit nHexes for mH > 4
-    // gui.makeParamSpec("nHexes", [1, 2, 3, 4, 5, 6], { fontColor: "green" })
-    // gui.makeParamSpec(infName, ['1:1', '1:0', '0:1', '0:0'], { name: infName, target: table, fontColor: 'green' })
-    gui.makeParamSpec("maxPlys", [1, 2, 3, 4, 5, 6, 7, 8], { fontColor: "blue" }); TP.maxPlys
-    gui.makeParamSpec("maxBreadth", [5, 6, 7, 8, 9, 10], { fontColor: "blue" }); TP.maxBreadth
-    // gui.makeParamSpec("nPerDist", [2, 3, 4, 5, 6, 8, 11, 15, 19], { fontColor: "blue" }); TP.nPerDist
-    // gui.makeParamSpec("allowSacrifice", [true, false], { chooser: BC }); TP.allowSacrifice
+    let setSize = (dpb: number, dop: number) => { restart && this.restart.call(this, dpb, dop) }
+    gui.makeParamSpec("dbp", [3, 4, 5, 6], { fontColor: "green" })
+    gui.makeParamSpec("dop", [0, 1, 2, 3], { fontColor: "green" })
+    gui.makeParamSpec("offP", [true, false], { fontColor: "green" })
+    gui.makeParamSpec("load", [0, 5, 10, 15, 20], { fontColor: "green" })
     gui.makeParamSpec("colorScheme", schemeAry, { chooser: CycleChoice, style: { textAlign: 'center' } })
-    // let infSpec = gui.spec(infName); table[infSpec.fieldName] = infSpec.choices[0].text
-    // infSpec.onChange = (item: ParamItem) => {
-    //   let v = item.value as string
-    //   table.showInf = v.startsWith('1')
-    //   table.showSac = v.endsWith('1')
-    // }
-    // gui.spec("mHexes").onChange = (item: ParamItem) => { mHex(item.value, TP.nHexes) }
-    // gui.spec("nHexes").onChange = (item: ParamItem) => { nHex(TP.mHexes, item.value) }
+
+    gui.spec("dbp").onChange = (item: ParamItem) => { setSize(item.value, TP.dop) }
+    gui.spec("dop").onChange = (item: ParamItem) => { setSize(TP.dbp, item.value) }
+    gui.spec("offP").onChange = (item: ParamItem) => { gui.setValue(item); setSize(TP.dbp, TP.dop) }
+    gui.spec('load').onChange = (item: ParamItem) => {
+      gui.setValue(item)
+      restart && Player.allPlayers.forEach(p => p.ships[0].cargo = [[PC.F1, item.value]])
+    }
     gui.spec("colorScheme").onChange = (item: ParamItem) => {
-      gui.setValue(item, TP)
+      gui.setValue(item)
       let hexMap = table.hexMap
-      // hexMap.initInfluence()
-      // hexMap.forEachHex((h: Hex2) => h.stone && h.stone.paint())
-      // table.nextHex.stone?.paint() // TODO: also paint buttons on undoPanel
       hexMap.update()
     }
     parent.addChild(gui)
     gui.x = x // (3*cw+1*ch+6*m) + max(line.width) - (max(choser.width) + 20)
     gui.y = y
     gui.makeLines()
-    const gui2 = this.makeParamGUI2(table, parent, x - 280, y)
-    const gui3 = this.makeNetworkGUI(table, parent, x - 300, y + gui.ymax + 20 )
+    const gui2 = this.makeParamGUI2(table, parent, x - 320, y)
+    const gui3 = this.makeNetworkGUI(table, parent, x - 320, y + gui.ymax + 200 )
     gui.parent.addChild(gui) // bring to top
     gui.stage.update()
     restart = true // *after* makeLines has stablilized selectValue
     return [gui, gui2, gui3]
   }
+  /** configures the AI player */
   makeParamGUI2(table: Table, parent: Container, x: number, y: number) {
     let gui = new ParamGUI(TP, { textAlign: 'center' })
     gui.makeParamSpec("log", [-1, 0, 1, 2], { style: { textAlign: 'right' } }); TP.log
+    gui.makeParamSpec("maxPlys", [1, 2, 3, 4, 5, 6, 7, 8], { fontColor: "blue" }); TP.maxPlys
+    gui.makeParamSpec("maxBreadth", [5, 6, 7, 8, 9, 10], { fontColor: "blue" }); TP.maxBreadth
+    // gui.makeParamSpec("nPerDist", [2, 3, 4, 5, 6, 8, 11, 15, 19], { fontColor: "blue" }); TP.nPerDist
     // gui.makeParamSpec("pWeight", [1, .99, .97, .95, .9]) ; TP.pWeight
     // gui.makeParamSpec("pWorker", [true, false], { chooser: BC }); TP.pWorker
     // gui.makeParamSpec("pPlaner", [true, false], { chooser: BC, name: "parallel" }); TP.pPlaner
@@ -161,6 +168,7 @@ export class GameSetup {
   }
   netColor: string = "rgba(160,160,160, .8)"
   netStyle: DropdownStyle = { textAlign: 'right' };
+  /** controls multiplayer network participation */
   makeNetworkGUI (table: Table, parent: Container, x: number, y: number) {
     let gui = this.netGUI = new ParamGUI(TP, this.netStyle)
     gui.makeParamSpec("Network", [" ", "new", "join", "no", "ref", "cnx"], { fontColor: "red" })

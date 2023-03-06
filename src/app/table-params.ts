@@ -33,8 +33,13 @@ export class TP {
   static schemeNames = ['Red_Blue']
   static colorScheme = TP.Blue_Red // as AfColor !?
   static numPlayers = 2;
+  static load = 5;  // initial Ship load for manual testing
+  /** offset planets  */
+  static offP = true;
   /** distance between planets */
   static dbp = 4; // nCows = nCols = 3*dbp+3
+  /** distance outside planets */
+  static dop = 2; // nh = dbp + 2 * dop (length of outer edge)
   /** Order [number of rings] of metaHexes */
   static mHexes = 10   // number hexes on side of Meta-Hex
   /** Order [number of Hexs on side] of District [# rings of Hexes in each metaHex] */
@@ -46,17 +51,19 @@ export class TP {
   static nDiffControl = (TP.nHexes <= 1) ? 0 : TP.nHexes - 1 // [0, 0, 1, 2, 3, ...]
   static hexRad = 60
   static log = 0
-  /** map size for (nr, nc) */
-  static fnHexes(dbp: number) {
+  /** map size for (dpb, dop) */
+  static fnHexes(dbp = 4, dop = 2) {
+    TP.dbp = dbp
+    TP.dop = dop
     TP.nHexes = 1;
-    TP.mHexes = dbp + 4;
+    TP.mHexes = dbp + 2 + dop; // between planets + planets + outside planets
     TP.tHexes = TP.ftHexes(TP.mHexes)
   }
   /** number of hexes in a metaHex of order n; number of districts(n=TP.mHexes)
    * @return an odd number: 1, 7, 19, 37, 61, 97, ... */
   static ftHexes(n: number): number { return (n <= 1) ? n : 6 * (n-1) + TP.ftHexes(n - 1) }
-  /** initialize fnHexes using initial mH, nH */
-  static xxx = TP.fnHexes(TP.dbp)
+  /** initialize fnHexes using initial dpb, dop */
+  static xxx = TP.fnHexes(TP.dbp, TP.dop)
 
   /** exclude whole Extension sets */
   static excludeExt: string[] = ["Policy", "Event", "Roads", "Transit"]; // url?ext=Transit,Roads
