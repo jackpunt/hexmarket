@@ -73,6 +73,8 @@ export class Player {
       // start plannerMove from top of stack:
       setTimeout(() => this.plannerMove(sc, incb))
     }
+    // continue any semi-auto moves for ship:
+    this.ships.forEach(ship => ship.shipMove())
     return      // robo or GUI will invoke gamePlay.doPlayerMove(...)
   }
   plannerRunning = false

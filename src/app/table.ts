@@ -258,14 +258,16 @@ export class Table extends EventDispatcher  {
   /**
    * All manual moves feed through this (drop & redo)
    * TablePlanner.logMove(); then dispatchEvent() --> gamePlay.doPlayerMove()
+   *
+   * New: let Ship (Drag & Drop) do this.
    */
   doTableMove(ihex: IHex) {
   }
   /** All moves (GUI & player) feed through this: */
   moveStoneToHex(ihex: IHex, sc: PlayerColor) {
-    let hex = Hex.ofMap(ihex, this.hexMap)
-    this.hexMap.showMark(hex)
-    this.dispatchEvent(new HexEvent(S.add, hex, sc)) // -> GamePlay.playerMoveEvent(hex, sc)
+    // let hex = Hex.ofMap(ihex, this.hexMap)
+    // this.hexMap.showMark(hex)
+    // this.dispatchEvent(new HexEvent(S.add, hex, sc)) // -> GamePlay.playerMoveEvent(hex, sc)
   }
 
   /** default scaling-up value */

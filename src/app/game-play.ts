@@ -30,7 +30,6 @@ export class GamePlay0 {
 
   readonly hexMap: HexMap = new HexMap()
   readonly history   = []          // sequence of Move that bring board to its state
-  readonly allBoards = new BoardRegister() // unlikely to be useful in this game *remove*
   readonly gStats: GameStats       // 'readonly' (set once by clone constructor)
   readonly redoMoves = []
 
@@ -41,6 +40,7 @@ export class GamePlay0 {
   turnNumber: number = 0    // = history.lenth + 1 [by this.setNextPlayer]
   curPlayerNdx: number = 0  // curPlayer defined in GamePlay extends GamePlay0
 
+  /** Planner may override with alternative impl. */
   newMoveFunc: (hex: Hex, sc: PlayerColor, caps: Hex[], gp: GamePlay0) => Move
   newMove(hex: Hex, sc: PlayerColor, caps: Hex[], gp: GamePlay0) {
     return this.newMoveFunc? this.newMoveFunc(hex,sc, caps, gp) : new Move()
@@ -188,8 +188,10 @@ export class GamePlay extends GamePlay0 {
   }
 
   /**
+   * Current Player takes action.
+   *
    * after setNextPlayer: enable Player (GUI or Planner) to respond
-   * with table.moveStoneToHex()
+   * with playerMove() [table.moveStoneToHex()]
    *
    * Note: 1st move: player = otherPlayer(curPlayer)
    * @param auto this.runRedo || undefined -> player.useRobo
