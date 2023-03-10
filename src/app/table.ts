@@ -190,7 +190,7 @@ export class Table extends EventDispatcher  {
   startGame() {
     // initialize Players & Ships & Commodities
     this.gamePlay.forEachPlayer(p => {
-      p.initShips()
+      p.placeShips()
       p.ships.forEach(ship => this.dragger.makeDragable(ship, this,
         // dragFunc
         (ship: Ship, ctx) => {
@@ -206,18 +206,17 @@ export class Table extends EventDispatcher  {
       )
       this.hexMap.update()
     })
-    // this.gamePlay.setNextPlayer(this.gamePlay.allPlayers[0])   // make a placeable Stone for Player[0]
+    this.gamePlay.setNextPlayer(this.gamePlay.allPlayers[0])
   }
   logCurPlayer(curPlayer: Player) {
     const history = this.gamePlay.history
     const tn = this.gamePlay.turnNumber
     const lm = history[0]
     const prev = lm ? `${lm.Aname}${lm.ind}#${tn-1}` : ""
-    const capd = lm?.captured || [] //this.gamePlay.lastCaptured
     const board = !!this.hexMap.allStones[0] && lm?.board // TODO: hexMap.allStones>0 but history.len == 0
     const robo = curPlayer.useRobo ? AT.ansiText(['red','bold'],"robo") : "----"
-    const info = { turn: `#${tn}`, plyr: curPlayer.name, prev, capd, gamePlay: this.gamePlay, board }
-    console.log(stime(this, `.setNextPlayer --${robo}--`), info);
+    const info = { turn: `#${tn}`, plyr: curPlayer.name, prev, gamePlay: this.gamePlay, board }
+    console.log(stime(this, `.logCurPlayer --${robo}--`), info);
   }
   showRedoUndoCount() {
     this.undoText.text = `${this.gamePlay.undoRecs.length}`
@@ -227,6 +226,7 @@ export class Table extends EventDispatcher  {
     let curPlayer = this.gamePlay.curPlayer // after gamePlay.setNextPlayer()
     if (log) this.logCurPlayer(curPlayer)
     this.showRedoUndoCount()
+    // TODO: highlight Ships that can/cannot move
     this.hexMap.update()
   }
 

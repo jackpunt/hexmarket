@@ -199,16 +199,13 @@ export class GamePlay extends GamePlay0 {
    * @param incb increase Breadth of search
    */
   makeMove(auto = undefined, ev?: any, incb = 0) {
-    let sc //= this.table.nextHex.stone?.color
-    if (!sc) debugger;
-    let player = (this.turnNumber > 1) ? this.curPlayer : this.otherPlayer(this.curPlayer)
-    //let player = this.curPlayer
+    let player = this.curPlayer
     if (this.runRedo) {
       this.waitPaused(player, `.makeMove(runRedo)`).then(() => setTimeout(() => this.redoMove(), 10))
       return
     }
     if (auto === undefined) auto = player.useRobo
-    player.playerMove(sc, auto, incb) // make one robo move
+    player.playerMove(auto, incb) // make one robo move
   }
   /** if useRobo == true, then Player delegates to robo-player immediately. */
   autoMove(useRobo = false) {
@@ -263,19 +260,15 @@ export class GamePlay extends GamePlay0 {
 
   // TODO: use setNextPlayerNdx() and include in GamePlay0 ?
   setNextPlayer0(plyr: Player): Player {
-    this.turnNumber = this.history.length + 1
+    this.turnNumber += 1 // this.history.length + 1
     this.curPlayerNdx = plyr.index
     this.curPlayer = plyr
+    this.curPlayer.newTurn()
     return plyr
   }
-  setNextPlayer(plyr = (this.turnNumber == 1) ? this.curPlayer : this.otherPlayer()) {
-    // tn[0] -> plyr=='B', curPlayerNdx=0; show BLACK Stone; setNextPlayer(WHITE)
+  setNextPlayer(plyr = this.otherPlayer()) {
     this.setNextPlayer0(plyr)
     this.table.showNextPlayer() // get to nextPlayer, waitPaused when Player tries to make a move.?
-    if (this.turnNumber == 1) {
-      this.setNextPlayer0(this.allPlayers[1])
-      this.table.showWinText(`${TP.colorScheme['w']} places first\n${TP.colorScheme['b']} Stone`, 'white')
-    }
     this.makeMove()
   }
 

@@ -1,4 +1,4 @@
-export const playerColors = ['b', 'w'] as const // Player Colors!
+export const playerColors = ['w', 'b'] as const // Player Colors!
 export const playerColor0 = playerColors[0]
 export const playerColor1 = playerColors[1]
 //type playerColorTuple = typeof playerColors
@@ -68,6 +68,7 @@ export class TP {
   /** exclude whole Extension sets */
   static excludeExt: string[] = ["Policy", "Event", "Roads", "Transit"]; // url?ext=Transit,Roads
   // timeout: see also 'autoEvent'
+  static stepDwell:  number = 150
   static moveDwell:  number = 600
   static flashDwell: number = 500
   static flipDwell:  number = 200 // chooseStartPlayer dwell between each card flip
