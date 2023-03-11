@@ -46,6 +46,8 @@ export class Ship extends Container {
   get curload() {
     return this.cargo.map(c => c[1]).reduce((n, p) => n + p, 0 )
   }
+  /** 'worst-case' cost for single step */
+  get transitCost() { return Ship.maxZ * (this.z0 + this.curload) + Ship.step1; }
 
   get color() { return this.player?.afColor } // as AfColor!
   readonly colorValues = C.nameToRgba(AF.zcolor[this.color]); // with alpha component
@@ -134,9 +136,9 @@ export class Ship extends Container {
   /** move to hex, incur cost to fuel.
    * @return false if move not possible (no Hex, insufficient fuel)
    */
-  move(dir: EwDir) {
+  move(dir: EwDir, hex = this.hex.nextHex(dir)) {
     let nconfig = { ... this.zconfig }
-    let hex = this.hex.nextHex(dir); // this.hex.links[dir];
+    if (hex.occupied) return false;
     let cost = this.configCost(this.hex, dir, hex, nconfig)
     if (!cost || cost > this.fuel) return false;
     nconfig.fuel -= cost
@@ -148,42 +150,44 @@ export class Ship extends Container {
 
   /**
    * try each Step, across Turns, using maxFuel
-   * @param targetHex a [non-planet] hex on this.table.hexMap
+   * @param targetHex a Hex on this.table.hexMap
    * @param tLimit stop searching if path length is tLimit longer than best path.
+   * @return final Step of each path; empty array if no possible path to targetHex
    */
   findPaths<T extends Hex | Hex2>(targetHex: T, limit = 2) {
     if (targetHex.occupied) return []    // includes: this.hex === targetHex
-    let transitCost = Ship.maxZ * (this.z0 + this.curload) + Ship.step1; // approximate 'worst-case' impedance of distance
-    let minMetric = this.hex.radialDist(targetHex) * transitCost
-    let done: Step<T>[]
+    let minMetric = this.hex.radialDist(targetHex) * this.transitCost
+    let paths: Step<T>[]
     do {
-      done = this.findPathWithMetric(targetHex, limit, minMetric = minMetric + 5)
-      if (targetHex !== this.targetHex) return done  // target moved
-    } while (done.length == 0)
-    return done
+      paths = this.findPathsWithMetric(this.hex as T, targetHex, limit, minMetric = minMetric + 5)
+      if (targetHex !== this.targetHex) return paths  // target moved
+    } while (paths.length == 0)
+    return paths
   }
-  findPathWithMetric<T extends Hex | Hex2>(targetHex: T, limit, minMetric) {
-    let isLoop = (nStep: Step<Hex>) => {
+  /** @return (possibly empty) array of Paths. */
+  findPathsWithMetric<T extends Hex | Hex2>(hex0: T, hex1: T, limit: number, minMetric: number) {
+    let isLoop = (nStep: Step<Hex>) => { // 'find' for linked list:
       let nHex = nStep.curHex, pStep = nStep.prevStep
       while (pStep && pStep.curHex !== nHex) pStep = pStep.prevStep
       return pStep?.curHex === nHex
     }
     // BFS, doing rings (H.ewDirs) around the starting hex.
-    let nConfig = { ... this.zconfig, fuel: this.maxFuel }
-    let step = new Step<T>(0, this.hex as T, undefined, undefined, nConfig, 0, targetHex)
-    let mins = minMetric.toFixed(1), Hex0 = this.hex.Aname, Hex1 = targetHex.Aname, hex0 = this.hex
-    console.log(stime(this, `.findPathWithMetric:`), { ship: this, mins, Hex0, Hex1, hex0, targetHex })
+    let fuel = this.moved ? this.fuel : this.maxFuel
+    let nConfig = { ... this.zconfig, fuel }
+    let step = new Step<T>(0, hex0 as T, undefined, undefined, nConfig, 0, hex1)
+    let mins = minMetric.toFixed(1), Hex0 = hex0.Aname, Hex1 = hex1.Aname
+    console.log(stime(this, `.findPathsWithMetric:`), { ship: this, mins, Hex0, Hex1, hex0, hex1 })
     let open: Step<T>[] = [step], closed: Step<T>[] = [], done: Step<T>[] = []
     // loop through all [current/future] open nodes:
     while (step = open.shift()) {
-      if (targetHex !== this.targetHex) break; // ABORT Search
+      if (hex1 !== this.targetHex) break; // ABORT Search
       // cycle turns until Step(s) reach targetHex
       // loop here so we can continue vs return; move each dir from prev step:
       for (let dir of H.ewDirs) {
         let nHex = step.curHex.nextHex(dir) as T, nConfig = { ... step.config } // copy of step.config
         if (nHex.occupied) continue // occupied
         let cost = this.configCost(step.curHex, dir, nHex, nConfig)
-        if (cost === undefined) continue; // off-map or planet or occupied?
+        if (cost === undefined) continue; // no afHex, no transit possible
         let turn = step.turn
         nConfig.fuel = nConfig.fuel - cost
         if (nConfig.fuel < 0) {   // Oops: we need to refuel before this Step!
@@ -192,15 +196,15 @@ export class Ship extends Container {
           nConfig.fuel = this.maxFuel - cost;
           if (nConfig.fuel < 0) break // over max load!
         }
-        let nStep = new Step<T>(turn, nHex, dir, step, nConfig, cost, targetHex)
+        let nStep = new Step<T>(turn, nHex, dir, step, nConfig, cost, hex1)
         if (closed.find(nStep.isMatchingElement, nStep)) continue  // already evaluated & expanded
         if (open.find(nStep.isExistingPath, nStep) ) continue     // already a [better] path to nHex
         // assert: open contains only 1 path to any Step(Hex, config) that path has minimal metric
 
         let metric = nStep.metric
         if (metric > minMetric + limit) continue // abandon path: too expensive
-        if (nHex == targetHex) {
-          if (done.length == 0) console.log(stime(this, `.findPathWithMetric: first done ${metric}`), nStep, )
+        if (nHex == hex1) {
+          if (done.length === 0) console.log(stime(this, `.findPathsWithMetric: first done ${metric}`), nStep)
           done.push(nStep)
           if (metric < minMetric) minMetric = metric
         } else {
@@ -215,7 +219,7 @@ export class Ship extends Container {
     if (done.length > 0) {
       let met0 = done[0].metric || -1, clen = closed.length
       let pathm = done.map(p => { return { turn: p.turn, fuel: p.config.fuel, metric: this.pathMetric(p), p: p.toString(), s0: p } })
-      console.log(stime(this, `.findPathWithMetric:`), this.hex.Aname, this.targetHex.Aname, this.color, this.curload, met0, clen, `paths:`, pathm)
+      console.log(stime(this, `.findPathsWithMetric:`), hex0.Aname, hex1.Aname, this.color, this.curload, met0, clen, `paths:`, pathm)
     }
     return done
   }
@@ -244,9 +248,10 @@ export class Ship extends Container {
     // setStrokeStyle().beginStroke(color).moveto(center).lineto(edge=hex0,dir)
     // [arcto(hex1,~dir)]*, lineto(center), endStroke
     let pShape = new Shape(), g = pShape.graphics
+    pShape.mouseEnabled = false;
     let showTurn = (hex, turn, c = cl) => {
       let tn = new Text(turn.toFixed(0), F.fontSpec(16), c)
-      tn.textAlign = 'center'
+      tn.textAlign = 'center'; tn.mouseEnabled = false;
         tn.x = hex.x; tn.y = hex.y - 39
         this.pCont.addChildAt(tn, 0) // turn number on hexN
     }
@@ -268,7 +273,7 @@ export class Ship extends Container {
       }
     })
     let { dir, hex: hexZ, step } = path[path.length - 1]
-    if (step.turn !== step.prevStep.turn) showTurn(hexZ, step.turn)
+    showTurn(hexZ, step.turn)
     g.lt(hexZ.x, hexZ.y)        // draw line (final step)
     g.es()
     return pShape
@@ -282,7 +287,8 @@ export class Ship extends Container {
 
   async drawDirect2(hex: Hex2) {
     let dshape = new Shape()
-    this.drawDirect(hex, dshape.graphics, this.pathColor(0, .5))
+    dshape.mouseEnabled = false;
+    this.drawDirect(hex, dshape.graphics, 'rgba(250,250,250,.5')
     this.pCont.addChild(dshape)
     hex.map.update()
     return new Promise<void>((resolve) => {
@@ -291,13 +297,15 @@ export class Ship extends Container {
   }
 
   path0: Path<Hex2>
-  showPaths(targetHex: Hex2) {
-    let paths = this.findPaths(targetHex, 1)
+  showPaths(targetHex: Hex2, limit = 1) {
+    this.pCont.removeAllChildren()
+    let paths = this.setPathToHex(targetHex, limit)  // find paths to show
+    this.pCont.parent.addChild(this.pCont);  // put *this* pathCont on top
     if (targetHex !== this.targetHex) return // without changing display! [if target has moved]
-    this.path0 = paths[0].toPath()        // may be undefined!
-    let met0 = paths[0]?.metric || -1, n = 0, k = 4;
+    if (!paths[0]) return                    // no path to targetHex; !this.path0
+    let met0 = paths[0].metric, n = 0, k = 4;
     for (let stepZ of paths) {
-      let pcolor = this.pathColor(n, 1, stepZ.metric == met0 ? 20 : 30)
+      let pcolor = this.pathColor(n, 1, stepZ.metric === met0 ? 20 : 30)
       let pshape = this.showPath(stepZ, pcolor)
       pshape.x += n * (k * (Math.random() - .5));
       pshape.y -= n * (k * (Math.random() - .5));
@@ -309,7 +317,8 @@ export class Ship extends Container {
   showPath(stepZ: Step<Hex2>, pcolor: string) {
     let path = stepZ.toPath()
     let pshape = this.drawPath(path, pcolor, 2)
-    return this.pCont.addChildAt(pshape, 0) // push under the better paths
+    this.pCont.addChildAt(pshape, 0) // push under the better paths (and tn Text)
+    return pshape
   }
 
   targetHex: Hex2;
@@ -328,32 +337,36 @@ export class Ship extends Container {
       this.pCont.removeAllChildren()
     }
     if (!hex || hex.occupied) return; // do not move over non-existant or occupied hex
+
     const shiftKey = ctx?.event?.nativeEvent?.shiftKey
     if (shiftKey === this.lastShift && !ctx?.first && this.targetHex === hex) return;   // nothing new (unless/until ShiftKey)
     this.lastShift = shiftKey
-    if (this.targetHex !== hex) this.pCont.removeAllChildren()
+
+    this.pCont.removeAllChildren()
     this.targetHex = hex;
-    if (hex === this.hex) return; // no path to originating hex
     if (!shiftKey) return         // no path requested
     this.drawDirect2(hex).then(() => {
-      this.showPaths(hex)
+      this.showPaths(hex, 1)      // show extra paths
     })
   }
 
+  /** set this.path0, return all Paths to hex. */
+  setPathToHex(targetHex: Hex2, limit = 0) {
+    this.targetHex = targetHex
+    let paths = this.findPaths(targetHex, limit);
+    if (paths.length === 0) {
+      console.log(stime(this, `.setPathToHex: no path to hex`), targetHex)
+      this.hex = this.hex;  // QQQ: is this necessary or useful??
+    }
+    this.path0 = paths[0]?.toPath() // path0 may be undefined
+    return paths                    // paths may be empty, but NOT undefined
+  }
+
   dropFunc(hex: Hex2, ctx: DragInfo) {
-    // TODO: move ship to hex --> do each Step, pay Fuel, change zconfig
     if (hex !== this.targetHex || !this.path0 || this.path0[this.path0.length - 1]?.hex !== hex) {
-      this.targetHex = hex
-      let done = this.findPaths(hex, 0);
-      if (!done || done.length === 0) {
-        console.log(stime(this, `.dropFunc: no path to hex`), hex)
-        this.hex = this.hex;
-        return;                  // no path: don't move
-      }
-      this.path0 = done[0].toPath()
+      this.setPathToHex(hex)   // find a path not shown
     }
     this.hex = this.originHex;
-    // this.zconfig = { ... this.path0.config, zshape: null, fuel: this.maxFuel }
     this.paint()
     //
     const shiftKey = ctx?.event?.nativeEvent?.shiftKey
@@ -368,26 +381,41 @@ export class Ship extends Container {
   }
   dragAgain() {
     let targetHex = this.targetHex;
-    this.pCont.removeAllChildren()
+    // this.pCont.removeAllChildren()
     this.dragBack()
-    this.dragFunc(this.hex as Hex2, undefined); // targetHex = this; removeChildren
+    this.dragFunc(this.hex as Hex2, undefined); // targetHex = this.hex; removeChildren
     this.showPaths(this.targetHex = targetHex);
     this.hex.map.update()
   }
   // false if [still] available to move this turn
   moved = true;
-  /** continue any planned, semi-auto moves */
+  /** continue any planned, semi-auto moves toward this.targetHex */
   shipMove() {
-    if (!this.moved && this.path0?.length > 0) {
-      if (!this.path0[0].dir) this.path0.shift(); // skip initial non-Step
-      this.moved = this.takeSteps();
+    // TODO: continue move if available fuel
+    if (this.moved || this.path0?.length == 0) return this.moved
+    if (!this.path0[0].dir) this.path0.shift();           // skip initial non-Step
+    if (this.pathHasOccupiedHex()) {
+      this.showPaths(this.targetHex)  // make a new plan (unless targetHex is occupied!)
+      if (!this.path0) return false   // targetHex now occupied!
+      this.path0.shift();             // skip initial non-Step
     }
+    this.moved = this.takeSteps();
     return this.moved; // NOTE: other Steps still in progress!
+  }
+  /** assert this.path0 is defined. */
+  pathHasOccupiedHex() {
+    let turn0 = this.path0[0]?.step.turn
+    return this.path0.find(elt => elt.step.turn === turn0 && elt.hex.occupied);
   }
 
   takeSteps() {
     let elt = this.path0[0]
-    if (!elt || !this.move(elt.dir as EwDir)) return false
+    if (!elt) return false; // illegal step
+    let dir = elt.dir as EwDir, hex = this.hex.nextHex(dir)
+    if (hex.occupied) {
+      // find alternate path...?
+    }
+    if (!this.move(dir, hex)) return false
     this.path0.shift()
     setTimeout(() => { this.takeSteps() }, TP.stepDwell) // and do other moves this turn
     return true
