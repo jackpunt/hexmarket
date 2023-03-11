@@ -200,12 +200,12 @@ export class Hex2 extends Hex {
     this.cache(true)
 
     this.setHexColor("grey")  // new Hex2: until setHexColor(by district)
-    this.addAfHex()           // even when (name == 'nextHex')
 
     this.stoneIdText = new Text('', F.fontSpec(26))
     this.stoneIdText.textAlign = 'center'; this.stoneIdText.regY = -20
 
     if (row === undefined || col === undefined) return // args not supplied: nextHex
+    this.addAfHex()           // even when (name == 'nextHex')
     let [x, y, w, h] = this.xywh(this.radius)
     this.x += x
     this.y += y
@@ -305,10 +305,13 @@ export class MapCont extends Container {
   constructor() {
     super()
   }
+  static cNames = ['hexCont', 'shipCont', 'markCont', 'pathCont0', 'pathCont1'];
   hexCont: Container     // hex shapes on bottom stats: addChild(dsText), parent.rotation
-  pathCont: Container    // under ships to hide endpoints
   shipCont: Container    // Ship/Planets
   markCont: Container    // showMark over Stones new CapMark [localToLocal]
+  pathCont0: Container   // ship paths on top
+  pathCont1: Container   // ship paths on top
+  pathConts: Container[]  // [pathCont0, pathCont1]
 }
 
 export interface HexM {
@@ -399,15 +402,13 @@ export class HexMap extends Array<Array<Hex>> implements HexM {
   addToMapCont(): this {
     this.mark = this.makeMark(this.radius, this.radius/2.5)
     let mapCont = this.mapCont
-    mapCont.hexCont = new Container()     // hex shapes on bottom
-    mapCont.shipCont = new Container()   // Stone in middle
-    mapCont.markCont = new Container()    // showMark under Stones
-    mapCont.pathCont = new Container()     // infMark on the top
-    // hexCont, stoneCont, markCont all x,y aligned
-    mapCont.addChild(mapCont.hexCont); mapCont.hexCont[S.Aname] = "hexCont"
-    mapCont.addChild(mapCont.shipCont); mapCont.shipCont[S.Aname] = "shipCont"
-    mapCont.addChild(mapCont.pathCont); mapCont.pathCont[S.Aname] = "pathCont"
-    mapCont.addChild(mapCont.markCont); mapCont.markCont[S.Aname] = "markCont"
+    MapCont.cNames.forEach(cname => {
+      let cont = new Container()
+      mapCont[cname] = cont
+      cont[S.Aname] = cont.name = cname;
+      mapCont.addChild(cont)
+    })
+    mapCont.pathConts = [mapCont.pathCont0, mapCont.pathCont1]
     return this
   }
 
@@ -533,8 +534,11 @@ export class HexMap extends Array<Array<Hex>> implements HexM {
   centerOnContainer() {
     let mapCont = this.mapCont
     let hexRect = mapCont.hexCont.getBounds()
-    mapCont.hexCont.x = mapCont.markCont.x = mapCont.shipCont.x = mapCont.pathCont.x = -(hexRect.x + hexRect.width/2)
-    mapCont.hexCont.y = mapCont.markCont.y = mapCont.shipCont.y = mapCont.pathCont.y = -(hexRect.y + hexRect.height/2)
+    let x0 = hexRect.x + hexRect.width/2, y0 = hexRect.y + hexRect.height/2
+    MapCont.cNames.forEach(cname => {
+      mapCont[cname].x = -x0
+      mapCont[cname].y = -y0
+    })
   }
 
   hexDirPlanets = new Map<HexDir | typeof H.C, Hex2>();

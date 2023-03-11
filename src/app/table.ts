@@ -170,7 +170,7 @@ export class Table extends EventDispatcher  {
     let nh = TP.nHexes, mh = TP.mHexes
     // if (nh == 1 || nh + mh <= 5) { bgr.w += 3*wide; bgr.h += 50; mapCont.x += 3*wide; }
     nextHex.x = Math.round(nextHex.x); nextHex.y = Math.round(nextHex.y)
-    nextHex.cont.visible = false;
+    nextHex.cont.visible = true;
 
     this.bgRect = this.setBackground(this.scaleCont, bgr) // bounded by bgr
     let p00 = this.scaleCont.localToLocal(0, 0, hexCont)
@@ -226,7 +226,7 @@ export class Table extends EventDispatcher  {
     let curPlayer = this.gamePlay.curPlayer // after gamePlay.setNextPlayer()
     if (log) this.logCurPlayer(curPlayer)
     this.showRedoUndoCount()
-    // TODO: highlight Ships that can/cannot move
+    // TODO: highlight Player & Ships that can/cannot move
     this.hexMap.update()
   }
 
