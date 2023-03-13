@@ -44,7 +44,7 @@ export class Ship extends Container {
   cargo: Cargo[] = [new Cargo('F1', 5)];
 
   get curload() {
-    return this.cargo.map(c => c[1]).reduce((n, p) => n + p, 0 )
+    return this.cargo.map(c => c.quant).reduce((n, p) => n + p, 0 )
   }
   /** 'worst-case' cost for single step */
   get transitCost() { return Ship.maxZ * (this.z0 + this.curload) + Ship.step1; }
