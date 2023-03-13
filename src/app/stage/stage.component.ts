@@ -50,6 +50,9 @@ export class StageComponent implements OnInit {
     if (href.endsWith("startup")) {
 
     }
+    // disable browser contextmenu
+    // console.log(stime(this, `.ngAfterViewInit--- preventDefault contextmenu`))
+    window.addEventListener('contextmenu', (evt: MouseEvent) => evt.preventDefault())
     const urlParams = new URLSearchParams(window.location.search);
     TP.ghost = urlParams.get('host') || TP.ghost
     TP.gport = Number.parseInt(urlParams.get('port') || TP.gport.toString(10), 10)

@@ -4,7 +4,7 @@ import { Container, Graphics, Shape, Text } from "@thegraid/easeljs-module";
 import { AF, AfColor, AfFill, ATS } from "./AfHex";
 import { Hex, Hex2 } from "./hex";
 import { EwDir, H, HexDir } from "./hex-intfs";
-import { PC } from "./planet";
+import { Cargo } from "./planet";
 import { Player } from "./player";
 import { TP } from "./table-params";
 
@@ -41,7 +41,7 @@ export class Ship extends Container {
     hex.ship = this
   }
   pCont: Container
-  cargo: Array<[PC, number]> = [[PC.F1, 5]];
+  cargo: Cargo[] = [new Cargo('F1', 5)];
 
   get curload() {
     return this.cargo.map(c => c[1]).reduce((n, p) => n + p, 0 )

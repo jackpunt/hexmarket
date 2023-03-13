@@ -5,7 +5,7 @@ import { AfHex } from "./AfHex";
 import { BC, EBC, PidChoice } from "./choosers";
 import { GamePlay } from "./game-play";
 import { Hex2, HexMap } from "./hex";
-import { PC } from "./planet";
+import { Cargo } from "./planet";
 import { Player } from "./player";
 import { StatsPanel, TableStats } from "./stats";
 import { Table } from "./table";
@@ -129,7 +129,7 @@ export class GameSetup {
     gui.spec("offP").onChange = (item: ParamItem) => { gui.setValue(item); setSize(TP.dbp, TP.dop) }
     gui.spec('load').onChange = (item: ParamItem) => {
       gui.setValue(item)
-      restart && Player.allPlayers.forEach(p => p.ships[0].cargo = [[PC.F1, item.value]])
+      restart && Player.allPlayers.forEach(p => p.ships[0].cargo = [new Cargo('F1', item.value)])
     }
     gui.spec("colorScheme").onChange = (item: ParamItem) => {
       gui.setValue(item)

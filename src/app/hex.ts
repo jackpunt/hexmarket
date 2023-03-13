@@ -1,5 +1,5 @@
-import { C, F, RC, S } from "@thegraid/easeljs-lib";
-import { Container, DisplayObject, Point, Shape, Text } from "@thegraid/easeljs-module";
+import { C, F, RC, S, stime } from "@thegraid/easeljs-lib";
+import { Container, DisplayObject, MouseEvent, Point, Shape, Text } from "@thegraid/easeljs-module";
 import { AfHex } from "./AfHex";
 import { EwDir, H, HexDir, InfDir, NsDir } from "./hex-intfs";
 import { Planet } from "./planet";
@@ -545,6 +545,7 @@ export class HexMap extends Array<Array<Hex>> implements HexM {
   get planet0() { return this.hexDirPlanets.get(H.C) };
   /** color center and 6 planets, dist = 1 ... 7 */  // TODO: random location (1-step)
   placePlanets(coff = TP.dbp) {
+    Planet.remake();
     let cr = Math.floor((this.maxRow + this.minRow) / 2), cc = Math.floor((this.minCol + this.maxCol) / 2);
     let cHex = this[cr][cc] as Hex2
     let dist = 0;
@@ -552,6 +553,9 @@ export class HexMap extends Array<Array<Hex>> implements HexM {
       this.hexDirPlanets.set(key, hex)    // find planet in the given direction
       hex.rmAfHex()
       hex.planet = Planet.planets[dist++]
+      hex.planet.on('mousedown', (evt: MouseEvent) => {
+        if (evt.nativeEvent.buttons === 2) hex.planet.onRightClick(evt)
+      })
       hex.setHexColor(color, dist)   // colorPlanets: district = 1..7
     }
     placePlanet(H.C, 'lightblue', cHex)
