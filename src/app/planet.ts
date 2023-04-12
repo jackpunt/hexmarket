@@ -13,7 +13,7 @@ export class PC {
     public readonly lim: number,  // max quant in store
     public readonly item: Item,   // identify the type of item
     public readonly color: string,
-    public readonly quant: number = lim/2,
+    public quant: number = lim/2,
     public readonly rate: number = 1, // turns to produce or consume 1 unit (no: do this per-planet!)
   ) { }
 
@@ -56,15 +56,16 @@ export class Cargo {
 }
 
 export class Planet extends Container {
+  static initCoins = 200;
 
   gShape = new Shape()
-
+  public coins: number = Planet.initCoins;
   public prod: PC[]
   public cons: PC[]
   pcary(s: Item | Item[]) {
     return ((typeof s == 'string') ? [s] : s).map(str => PC.N(str))
-
   }
+
   constructor(
     public Aname: string,
     prod: Item | Item[],
@@ -100,17 +101,42 @@ export class Planet extends Container {
     g.f('lightgrey').dc(0, 0, r0)
     this.cache(-r3, -r3, 2 * r3, 2 * r3); // Container of Shape & Text
   }
+  NC(item: Item) { return this.cons.find(pc => pc.item === item) }
+  NP(item: Item) { return this.prod.find(pc => pc.item === item) }
 
-  buy_price(item: Item) {
-    return this.cons.find(pc => pc.item === item)?.price() // undefined if in market
-  }
-  sell_price(item: Item) {
-    return this.prod.find(pc => pc.item === item)?.price() // undefined if in market
-  }
-  buy(item: Item) {
-    let price = this.buy_price(item)
-    if (!price) return  // not for sale
+  buy_price(item: Item, quant: number, commit = false) {
+    let cons = this.NC(item), cost = 0
+    if (!cons) return cost // not for sale
+    let n = 0, q = quant   // n = number bought so far; q = number still to buy
+    while(n + cons.quant < cons.lim && q-- > 0) {
+      cost += cons.price(cons.quant + n++)
+    }
+    if (commit) {
+      this.coins -= cost
+      cons.quant += n
+    }
+    return cost
+}
+  sell_price(item: Item, quant: number, commit = false) {
+    let prod = this.NP(item), cost = 0
+    if (!prod) return cost // not for sale
+    let n = 0, q = quant   // n = number sold so far; q = number still to sell
+    while(n < prod.quant && q-- > 0) {
+      cost += prod.price(prod.quant - n++)
+    }
+    if (commit) {
+      this.coins += cost
+      prod.quant -= n
+    }
+    return cost  }
 
+  /** item -> Planet, coins -> Ship */
+  buy(item: Item, quant: number) {
+    return this.buy_price(item, quant, true)
+  }
+  /** item -> Ship, coins -> Planet */
+  sell(item: Item, quant: number) {
+    return this.sell_price(item, quant, true)
   }
 
   onRightClick(evt: MouseEvent) {

@@ -22,15 +22,15 @@ type ZConfig = {
 }
 export class Ship extends Container {
   /** intrinsic cost for each Step (0 or 1); start of turn pays 1 for null 'shape' */
-  static step1 = 1
-  static maxZ = 3  // for now: {shape + color + color}
-  static idCounter = 0
-  static fuelPerStep = 0
+  static step1 = 1;
+  static maxZ = 3;       // for now: {shape + color + color}
+  static idCounter = 0;
+  static fuelPerStep = 0;
+  static initCoins = 200;
 
-  readonly outr = 8;
-  readonly radius = this.z0 * 10 + 2 + this.outr;
-  gShape: Shape = new Shape();
-  Aname: string = `S${Ship.idCounter++}`
+  readonly radius = this.z0 * 10;
+  readonly gShape: Shape = new Shape();
+  readonly Aname: string = `S${Ship.idCounter++}`
 
   /** current location of this Ship. */
   _hex: Hex;
@@ -42,6 +42,7 @@ export class Ship extends Container {
   }
   pCont: Container
   cargo: Cargo[] = [new Cargo('F1', 5)];
+  coins: number = Ship.initCoins
 
   get curload() {
     return this.cargo.map(c => c.quant).reduce((n, p) => n + p, 0 )
@@ -95,7 +96,8 @@ export class Ship extends Container {
 
   /** repaint with new Zcolor or TP.colorScheme */
   paint1(zcolor: AfColor = this.zcolor, pColor?: AfColor) {
-    let r2 = this.radius, r1 = r2 - this.outr, r0 = r1 - 2, g = this.gShape.graphics.c()
+    let r2 = this.radius + 8, r1 = this.radius, r0 = this.radius - 2
+    let g = this.gShape.graphics.c()
     if (pColor) {
       g.f(AF.zcolor[zcolor]).dc(0, 0, r2);
       g.f(C.BLACK).dc(0, 0, r1)
