@@ -96,8 +96,9 @@ export class Ship extends Container {
 
   /** repaint with new Zcolor or TP.colorScheme */
   paint1(zcolor: AfColor = this.zcolor, pColor?: AfColor) {
+    // zcolor-ring(r2-r1), black-ring(r1-r0), pColor-circle(r0)
     let r2 = this.radius + 8, r1 = this.radius, r0 = this.radius - 2
-    let g = this.gShape.graphics.c()
+    let g = this.gShape.graphics.c() // clear
     if (pColor) {
       g.f(AF.zcolor[zcolor]).dc(0, 0, r2);
       g.f(C.BLACK).dc(0, 0, r1)

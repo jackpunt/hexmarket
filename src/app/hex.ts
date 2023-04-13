@@ -200,6 +200,7 @@ export class Hex2 extends Hex {
     this.cache(true)
 
     this.setHexColor("grey")  // new Hex2: until setHexColor(by district)
+    this.hexShape.name = this.Aname
 
     this.stoneIdText = new Text('', F.fontSpec(26))
     this.stoneIdText.textAlign = 'center'; this.stoneIdText.regY = -20
@@ -212,8 +213,6 @@ export class Hex2 extends Hex {
     this.cont.setBounds(-w/2, -h/2, w, h)
 
     let rc = `${row},${col}`, tdy = -25
-    this.hexShape.name = this.Aname
-
     let rct = this.rcText = new Text(rc, F.fontSpec(26), 'white'); // radius/2 ?
     rct.textAlign = 'center'; rct.y = tdy // based on fontSize? & radius
     this.cont.addChild(rct)
@@ -257,7 +256,8 @@ export class Hex2 extends Hex {
   setHexColor(color: string, district?: number | undefined) {
     if (district !== undefined) this.district = district // hex.setHexColor update district
     this.distColor = color
-    let hexShape = this.paintHexShape(color, this.hexShape, this.radius)
+    let hexShape = this.hexShape || new HexShape()
+    hexShape.paint(color)
     if (hexShape !== this.hexShape) {
       this.cont.removeChild(this.hexShape)
       this.cont.addChildAt(hexShape, 0)
@@ -265,14 +265,6 @@ export class Hex2 extends Hex {
       this.hexShape = hexShape
       this.cache()
     }
-  }
-
-  /** makes a colored hex, outlined with bgColor */
-  paintHexShape(color: string, ns = new HexShape(), rad = this.radius): Shape {
-    let tilt = H.dirRot['NE']
-    //ns.graphics.s(TP.borderColor).dp(0, 0, rad+1, 6, 0, tilt)  // s = beginStroke(color) dp:drawPolyStar
-    ns.graphics.f(color).dp(0, 0, rad-1, 6, 0, tilt)             // f = beginFill(color)
-    return ns
   }
 
   /** distance between Hexes: adjacent = 1 */
@@ -297,9 +289,20 @@ export class Hex2 extends Hex {
   }
 }
 
-/** the colored Shape the fills a Hex. */
-class HexShape extends Shape {
+/** the colored Shape that fills a Hex. */
+export class HexShape extends Shape {
+  constructor(
+    readonly radius = TP.hexRad,
+    readonly tiltDir: HexDir = 'NE',
+  ) {
+    super()
+  }
 
+  paint(color: string) {
+    let tilt = H.dirRot[this.tiltDir];
+    //this.graphics.s(TP.borderColor).dp(0, 0, rad+1, 6, 0, tilt)  // s = beginStroke(color) dp:drawPolyStar
+    this.graphics.f(color).dp(0, 0, this.radius - 1, 6, 0, tilt)             // f = beginFill(color)
+  }
 }
 export class MapCont extends Container {
   constructor() {
@@ -541,22 +544,30 @@ export class HexMap extends Array<Array<Hex>> implements HexM {
     })
   }
 
+  get centerHex() {
+    let cr = Math.floor((this.maxRow + this.minRow) / 2)
+    let cc = Math.floor((this.minCol + this.maxCol) / 2);
+    return this[cr][cc] as Hex2
+  }
+  getCornerHex(dn: InfDir) {
+    return this.centerHex.lastHex(dn)
+  }
+
   hexDirPlanets = new Map<HexDir | typeof H.C, Hex2>();
   get planet0() { return this.hexDirPlanets.get(H.C) };
   /** color center and 6 planets, dist = 1 ... 7 */  // TODO: random location (1-step)
   placePlanets(coff = TP.dbp) {
     Planet.remake();
-    let cr = Math.floor((this.maxRow + this.minRow) / 2), cc = Math.floor((this.minCol + this.maxCol) / 2);
-    let cHex = this[cr][cc] as Hex2
-    let dist = 0;
+    let cHex = this.centerHex;
+    let district = 0;               // planet number...
     let placePlanet = (key: HexDir | typeof H.C, color: string, hex: Hex2) => {
       this.hexDirPlanets.set(key, hex)    // find planet in the given direction
       hex.rmAfHex()
-      hex.planet = Planet.planets[dist++]
+      hex.planet = Planet.planets[district++]
       hex.planet.on('mousedown', (evt: MouseEvent) => {
         if (evt.nativeEvent.buttons === 2) hex.planet.onRightClick(evt)
       })
-      hex.setHexColor(color, dist)   // colorPlanets: district = 1..7
+      hex.setHexColor(color, district)   // colorPlanets: district = 1..7
     }
     placePlanet(H.C, 'lightblue', cHex)
     for (let ds of H.ewDirs) {
