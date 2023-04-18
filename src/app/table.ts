@@ -165,11 +165,9 @@ export class Table extends EventDispatcher  {
 
     let nextHex = this.nextHex = new Hex2(hexMap, undefined, undefined, 'nextHex')
     nextHex.cont.scaleX = nextHex.cont.scaleY = 2
-    nextHex.x = minx + 2 * wide; nextHex.y = miny + 1.4 * high;
+    nextHex.x = Math.round(minx + 2 * wide);
+    nextHex.y = Math.round(miny + 1.4 * high);
     // tweak when hexMap is tiny:
-    let nh = TP.nHexes, mh = TP.mHexes
-    // if (nh == 1 || nh + mh <= 5) { bgr.w += 3*wide; bgr.h += 50; mapCont.x += 3*wide; }
-    nextHex.x = Math.round(nextHex.x); nextHex.y = Math.round(nextHex.y)
     nextHex.cont.visible = true;
 
     this.bgRect = this.setBackground(this.scaleCont, bgr) // bounded by bgr

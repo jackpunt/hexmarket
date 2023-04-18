@@ -3,15 +3,16 @@ import { Shape, Container } from "@thegraid/easeljs-module"
 import { HexDir, H } from "./hex-intfs"
 import { TP } from "./table-params"
 
+/** affinity in three dimensions: Shape(A,T,S), Color(R,G,B=orange), Fill(LINE, FILL) */
 export namespace AF {
   export const A = 'a' // Arc (was C for circle...)
-  export const T = 't'
-  export const S = 's'
-  export const R = 'r'
-  export const G = 'g'
-  export const B = 'b'
-  export const L = 'l'
-  export const F = 'f'
+  export const T = 't' // Triangle
+  export const S = 's' // Square (rectangle)
+  export const R = 'r' // red
+  export const G = 'g' // green
+  export const B = 'b' // blue
+  export const L = 'l' // LINE (hollow)
+  export const F = 'f' // FILL (filled)
   // to get type Zcolor, we can't use: C.RED, C.GREEN, C.BLUE
   export const zcolor = { r: 'RED', g: 'GREEN', b: 'ORANGE' } as const
   export const fill = { l: 'line', f: 'fill'} as const

@@ -36,9 +36,9 @@ export class Ship extends Container {
   _hex: Hex;
   get hex() { return this._hex; }
   set hex(hex: Hex) {
-    if (this.hex !== undefined) this.hex.ship = undefined
-    this._hex = hex
-    hex.ship = this
+    if (this.hex !== undefined) this.hex.ship = undefined  // remove this ship from prior hex
+    this._hex = hex   // this ship now on hex.
+    hex.ship = this   // hex has this ship on it.
   }
   pCont: Container
   cargo: Cargo[] = [new Cargo('F1', 5)];
