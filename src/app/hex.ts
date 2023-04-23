@@ -314,7 +314,6 @@ export class MapCont extends Container {
   markCont: Container    // showMark over Stones new CapMark [localToLocal]
   pathCont0: Container   // ship paths on top
   pathCont1: Container   // ship paths on top
-  pathConts: Container[]  // [pathCont0, pathCont1]
 }
 
 export interface HexM {
@@ -411,7 +410,6 @@ export class HexMap extends Array<Array<Hex>> implements HexM {
       cont[S.Aname] = cont.name = cname;
       mapCont.addChild(cont)
     })
-    mapCont.pathConts = [mapCont.pathCont0, mapCont.pathCont1]
     return this
   }
 

@@ -83,7 +83,8 @@ export class Ship extends Container {
     nameText.y = -textSize / 2;
     this.addChild(nameText)
     this.paint()  // TODO: makeDraggable/Dropable on hexMap
-    this.pCont = player?.table.hexMap.mapCont.pathConts[player?.index]
+    let mapCont = player?.table.hexMap.mapCont;
+    this.pCont = [mapCont?.pathCont0, mapCont?.pathCont1][player?.index];
   }
 
   /**
