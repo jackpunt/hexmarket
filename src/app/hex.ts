@@ -111,9 +111,10 @@ export class Hex {
   }
 
   nextHex(ds: HexDir, ns: number = 1) {
-    let hex: Hex = this, nhex: Hex
+    let hex: Hex = this, nhex: Hex;
     while (!!(nhex = hex.links[ds]) && ns-- > 0) { hex = nhex }
-    return hex
+    // while (!!(hex = hex.links[ds]) && --ns > 0) {  }
+    return hex; // TODO: return nHex (see hextowns)
   }
   /** return last Hex on axis in given direction */
   lastHex(ds: InfDir): Hex {
