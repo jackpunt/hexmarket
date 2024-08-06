@@ -393,10 +393,14 @@ export class Ship extends Container {
   }
   // false if [still] available to move this turn
   moved = true;
+  /** return true if no auto path0 for this ship. */
+  get hasPath0() {
+    return (this.path0 && this.path0.length > 0);
+  }
   /** continue any planned, semi-auto moves toward this.targetHex */
   shipMove() {
     // TODO: continue move if available fuel
-    if (this.moved || this.path0?.length == 0) return this.moved
+    if (this.moved || !this.hasPath0) return this.moved;
     if (!this.path0[0].dir) this.path0.shift();           // skip initial non-Step
     if (this.pathHasOccupiedHex()) {
       this.showPaths(this.targetHex)  // make a new plan (unless targetHex is occupied!)

@@ -92,6 +92,9 @@ export class Player {
     }
     return      // robo or GUI will invoke gamePlay.doPlayerMove(...)
   }
+  shipToMove() {
+    return this.ships.find(ship => !ship.hasPath0)
+  }
   plannerRunning = false
   plannerMove(incb = 0) {
     this.planner?.roboMove(true)

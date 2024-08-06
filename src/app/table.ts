@@ -184,7 +184,7 @@ export class Table extends EventDispatcher  {
 
     this.on(S.add, this.gamePlay.playerMoveEvent, this.gamePlay)[S.Aname] = "playerMoveEvent"
   }
-  dragShip: Ship; // last ship to be dragged [debug]
+  dragShip: Ship; // last ship to be dragged [debug & dragAgain('.') & dragBack(',')]
   startGame() {
     // initialize Players & Ships & Commodities
     this.gamePlay.forEachPlayer(p => {
@@ -237,14 +237,17 @@ export class Table extends EventDispatcher  {
   set dropTarget(hex: Hex2) { hex = (hex || this.nextHex); this._dropTarget = hex; this.hexMap.showMark(hex)}
 
   dragShift = false // last shift state in dragFunc
-  dragHex: Hex2 = undefined // last hex in dragFunc
   protoHex: Hex2 = undefined // hex showing protoMove influence & captures
-  isDragging() { return this.dragHex !== undefined }
+  isDragging() { return this.dragger.dragCont.getChildAt(0) !== undefined; } // see also table.dragShip;
 
+  /**
+   * stopDrag(); record dropTarget = target
+   * @param target Hex2 under ship when dropped.
+   */
   stopDragging(target: Hex2 = this.nextHex) {
     //console.log(stime(this, `.stopDragging: target=`), this.dragger.dragCont.getChildAt(0), {noMove, isDragging: this.isDragging()})
     if (!this.isDragging()) return
-    target && (this.dropTarget = target)
+    if (target) this.dropTarget = target;
     this.dragger.stopDrag()
   }
 
@@ -290,17 +293,26 @@ export class Table extends EventDispatcher  {
     }
     if (bindKeys) {
       this.bindKeysToScale("a", scaleC, 820, 10)
-      KeyBinder.keyBinder.setKey(' ', {thisArg: this, func: this.dragStone})
-      KeyBinder.keyBinder.setKey('S-Space', {thisArg: this, func: this.dragStone})
+      KeyBinder.keyBinder.setKey('Space',   { thisArg: this, func: () => this.toggleDrag() });
+      KeyBinder.keyBinder.setKey('S-Space', { thisArg: this, func: () => this.toggleDrag() });
     }
     return scaleC
   }
-  /** attach nextHex.stone to mouse-drag */
-  dragStone() {
-    if (this.isDragging()) {
-      this.stopDragging(this.dropTarget) // drop and make move
+  /** @return the DisplayObject [Tile] to be dragged (becomes this.dragShip) */
+  get defaultDrag() {
+    return this.gamePlay.curPlayer.shipToMove();
+  }
+  /** Toggle dragging: dragTarget(target) OR stopDragging(targetHex)
+   * - attach supplied target to mouse-drag (default is eventHex.tile)
+   * @param target the DisplayObject being dragged
+   * @param xy offset from target to mouse pointer
+   */
+  toggleDrag(xy: XY = { x: TP.hexRad / 2, y: TP.hexRad / 2 }) {
+    const dragging = this.dragger.dragCont.getChildAt(0);
+    if (!!dragging) {
+      this.stopDragging(this.hexUnderObj(dragging)) // drop and set dropTarget make move
     } else {
-      this.dragger.dragTarget(undefined, { x: TP.hexRad / 2, y: TP.hexRad / 2 })
+      this.dragger.dragTarget(this.defaultDrag, xy);
     }
   }
 
