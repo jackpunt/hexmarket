@@ -1,5 +1,7 @@
-import { MouseEvent, Shape } from "@thegraid/easeljs-module";
-import { H, Hex1 as Hex1Lib, Hex2 as Hex2Lib, HexDir, Hex as HexLib, HexM as HexMLib, HexMap as HexMapLib, MapCont as MapContLib } from "@thegraid/hexlib";
+import { Constructor, F, XY } from "@thegraid/common-lib";
+import { CenterText } from "@thegraid/easeljs-lib";
+import { MouseEvent, Point, Shape, Text } from "@thegraid/easeljs-module";
+import { H, Hex1 as Hex1Lib, Hex2 as Hex2Lib, HexCont, HexDir, Hex as HexLib, HexMap as HexMapLib, MapCont as MapContLib, NsDir } from "@thegraid/hexlib";
 import { AfHex } from "./AfHex";
 import { Planet } from "./planet";
 import { Ship } from "./ship";
@@ -51,7 +53,19 @@ class MktHex2Lib extends Hex {
 }
 
 /** One Hex cell in the game, shown as a polyStar Shape */
-export class Hex2 extends Hex2Lib {
+export class Hex2 extends MktHex2Lib {
+  cont: HexCont = new HexCont(this as any as Hex2Lib);
+  radius = TP.hexRad;
+
+  hexShape = this.makeHexShape();    // shown on this.cont: colored hexagon
+  get mapCont() { return this.map.mapCont; }
+  get markCont() { return this.mapCont.markCont; }
+
+  get x() { return this.cont.x }
+  set x(v: number) { this.cont.x = v }
+  get y() { return this.cont.y }
+  set y(v: number) { this.cont.y = v }
+
   get ship() { return super.meep as Ship; }
   set ship(ship: Ship) { super.meep = ship; }
 
@@ -60,9 +74,12 @@ export class Hex2 extends Hex2Lib {
 
   /** Hex2 cell with graphics; shown as a polyStar Shape of radius @ (XY=0,0) */
   constructor(map: HexMapLib<Hex>, row: number, col: number, name?: string) {
-    super(map as any as HexMLib<Hex2Lib>, row, col, name); // as any as HexMLib<Hex2Lib>
+    super(map, row, col, name); // as any as HexMLib<Hex2Lib>
     // includes this.initCont() which caches this.cont;
-
+    this.constructorCode(map, row, col, name);
+  }
+  constructorCode(map: HexMapLib<Hex>, row: number, col: number, name?: string) {
+    this.initCont(row, col);
     this.setHexColor("grey")  // new Hex2: until setHexColor(by district)
     this.hexShape.name = this.Aname
 
@@ -73,22 +90,63 @@ export class Hex2 extends Hex2Lib {
     this.y += y
     this.cont.setBounds(-w/2, -h/2, w, h)
   }
-  asuper: Hex;
-   addAfHex(affn = Math.floor(Math.random() * AfHex.allAfHex.length)) {
-    this.asuper.addAfHex(affn)
-    this.cont.addChild(this.asuper.afhex)
+
+  override addAfHex(affn = Math.floor(Math.random() * AfHex.allAfHex.length)) {
+    super.addAfHex(affn)
+    this.cont.addChild(this.afhex)
     this.cont.updateCache()
   }
   /** remove AfHex from planet Hex */
-   rmAfHex() {
-    this.cont.removeChild(this.asuper.afhex)
-    this.asuper.rmAfHex()
+  override rmAfHex() {
+    this.cont.removeChild(this.afhex)
+    super.rmAfHex()
     this.cont.updateCache()
   }
+
+  /** place this.cont; setBounds(); cont.cache() */
+  initCont(row: number, col: number) {
+    const cont = this.cont;
+    const { x, y, w, h } = this.xywh(this.radius, TP.useEwTopo, row, col); // include margin space between hexes
+    cont.x = x;
+    cont.y = y;
+    // initialize cache bounds:
+    cont.setBounds(-w / 2, -h / 2, w, h);
+    const b = cont.getBounds();
+    cont.cache(b.x, b.y, b.width, b.height);
+    // cont.rotation = this.map.topoRot;
+  }
+
+  /** set hexShape using color: draw border and fill
+   * @param color
+   * @param district if supplied, set this.district
+   */
+  setHexColor(color: string, district?: number | undefined) {
+    if (district !== undefined) this.district = district // hex.setHexColor update district
+    // this.distColor = color;
+    this.hexShape.paint(color);
+    this.cont.updateCache();
+  }
+
+  makeHexShape(shape: Constructor<HexShape> = HexShape) {
+    const hs = new shape(this.radius);
+    this.cont.addChildAt(hs, 0);
+    this.cont.hitArea = hs;
+    hs.paint('grey');
+    return hs;
+  }
+
+  /** Location of edge point in dir; in parent coordinates.
+   * @param dir indicates direction to edge
+   * @param rad [1] per-unit distance from center: 0 --> center, 1 --> exactly on edge, 1+ --> outside hex
+   * @param point [new Point()] set location-x,y in point and return it.
+   */
+  edgePoint(dir: HexDir, rad = 1, point: XY = new Point()) {
+    const a = H.nsDirRot[dir as NsDir] * H.degToRadians, h = rad * this.radius * H.sqrt3_2;
+    point.x = this.hexShape.x + Math.sin(a) * h;
+    point.y = this.hexShape.y - Math.cos(a) * h;
+    return point as Point;
+  }
 }
-const mktHex2Lib = new MktHex2Lib(undefined, 0, 0, 'mktHex2Lib-0-0');
-const mktHex2 = new Hex2(undefined, 0, 0, 'mktHex2-0-0');
-console.log( {mktHex2Lib, mktHex2});
 
 /** the colored Shape that fills a Hex. */
 export class HexShape extends Shape {

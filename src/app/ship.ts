@@ -7,7 +7,7 @@ import { EwDir, H, HexDir } from "./hex-intfs";
 import { Cargo } from "./planet";
 import { Player } from "./player";
 import { TP } from "./table-params";
-import { Meeple, DragContext } from "@thegraid/hexlib";
+import { Meeple, DragContext, Hex2 as Hex2Lib } from "@thegraid/hexlib";
 
 class PathElt<T extends Hex> {
   constructor(public dir: HexDir, public hex: T, public step: Step<T>) {  }
