@@ -1,15 +1,16 @@
-import { ParamMap } from "@angular/router";
-import { C, CycleChoice, DropdownStyle, makeStage, ParamGUI, ParamItem, S, stime } from "@thegraid/easeljs-lib";
-import { Container, Stage } from "@thegraid/easeljs-module";
+import { Params } from "@angular/router";
+import { C, Constructor, CycleChoice, DropdownStyle, ParamGUI, ParamItem, S, stime } from "@thegraid/easeljs-lib";
+import { Container } from "@thegraid/easeljs-module";
+import { GameSetup as GameSetupLib, HexMap as HexMapLib, Hex, Meeple, Tile, MapCont } from "@thegraid/hexlib";
 import { AfHex } from "./AfHex";
-import { BC, EBC, PidChoice } from "./choosers";
+import { EBC, PidChoice } from "./choosers";
 import { GamePlay } from "./game-play";
 import { Hex2, HexMap } from "./hex";
 import { Cargo } from "./planet";
 import { Player } from "./player";
-import { StatsPanel, TableStats } from "./stats";
 import { Table } from "./table";
 import { TP } from "./table-params";
+import { SetupElt } from "./scenario-parser";
 
 /** show " R" for " N" */
 stime.anno = (obj: string | { constructor: { name: string; }; }) => {
@@ -18,95 +19,75 @@ stime.anno = (obj: string | { constructor: { name: string; }; }) => {
 }
 
 /** initialize & reset & startup the application. */
-export class GameSetup {
-  stage: Stage;
-  gamePlay: GamePlay
+export class GameSetup extends GameSetupLib {
   paramGUIs: ParamGUI[]
   netGUI: ParamGUI // paramGUIs[2]
 
   /**
    * ngAfterViewInit --> start here!
+   *
+   * - initialize(canvasId, qParams) -> initTP(qParams)
+   * - loadImagesThenStartup(qParams)
    * @param canvasId supply undefined for 'headless' Stage
    */
-  constructor(canvasId: string, ext?: string[]) {
-    stime.fmt = "MM-DD kk:mm:ss.SSS"
-    this.stage = makeStage(canvasId, false)
-    this.startup(ext)
+  constructor(canvasId: string, qParams: Params = []) {
+    super(canvasId, qParams);
   }
-  _netState = " " // or "yes" or "ref"
-  set netState(val: string) {
-    this._netState = (val == "cnx") ? this._netState : val || " "
-    this.gamePlay.ll(2) && console.log(stime(this, `.netState('${val}')->'${this._netState}'`))
-    this.netGUI?.selectValue("Network", val)
-  }
-  get netState() { return this._netState }
-  set playerId(val: string) { this.netGUI?.selectValue("PlayerId", val || "     ") }
 
-  /** C-s ==> kill game, start a new one, possibly with new dbp */
-  restart(dbp = TP.dbp, dop = TP.dop) {
-    let netState = this.netState
-    // this.gamePlay.closeNetwork('restart')
-    // this.gamePlay.logWriter?.closeFile()
-    this.gamePlay.forEachPlayer(p => p.endGame())
-    let deContainer = (cont: Container) => {
-      cont.children.forEach(dObj => {
-        dObj.removeAllEventListeners()
-        if (dObj instanceof Container) deContainer(dObj)
-      })
-      cont.removeAllChildren()
-    }
-    deContainer(this.stage)
-    TP.fnHexes(dbp, dop)
-    let rv = this.startup()
-    this.netState = " "      // onChange->noop; change to new/join/ref will trigger onChange(val)
-    // next tick, new thread...
-    setTimeout(() => this.netState = netState, 100) // onChange-> ("new", "join", "ref") initiate a new connection
-    return rv
+
+  override makeHexMap() {
+    const hexMap = new HexMap(TP.hexRad, true, Hex2 as Constructor<Hex>);
+    const cNames = MapCont.cNames.concat() as string[];
+    Player.allPlayers.forEach(p => cNames.push(p.pathCname)); // pathCont for each Player
+
+    hexMap.addToMapCont(Hex2, cNames);       // addToMapCont(hexC, cNames)
+    hexMap.makeAllDistricts();               // determines size for this.bgRect
+    return hexMap;
   }
   /**
    * Make new Table/layout & gamePlay/hexMap & Players.
    * @param ext Extensions from URL
    */
-  startup(ext: string[] = []) {
+  override startup(qParams: Params = this.qParams) {
+    // super.startup(qParams); // hexmap, table, scenario, gamePlay
+    Tile.allTiles = [];
+    Meeple.allMeeples = [];
+    Player.allPlayers = [];
     AfHex.makeAllAfHex()
-    let table = new Table(this.stage) // EventDispatcher, ScaleCont, GUI-Player
-    let gamePlay = new GamePlay(table, this) // hexMap, players, gStats, mouse/keyboard->GamePlay
+
+    const n = qParams?.['n'] ? Number.parseInt(qParams['n']) : 2;
+    this.nPlayers = Math.min(TP.maxPlayers, n);
+    this.hexMap = this.makeHexMap();         // only reference is in GamePlay constructor!
+    this.table = new Table(this.stage)       // EventDispatcher, ScaleCont, GUI-Player
+    const scenario = this.initialScenario(); // could specify planet locations & cargo & seed?
+    const gamePlay = new GamePlay(this, scenario);
     this.gamePlay = gamePlay
     gamePlay.hexMap[S.Aname] = `mainMap`
-    let statsx = -300, statsy = 30
-    table.layoutTable(gamePlay)           // mutual injection, all the GUI components, fill hexMap
-    gamePlay.forEachPlayer(p => p.newGame(gamePlay))        // make Planner *after* table & gamePlay are setup
+    this.startScenario(scenario);
+    // makeNPlayers(); layoutTable(); parseScenario(); p.newGame(); makeGUIs(); table.startGame();
+  }
+
+  override makePlayer(ndx: number, gamePlay: GamePlay) {
+    new Player(ndx, gamePlay);
+  }
+
+  override parseScenario(scenario: SetupElt): void {
+    (this.table.hexMap as any as HexMap).placePlanets()
+  }
+
+  residual(table: Table) {
+    const gamePlay = table.gamePlay;
+    const statsx = -300, statsy = 30;
     if (this.stage.canvas) {
-      let statsPanel = this.makeStatsPanel(gamePlay.gStats, table.scaleCont, statsx, statsy)
-      table.statsPanel = statsPanel
-      let guiy = statsPanel.y + statsPanel.ymax + statsPanel.lead * 2
       console.groupCollapsed('initParamGUI')
-      this.paramGUIs = this.makeParamGUI(table, table.scaleCont, statsx, guiy) // modify TP.params...
+      this.paramGUIs = this.makeParamGUI(table, table.scaleCont, statsx, 30) // modify TP.params...
       let [gui, gui2] = this.paramGUIs
       // table.miniMap.mapCont.y = Math.max(gui.ymax, gui2.ymax) + gui.y + table.miniMap.wh.height / 2
       console.groupEnd()
     }
-    table.startGame() // setNextPlayer()
     return gamePlay
   }
-  /** reporting stats. values also used by AI Player. */
-  makeStatsPanel(gStats: TableStats, parent: Container, x: number, y: number): StatsPanel {
-    let panel = new StatsPanel(gStats) // a ReadOnly ParamGUI reading gStats [& pstat(color)]
-    panel.makeParamSpec("nCoins")     // implicit: opts = { chooser: StatChoice }
-    // panel.makeParamSpec("nInf")
-    // panel.makeParamSpec("nAttacks")
-    // panel.makeParamSpec("nThreats")
-    // panel.makeParamSpec("dMax")
-    panel.makeParamSpec("score", [], {name: `score: ${TP.nVictory}`})
-    panel.makeParamSpec("sStat", [1])
 
-    parent.addChild(panel)
-    panel.x = x
-    panel.y = y
-    panel.makeLines()
-    panel.stage.update()
-    return panel
-  }
   /** affects the rules of the game & board
    *
    * ParamGUI   --> board & rules [under stats panel]

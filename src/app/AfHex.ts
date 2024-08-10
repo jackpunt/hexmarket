@@ -71,7 +71,8 @@ export class AfHex extends Container {
     public aShapes: ATS[],
     public aColors: AfColor[],
     public aFill: AfFill[],
-    public Aname = ``
+    public Aname = ``,
+    public spin: number = 0, // [0..5]
   ) {
     super()
     for (let ndx in aShapes) {
@@ -83,7 +84,7 @@ export class AfHex extends Container {
     this.cache(-w / 2, -h / 2, w, h)
   }
   override clone() {
-    return new AfHex(this.aShapes, this.aColors, this.aFill, this.Aname)
+    return new AfHex(this.aShapes, this.aColors, this.aFill, this.Aname, this.spin);
   }
 
   static allAfHexMap: Map<string, AfHex> = new Map();

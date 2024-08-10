@@ -1,9 +1,11 @@
 import { Component, Input, OnInit } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Params } from '@angular/router';
 import { stime } from '@thegraid/easeljs-lib';
 //import { } from 'wicg-file-system-access';
+import { Title } from '@angular/platform-browser';
+import { AppComponent } from '../app.component';
 import { GameSetup } from '../game-setup';
-import { buildURL, TP } from '../table-params';
+import { TP } from '../table-params';
 
 @Component({
   selector: 'stage-comp',
@@ -16,9 +18,10 @@ export class StageComponent implements OnInit {
   getId(): string {
     return "T" + (StageComponent.idnum = StageComponent.idnum + 1);
   };
-  /** names of extensions to be removed: ext=Transit,Roads */
-  @Input('ext')
-  ext: string;
+  /** the query string: ?a=...&b=...&c=... =>{a: ..., b: ..., c:...} */
+  @Input('params')
+  qParams: Params;
+
 
   @Input('width')
   width = 1600.0;   // [pixels] size of "Viewport" of the canvas / Stage
@@ -28,16 +31,15 @@ export class StageComponent implements OnInit {
   /** HTML make a \<canvas/> with this ID: */
   mapCanvasId = "mapCanvas" + this.getId(); // argument to new Stage(this.canvasId)
 
-  constructor(private activatedRoute: ActivatedRoute) {}
+  constructor(private activatedRoute: ActivatedRoute, private titleService: Title, private app: AppComponent) { }
   ngOnInit() {
     console.log(stime(this, ".noOnInit---"))
-    let x = this.activatedRoute.params.subscribe(params => {
+    this.activatedRoute.params.subscribe(params => {
       console.log(stime(this, ".ngOnInit: params="), params)
     })
-    let y = this.activatedRoute.queryParams.subscribe(params => {
-      console.log(stime(this, ".ngOnInit: queryParams="), params)
-      this.ext = params['ext'];
-      console.log(stime(this, ".ngOnInit: ext="), this.ext);
+    this.activatedRoute.queryParams.subscribe(params => {
+      console.log(stime(this, ".ngOnInit: queryParams="), params);
+      this.qParams = params;
     });
   }
 
@@ -46,20 +48,31 @@ export class StageComponent implements OnInit {
   }
   ngAfterViewInit2() {
     let href: string = document.location.href;
-    console.log(stime(this, ".ngAfterViewInit---"), href, "ext=", this.ext)
-    if (href.endsWith("startup")) {
-
-    }
+    console.log(stime(this, ".ngAfterViewInit---"), href, "qParams=", this.qParams)
     // disable browser contextmenu
     // console.log(stime(this, `.ngAfterViewInit--- preventDefault contextmenu`))
     window.addEventListener('contextmenu', (evt: MouseEvent) => evt.preventDefault())
     const urlParams = new URLSearchParams(window.location.search);
-    TP.ghost = urlParams.get('host') || TP.ghost
-    TP.gport = Number.parseInt(urlParams.get('port') || TP.gport.toString(10), 10)
-    TP.networkUrl = buildURL(undefined)
-    let extstr = urlParams.get('ext')
-    let ext = !!extstr ? extstr.split(',') : []
-    new GameSetup(this.mapCanvasId, ext) // load images; new GamePlay
+    const host = urlParams.get('host');
+    const port = urlParams.get('port');
+    TP.ghost = host ?? TP.ghost;
+    TP.gport = (port !== null) ? Number.parseInt(port) : TP.gport;
+    TP.setParams(TP); // set host:port so buildURL can find them
+    TP.eraseLocal(TP);
+    // console.log(stime(this, `.ngAfterViewInit - erased`), { url: TP.networkUrl, TP, qParams: this.qParams });
+    const networkUrl = TP.buildURL(undefined);
+    TP.setParams({ networkUrl }); // push TP.networkURL to base class
+    // const TP0 = TP, ghost = TP.ghost, rb = TP.Red_Blue;
+    // console.log(stime(this, `.ngAfterViewInit`), { networkUrl: TP.networkUrl, TP, qParams: this.qParams });
+
+    const { n, scene, file } = this.qParams;
+    this.titleService.setTitle(`${this.app.title}`);
+    // set an initial readFileName; but is overwritten later...
+    ;(document.getElementById('readFileName') as HTMLInputElement).value = file ?? 'scene@0';
+    const gs = new GameSetup(this.mapCanvasId, this.qParams);    // load images; new GamePlay(qParams);
+    if (href.endsWith("startup") && false) {
+      gs.startup(this.qParams);
+    }
   }
   // see: stream-writer.setButton
   // static enableOpenFilePicker(method: 'showOpenFilePicker' | 'showSaveFilePicker' | 'showDirectoryPicker',

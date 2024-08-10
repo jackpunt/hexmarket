@@ -7,6 +7,7 @@ import { EwDir, H, HexDir } from "./hex-intfs";
 import { Cargo } from "./planet";
 import { Player } from "./player";
 import { TP } from "./table-params";
+import { Meeple, DragContext } from "@thegraid/hexlib";
 
 class PathElt<T extends Hex> {
   constructor(public dir: HexDir, public hex: T, public step: Step<T>) {  }
@@ -20,7 +21,7 @@ type ZConfig = {
   zfill: AfFill, // AF.F | AF.L
   fuel: number,
 }
-export class Ship extends Container {
+export class Ship extends Meeple {
   /** intrinsic cost for each Step (0 or 1); start of turn pays 1 for null 'shape' */
   static step1 = 1;
   static maxZ = 3;       // for now: {shape + color + color}
@@ -28,18 +29,24 @@ export class Ship extends Container {
   static fuelPerStep = 0;
   static initCoins = 200;
 
-  readonly radius = this.z0 * 10;
+  // readonly radius = this.z0 * 10;
+  override get radius() { return this.z0 * TP.hexRad / 6 };
+
+  override get hex() { return super.hex as Hex; }
+  override set hex(hex: Hex) { super.hex = hex; }
+
   readonly gShape: Shape = new Shape();
-  readonly Aname: string = `S${Ship.idCounter++}`
+  // readonly Aname: string = `S${Ship.idCounter++}`
 
   /** current location of this Ship. */
-  _hex: Hex;
-  get hex() { return this._hex; }
-  set hex(hex: Hex) {
-    if (this.hex !== undefined) this.hex.ship = undefined  // remove this ship from prior hex
-    this._hex = hex   // this ship now on hex.
-    hex.ship = this   // hex has this ship on it.
-  }
+  // _hex: Hex;
+  // get hex() { return this._hex; }
+  // set hex(hex: Hex) {
+  //   if (this.hex !== undefined) this.hex.ship = undefined  // remove this ship from prior hex
+  //   this._hex = hex   // this ship now on hex.
+  //   hex.ship = this   // hex has this ship on it.
+  // }
+  /** show path from srcHex to destHex */
   pCont: Container
   cargo: Cargo[] = [new Cargo('F1', 5)];
   coins: number = Ship.initCoins
@@ -73,25 +80,26 @@ export class Ship extends Container {
    * @param size 1: scout, 2: freighter, 3: heavy
    */
   constructor(
-    public readonly player?: Player,
+    player?: Player,
     public readonly z0 = 2,
   ) {
-    super()
+    super(`S${Ship.idCounter++}`, player)
     this.addChild(this.gShape)
     let textSize = 16, nameText = new Text(this.Aname, F.fontSpec(textSize))
     nameText.textAlign = 'center'
     nameText.y = -textSize / 2;
     this.addChild(nameText)
     this.paint()  // TODO: makeDraggable/Dropable on hexMap
-    let mapCont = player?.table.hexMap.mapCont;
-    this.pCont = [mapCont?.pathCont0, mapCont?.pathCont1][player?.index];
+    this.pCont = player?.pathCont;
   }
+  override player: Player;
 
   /**
    * show ship with current zcolor (from last transit config)
    * @param pcolor AF.zcolor of inner ring ("player" color)
    */
-  paint(pcolor = this.player?.afColor) {
+  override paint(pcolor = this.player?.afColor) {
+    if (!this.gShape) return;       // Tile calls paint before initialization is complete
     this.paint1(undefined, pcolor)  // TODO: define source/type of Zcolor
   }
 
@@ -140,7 +148,7 @@ export class Ship extends Container {
   /** move to hex, incur cost to fuel.
    * @return false if move not possible (no Hex, insufficient fuel)
    */
-  move(dir: EwDir, hex = this.hex.nextHex(dir)) {
+  move(dir: EwDir, hex = this.hex.nextHex(dir) as Hex) {
     let nconfig = { ... this.zconfig }
     if (hex.occupied) return false;
     let cost = this.configCost(this.hex, dir, hex, nconfig)
@@ -158,7 +166,7 @@ export class Ship extends Container {
    * @param tLimit stop searching if path length is tLimit longer than best path.
    * @return final Step of each path; empty array if no possible path to targetHex
    */
-  findPaths<T extends Hex | Hex2>(targetHex: T, limit = 2) {
+  findPaths<T extends Hex & Hex2>(targetHex: T, limit = 2) {
     if (targetHex.occupied) return []    // includes: this.hex === targetHex
     let minMetric = this.hex.radialDist(targetHex) * this.transitCost
     let paths: Step<T>[]
@@ -169,7 +177,7 @@ export class Ship extends Container {
     return paths
   }
   /** @return (possibly empty) array of Paths. */
-  findPathsWithMetric<T extends Hex | Hex2>(hex0: T, hex1: T, limit: number, minMetric: number) {
+  findPathsWithMetric<T extends Hex & Hex2>(hex0: T, hex1: T, limit: number, minMetric: number) {
     let isLoop = (nStep: Step<Hex>) => { // 'find' for linked list:
       let nHex = nStep.curHex, pStep = nStep.prevStep
       while (pStep && pStep.curHex !== nHex) pStep = pStep.prevStep
@@ -238,7 +246,7 @@ export class Ship extends Container {
     return sum
   }
   drawDirect(target: Hex2, g: Graphics, cl: string , wl = 2) {
-    let hex0 = this.hex as Hex2
+    let hex0 = this.hex as any as Hex2
     g.ss(wl).s(cl).mt(hex0.x, hex0.y).lt(target.x, target.y).es()
   }
   /**
@@ -325,6 +333,7 @@ export class Ship extends Container {
     return pshape
   }
 
+  /** find path to this target hex */
   targetHex: Hex2;
   originHex: Hex2;
   lastShift: boolean;
@@ -333,7 +342,7 @@ export class Ship extends Container {
   // get estimate of 'minMetric' to prune far branches <-- DID THIS
   dragFunc(hex: Hex2, ctx: DragInfo) {
     if (ctx?.first) {
-      this.originHex = this.hex as Hex2
+      this.originHex = this.hex as any as Hex2
       this.lastShift = undefined
     }
     if (hex == this.originHex) {
@@ -366,21 +375,21 @@ export class Ship extends Container {
     return paths                    // paths may be empty, but NOT undefined
   }
 
-  dropFunc(hex: Hex2, ctx: DragInfo) {
+  override dropFunc(hex: Hex2Lib & Hex2, ctx: DragContext) {
     if (hex !== this.targetHex || !this.path0 || this.path0[this.path0.length - 1]?.hex !== hex) {
       this.setPathToHex(hex)   // find a path not shown
     }
     this.hex = this.originHex;
     this.paint()
     //
-    const shiftKey = ctx?.event?.nativeEvent?.shiftKey
+    const shiftKey = ctx?.info?.event?.nativeEvent?.shiftKey
     if (!shiftKey) this.pCont.removeAllChildren();
     this.lastShift = undefined
   }
 
   dragBack() {
     this.hex = this.targetHex = this.originHex
-    this.originHex.ship = this;
+    this.originHex.meep = this;
     this.hex.map.update()
   }
   dragAgain() {
