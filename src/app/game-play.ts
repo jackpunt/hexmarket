@@ -1,6 +1,6 @@
 import { KeyBinder, S, Undo } from "@thegraid/easeljs-lib";
 import { GamePlay as GamePlayLib, Scenario } from "@thegraid/hexlib";
-import { Hex, HexMap } from "./hex";
+import { MktHex, HexMap } from "./hex";
 import { Player } from "./player";
 //import { GameStats, TableStats } from "./stats";
 import { Table } from "./table";
@@ -10,54 +10,54 @@ import { GameSetup } from "./game-setup";
 class HexEvent {}
 class Move{}
 
-/** Implement game, enforce the rules, manage GameStats & hexMap; no GUI/Table required.
- *
- * Move actions are:
- * - move ship to hex
- * - buy/sell commodity or upgrade
- * - launch sub-space mine/disrupter?
- * - alter alignment of ship
- * - alter alignment of hex
- *
- */
-export class GamePlay0 {
-  static gpid = 0
-  readonly id = GamePlay0.gpid++
-  ll(n: number) { return TP.log > n }
+// /** Implement game, enforce the rules, manage GameStats & hexMap; no GUI/Table required.
+//  *
+//  * Move actions are:
+//  * - move ship to hex
+//  * - buy/sell commodity or upgrade
+//  * - launch sub-space mine/disrupter?
+//  * - alter alignment of ship
+//  * - alter alignment of hex
+//  *
+//  */
+// export class GamePlay0 {
+//   static gpid = 0
+//   readonly id = GamePlay0.gpid++
+//   ll(n: number) { return TP.log > n }
 
-  readonly hexMap: HexMap = new HexMap()
-  readonly history   = []          // sequence of Move that bring board to its state
-  readonly redoMoves = []
+//   readonly hexMap: HexMap = new HexMap()
+//   readonly history   = []          // sequence of Move that bring board to its state
+//   readonly redoMoves = []
 
-  constructor() {
+//   constructor() {
 
-  }
+//   }
 
-  turnNumber: number = 0    // = history.lenth + 1 [by this.setNextPlayer]
-  curPlayerNdx: number = 0  // curPlayer defined in GamePlay extends GamePlay0
+//   turnNumber: number = 0    // = history.lenth + 1 [by this.setNextPlayer]
+//   curPlayerNdx: number = 0  // curPlayer defined in GamePlay extends GamePlay0
 
-  /** Planner may override with alternative impl. */
-  newMoveFunc: (hex: Hex, sc: PlayerColor, caps: Hex[], gp: GamePlay0) => Move
-  newMove(hex: Hex, sc: PlayerColor, caps: Hex[], gp: GamePlay0) {
-    return this.newMoveFunc? this.newMoveFunc(hex,sc, caps, gp) : new Move()
-  }
-  undoRecs: Undo = new Undo().enableUndo();
-  addUndoRec(obj: Object, name: string, value: any | Function = obj[name]) {
-    this.undoRecs.addUndoRec(obj, name, value);
-  }
+//   /** Planner may override with alternative impl. */
+//   newMoveFunc: (hex: MktHex, sc: PlayerColor, caps: MktHex[], gp: GamePlay0) => Move
+//   newMove(hex: MktHex, sc: PlayerColor, caps: MktHex[], gp: GamePlay0) {
+//     return this.newMoveFunc? this.newMoveFunc(hex,sc, caps, gp) : new Move()
+//   }
+//   undoRecs: Undo = new Undo().enableUndo();
+//   addUndoRec(obj: Object, name: string, value: any | Function = obj[name]) {
+//     this.undoRecs.addUndoRec(obj, name, value);
+//   }
 
-}
+// }
 
-/** GamePlayD has compatible hexMap(mh, nh) but does not share components. used by Planner */
-export class GamePlayD extends GamePlay0 {
-  //override hexMap: HexMaps = new HexMap();
-  constructor(dbp: number = TP.dbp, dop: number = TP.dop) {
-    super()
-    this.hexMap[S.Aname] = `GamePlayD#${this.id}`
-    this.hexMap.makeAllDistricts(dbp, dop)
-    return
-  }
-}
+// /** GamePlayD has compatible hexMap(mh, nh) but does not share components. used by Planner */
+// export class GamePlayD extends GamePlay0 {
+//   //override hexMap: HexMaps = new HexMap();
+//   constructor(dbp: number = TP.dbp, dop: number = TP.dop) {
+//     super()
+//     this.hexMap[S.Aname] = `GamePlayD#${this.id}`
+//     this.hexMap.makeAllDistricts(dbp, dop)
+//     return
+//   }
+// }
 
 /** GamePlay with Table & GUI (KeyBinder, ParamGUI & Dragger) */
 export class GamePlay extends GamePlayLib {
@@ -91,8 +91,8 @@ export class GamePlay extends GamePlayLib {
     KeyBinder.keyBinder.setKey('M-z', { thisArg: this, func: this.undoMove })
     KeyBinder.keyBinder.setKey('b', { thisArg: this, func: this.undoMove })
     KeyBinder.keyBinder.setKey('f', { thisArg: this, func: this.redoMove })
-    KeyBinder.keyBinder.setKey('S', { thisArg: this, func: this.skipMove })
-    KeyBinder.keyBinder.setKey('M-K', { thisArg: this, func: this.resignMove })// S-M-k
+    // KeyBinder.keyBinder.setKey('S', { thisArg: this, func: this.skipMove })
+    // KeyBinder.keyBinder.setKey('M-K', { thisArg: this, func: this.resignMove })// S-M-k
     KeyBinder.keyBinder.setKey('Escape', {thisArg: table, func: table.stopDragging}) // Escape
     KeyBinder.keyBinder.setKey('C-s', { thisArg: this.gameSetup, func: () => { this.gameSetup.restart({}) } })// C-s START
     KeyBinder.keyBinder.setKey('C-c', { thisArg: this, func: this.stopPlayer })// C-c Stop Planner
@@ -113,17 +113,17 @@ export class GamePlay extends GamePlayLib {
     KeyBinder.keyBinder.setKey('M-J', { thisArg: this, func: () => { this.gameSetup.netState = "new" } })
     KeyBinder.keyBinder.setKey('M-j', { thisArg: this, func: () => { this.gameSetup.netState = "join" } })
     KeyBinder.keyBinder.setKey('M-d', { thisArg: this, func: () => { this.gameSetup.netState = "no" } })
-    table.undoShape.on(S.click, () => this.undoMove(), this)
-    table.redoShape.on(S.click, () => this.redoMove(), this)
-    table.skipShape.on(S.click, () => this.skipMove(), this)
+    // table.undoShape.on(S.click, () => this.undoMove(), this)
+    // table.redoShape.on(S.click, () => this.redoMove(), this)
+    // table.skipShape.on(S.click, () => this.skipMove(), this)
   }
 
-  skipMove() {
-    this.table.stopDragging() // drop on nextHex (no Move)
-  }
-  resignMove() {
-    this.table.stopDragging() // drop on nextHex (no Move)
-  }
+  // skipMove() {
+  //   this.table.stopDragging() // drop on nextHex (no Move)
+  // }
+  // resignMove() {
+  //   this.table.stopDragging() // drop on nextHex (no Move)
+  // }
 }
 
 /** a uniquifying 'symbol table' of Board.id */

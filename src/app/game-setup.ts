@@ -1,11 +1,11 @@
 import { Params } from "@angular/router";
 import { C, Constructor, CycleChoice, DropdownStyle, ParamGUI, ParamItem, S, stime } from "@thegraid/easeljs-lib";
 import { Container } from "@thegraid/easeljs-module";
-import { GameSetup as GameSetupLib, HexMap as HexMapLib, Hex, Meeple, Tile, MapCont } from "@thegraid/hexlib";
+import { GameSetup as GameSetupLib, Meeple, Tile, MapCont } from "@thegraid/hexlib";
 import { AfHex } from "./AfHex";
 import { EBC, PidChoice } from "./choosers";
 import { GamePlay } from "./game-play";
-import { Hex2, HexMap } from "./hex";
+import { MktHex as Hex, MktHex2 as Hex2, HexMap } from "./hex";
 import { Cargo } from "./planet";
 import { Player } from "./player";
 import { Table } from "./table";
@@ -22,6 +22,7 @@ stime.anno = (obj: string | { constructor: { name: string; }; }) => {
 export class GameSetup extends GameSetupLib {
   paramGUIs: ParamGUI[]
   netGUI: ParamGUI // paramGUIs[2]
+  override gamePlay: GamePlay;
 
   /**
    * ngAfterViewInit --> start here!
@@ -34,12 +35,15 @@ export class GameSetup extends GameSetupLib {
     super(canvasId, qParams);
   }
 
-
-  override makeHexMap() {
-    const hexMap = new HexMap(TP.hexRad, true, Hex2 as Constructor<Hex>);
+  /** override to inject each Player.pathCont */
+  override makeHexMap(hexC: Constructor<Hex> = Hex) {
+    const hexMap = new HexMap(TP.hexRad, true, hexC);
     const cNames = MapCont.cNames.concat() as string[];
-    Player.allPlayers.forEach(p => cNames.push(p.pathCname)); // pathCont for each Player
-
+    for (let ndx = 0; ndx < this.nPlayers; ndx++) {
+      const p = this.makePlayer(ndx, this.gamePlay); // pushes to allPlayers
+      cNames.push(p.pathCname)
+    }
+    HexMap.distColor[0] = 'Black';
     hexMap.addToMapCont(Hex2, cNames);       // addToMapCont(hexC, cNames)
     hexMap.makeAllDistricts();               // determines size for this.bgRect
     return hexMap;
@@ -68,7 +72,7 @@ export class GameSetup extends GameSetupLib {
   }
 
   override makePlayer(ndx: number, gamePlay: GamePlay) {
-    new Player(ndx, gamePlay);
+    return new Player(ndx, gamePlay);
   }
 
   override parseScenario(scenario: SetupElt): void {

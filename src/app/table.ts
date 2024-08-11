@@ -1,11 +1,9 @@
 import { AT, ParamGUI, ParamItem, stime, XY } from "@thegraid/easeljs-lib";
 import { Container, Stage } from "@thegraid/easeljs-module";
+import { IdHex, IHex2, Scenario, Table as TableLib } from "@thegraid/hexlib";
 import { GamePlay } from "./game-play";
-import { Hex2 } from "./hex";
-//import { TablePlanner } from "./planner";
 import { Player } from "./player";
 import { Ship } from "./ship";
-import { Hex2 as Hex2Lib, IdHex, Scenario, Table as TableLib } from "@thegraid/hexlib";
 import { PlayerColor, TP } from "./table-params";
 
 
@@ -14,10 +12,11 @@ class TablePlanner {
   constructor(gamePlay: GamePlay) {}
 }
 
-/** layout display components, setup callbacks to GamePlay */
+/** layout display components, setup callbacks to GamePlay.
+ *
+ * + dragShip: Ship;
+ */
 export class Table extends TableLib {
-
-  nextHex: Hex2;
 
   constructor(stage: Stage) {
     super(stage);
@@ -56,6 +55,7 @@ export class Table extends TableLib {
     gui.makeLines();
     return gui;
   }
+
   dragShip: Ship; // last ship to be dragged [debug & dragAgain('.') & dragBack(',')]
   override startGame(scenario: Scenario) {
     // initialize Players & Ships & Commodities
@@ -72,28 +72,6 @@ export class Table extends TableLib {
     const robo = curPlayer.useRobo ? AT.ansiText(['red','bold'],"robo") : "----";
     const info = { turn: `#${tn}`, plyr: curPlayer.name, gamePlay: this.gamePlay }
     console.log(stime(this, `.logCurPlayer --${robo}--`), info);
-  }
-
-  // hexUnderObj(dragObj: DisplayObject) {
-  //   let pt = dragObj.parent.localToLocal(dragObj.x, dragObj.y, this.hexMap.mapCont.hexCont)
-  //   return this.hexMap.hexUnderPoint(pt.x, pt.y)
-  // }
-  _dropTarget: Hex2;
-  get dropTarget() { return this._dropTarget}
-  set dropTarget(hex: Hex2) { hex = (hex || this.nextHex); this._dropTarget = hex; this.hexMap.showMark(hex as any as Hex2Lib)}
-
-  // dragShift = false // last shift state in dragFunc
-  protoHex: Hex2 = undefined // hex showing protoMove influence & captures
-  // isDragging() { return this.dragger.dragCont.getChildAt(0) !== undefined; } // see also table.dragShip;
-
-  /**
-   * stopDrag(); record dropTarget = target
-   * @param target Hex2 under ship when dropped.
-   */
-  override stopDragging(target = this.nextHex as any as Hex2Lib) {
-    //console.log(stime(this, `.stopDragging: target=`), this.dragger.dragCont.getChildAt(0), {noMove, isDragging: this.isDragging()})
-    super.stopDragging(target);
-    if (target) this.dropTarget = target as any as Hex2; // this.dragContext.targetHex
   }
 
   /**

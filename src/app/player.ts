@@ -2,7 +2,7 @@ import { stime } from "@thegraid/common-lib"
 import { Container } from "@thegraid/easeljs-module"
 import { GamePlay as GamePlayLib, Hex1 as Hex1Lib, HexMap as HexMapLib, newPlanner, Player as PlayerLib } from "@thegraid/hexlib"
 import { ZColor } from "./AfHex"
-import { Hex, HexMap } from "./hex"
+import { MktHex, HexMap } from "./hex"
 import { H } from "./hex-intfs"
 import { Ship } from "./ship"
 import { Table } from "./table"
@@ -32,10 +32,10 @@ export class Player extends PlayerLib {
   }
   /** place ship initially on a Hex adjacent to planet0 */
   chooseShipHex(ship: Ship) {
-    let map = this.gamePlay.table.hexMap as any as HexMap, hexes: Hex[] = []
+    let map = this.gamePlay.table.hexMap as any as HexMap, hexes: MktHex[] = []
     // find un-occupied hexes surrounding planet0
     H.ewDirs.forEach(dir => {
-      let hex = map.planet0Hex.nextHex(dir) as Hex; // assert: planet0 has 6 neighbors
+      let hex = map.planet0Hex.nextHex(dir) as MktHex; // assert: planet0 has 6 neighbors
       if (!hex.occupied) hexes.push(hex)
     })
     let dn = Math.floor(Math.random() * hexes.length);

@@ -1,18 +1,18 @@
 import { C, F, stime } from "@thegraid/common-lib";
 import { DragInfo } from "@thegraid/easeljs-lib";
 import { Container, Graphics, Shape, Text } from "@thegraid/easeljs-module";
+import { Meeple, DragContext, Hex2 as Hex2Lib } from "@thegraid/hexlib";
 import { AF, AfColor, AfFill, ATS } from "./AfHex";
-import { Hex, Hex2 } from "./hex";
+import { MktHex, MktHex2 as Hex2} from "./hex";
 import { EwDir, H, HexDir } from "./hex-intfs";
 import { Cargo } from "./planet";
 import { Player } from "./player";
 import { TP } from "./table-params";
-import { Meeple, DragContext, Hex2 as Hex2Lib } from "@thegraid/hexlib";
 
-class PathElt<T extends Hex> {
+class PathElt<T extends MktHex> {
   constructor(public dir: HexDir, public hex: T, public step: Step<T>) {  }
 }
-type Path<T extends Hex> = PathElt<T>[]
+type Path<T extends MktHex> = PathElt<T>[]
 
 /** changes in ship for each transit Step */
 type ZConfig = {
@@ -32,8 +32,8 @@ export class Ship extends Meeple {
   // readonly radius = this.z0 * 10;
   override get radius() { return this.z0 * TP.hexRad / 6 };
 
-  override get hex() { return super.hex as Hex; }
-  override set hex(hex: Hex) { super.hex = hex; }
+  override get hex() { return super.hex as MktHex; }
+  override set hex(hex: MktHex) { super.hex = hex; }
 
   readonly gShape: Shape = new Shape();
   // readonly Aname: string = `S${Ship.idCounter++}`
@@ -130,7 +130,7 @@ export class Ship extends Meeple {
    * @param nconfig updated zconfig after spending re-configuration cost
    * @return cost to re-config + curload + shipCost
    */
-  configCost(hex0: Hex, ds: EwDir, hex1 = hex0.nextHex(ds), nconfig = { ...this.zconfig }) {
+  configCost(hex0: MktHex, ds: EwDir, hex1 = hex0.nextHex(ds), nconfig = { ...this.zconfig }) {
     if (!hex0?.afhex || !hex1?.afhex) return undefined
     let od = H.ewDirs.findIndex(d => d == ds)
     let id = H.ewDirs.findIndex(d => d == H.dirRev[ds])
@@ -148,7 +148,7 @@ export class Ship extends Meeple {
   /** move to hex, incur cost to fuel.
    * @return false if move not possible (no Hex, insufficient fuel)
    */
-  move(dir: EwDir, hex = this.hex.nextHex(dir) as Hex) {
+  move(dir: EwDir, hex = this.hex.nextHex(dir) as MktHex) {
     let nconfig = { ... this.zconfig }
     if (hex.occupied) return false;
     let cost = this.configCost(this.hex, dir, hex, nconfig)
@@ -166,7 +166,7 @@ export class Ship extends Meeple {
    * @param tLimit stop searching if path length is tLimit longer than best path.
    * @return final Step of each path; empty array if no possible path to targetHex
    */
-  findPaths<T extends Hex & Hex2>(targetHex: T, limit = 2) {
+  findPaths<T extends MktHex>(targetHex: T, limit = 2) {
     if (targetHex.occupied) return []    // includes: this.hex === targetHex
     let minMetric = this.hex.radialDist(targetHex) * this.transitCost
     let paths: Step<T>[]
@@ -177,8 +177,8 @@ export class Ship extends Meeple {
     return paths
   }
   /** @return (possibly empty) array of Paths. */
-  findPathsWithMetric<T extends Hex & Hex2>(hex0: T, hex1: T, limit: number, minMetric: number) {
-    let isLoop = (nStep: Step<Hex>) => { // 'find' for linked list:
+  findPathsWithMetric<T extends MktHex>(hex0: T, hex1: T, limit: number, minMetric: number) {
+    let isLoop = (nStep: Step<MktHex>) => { // 'find' for linked list:
       let nHex = nStep.curHex, pStep = nStep.prevStep
       while (pStep && pStep.curHex !== nHex) pStep = pStep.prevStep
       return pStep?.curHex === nHex
@@ -236,7 +236,7 @@ export class Ship extends Meeple {
     return done
   }
   /** Sum of metric for all Steps. */
-  pathMetric(step0: Step<Hex>) {
+  pathMetric(step0: Step<MktHex>) {
     // return step0.toPath().map(([dir, hex, step]) => step.cost).reduce((pv, cv) => pv + cv, 0)
     let step = step0, sum = 0
     while (step.prevStep) {
@@ -334,8 +334,8 @@ export class Ship extends Meeple {
   }
 
   /** find path to this target hex */
-  targetHex: Hex2;
-  originHex: Hex2;
+  targetHex: MktHex;
+  originHex: MktHex;
   lastShift: boolean;
 
   // expand from open node with least (radialDist + metric) <-- DID THIS
@@ -375,7 +375,10 @@ export class Ship extends Meeple {
     return paths                    // paths may be empty, but NOT undefined
   }
 
-  override dropFunc(hex: Hex2Lib & Hex2, ctx: DragContext) {
+  // hexlib.Dragger believes it is invoked with hexlib.Hex2!
+  // but our HexMap contains (MktHex2 as Hex2)
+  override dropFunc(hex2: Hex2Lib, ctx: DragContext) {
+    const hex = hex2 as Hex2;
     if (hex !== this.targetHex || !this.path0 || this.path0[this.path0.length - 1]?.hex !== hex) {
       this.setPathToHex(hex)   // find a path not shown
     }
@@ -397,7 +400,7 @@ export class Ship extends Meeple {
     // this.pCont.removeAllChildren()
     this.dragBack()
     this.dragFunc(this.hex as Hex2, undefined); // targetHex = this.hex; removeChildren
-    this.showPaths(this.targetHex = targetHex);
+    this.showPaths(this.targetHex = targetHex as Hex2);
     this.hex.map.update()
   }
   // false if [still] available to move this turn
@@ -412,7 +415,7 @@ export class Ship extends Meeple {
     if (this.moved || !this.hasPath0) return this.moved;
     if (!this.path0[0].dir) this.path0.shift();           // skip initial non-Step
     if (this.pathHasOccupiedHex()) {
-      this.showPaths(this.targetHex)  // make a new plan (unless targetHex is occupied!)
+      this.showPaths(this.targetHex as Hex2)  // make a new plan (unless targetHex is occupied!)
       if (!this.path0) return false   // targetHex now occupied!
       this.path0.shift();             // skip initial non-Step
     }
@@ -440,7 +443,7 @@ export class Ship extends Meeple {
 
 }
 
-class Step<T extends Hex> {
+class Step<T extends MktHex> {
   constructor(
     public turn: number, // incremental, relative turn?
     public curHex: T,

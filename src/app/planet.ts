@@ -1,7 +1,7 @@
 import { C, F, stime } from "@thegraid/common-lib";
-import { Container, Graphics, MouseEvent, Shape, Text } from "@thegraid/easeljs-module";
+import { MouseEvent, Shape, Text } from "@thegraid/easeljs-module";
+import { MapTile } from "@thegraid/hexlib";
 import { TP } from "./table-params";
-import { MapTile, Tile } from "@thegraid/hexlib";
 
 export const Items = ['F0', 'F1', 'F2', 'O1', 'O2', 'O3', 'L1', 'L2', 'X1', 'X2'] as const;
 export type Item = typeof Items[number];
@@ -30,7 +30,7 @@ export class PC {
   static readonly reference = [
     new PC(30, 10, 20, 'F0', 'darkgreen'),
     new PC(30, 10, 20, 'F1', 'yellow'),
-    new PC(45, 15, 16, 'F2', 'green'),
+    new PC(45, 15, 16, 'F2', 'lightgreen'),
     new PC(20, 10, 32, 'O1', 'orange'),
     new PC(30, 20, 40, 'O2', 'gold'),
     new PC(20, 10, 32, 'O3', 'red'),
@@ -155,16 +155,23 @@ export class Planet extends MapTile {
   }
   static planets: Planet[]
   static remake() {
+    // TODO: refactor to pass actual PC.clone(rate) into planet
+    // TODO: planet will consume L1/L2 if consumables are 'full'
+    // TODO: planet will produce X1/X1 if Lux is 'full'
+    // So: provide consumables *and* Lux so can buy exotics
+    // TODO: rework to use clock-action to advance prod/cons by rate.
+    // TODO: option to permute order of planets around hexMap
     const nonExotic = Items.filter(item => !item.startsWith('X'));
     Planet.planets = [
       new Planet('p0', nonExotic, ['X1', 'X2']),
       new Planet('p1', ['F1', 'F0'], ['O1','O2', 'O3']),
       new Planet('p2', 'O1', 'F2'),
       new Planet('p3', 'O2', 'F1'),
-      new Planet('p4', 'O1', 'F2'),
+      new Planet('p4', 'O1', 'F0'),
       new Planet('p5', ['F1', 'F2'], 'O2'),
       new Planet('p6', 'F2', ['O1', 'O2']),
       // at this time, nobody *produces* exotics! (X1, X2)
+      // at this time, nobody *consumes* luxuries! (L1, L2)
       // will pro'ly need to include p0 produces ships for each Player
     ];
   }
