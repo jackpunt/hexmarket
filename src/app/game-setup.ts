@@ -24,26 +24,35 @@ export class GameSetup extends GameSetupLib {
   netGUI: ParamGUI // paramGUIs[2]
   override gamePlay: GamePlay;
 
-  /**
-   * ngAfterViewInit --> start here!
-   *
-   * - initialize(canvasId, qParams) -> initTP(qParams)
-   * - loadImagesThenStartup(qParams)
-   * @param canvasId supply undefined for 'headless' Stage
-   */
-  constructor(canvasId: string, qParams: Params = []) {
-    super(canvasId, qParams);
+  override initialize(canvasId: string, qParams: Params = {}): void {
+    window.addEventListener('contextmenu', (evt: MouseEvent) => evt.preventDefault())
+    // useEwTopo, size 7.
+    const { host, port, file, nH } = qParams;
+    TP.useEwTopo = true;
+    TP.nHexes = nH ?? TP.nHexes; // [5,6,7,8]
+    TP.ghost = host ?? TP.ghost
+    TP.gport = (port !== null) ? Number.parseInt(port) : TP.gport;
+    TP.setParams(TP);   // set host,port in TPLib so TP.buildURL can find them
+    TP.eraseLocal(TP);
+    TP.networkUrl = TP.buildURL(undefined);
+    TP.networkGroup = 'hexmarket:game1';
+
+    let rfn = document.getElementById('readFileName') as HTMLInputElement;
+    rfn.value = file ?? 'setup@0';
+
+    super.initialize(canvasId);
+    return;
   }
 
   /** override to inject each Player.pathCont */
   override makeHexMap(hexC: Constructor<Hex> = Hex) {
+    HexMap.distColor[0] = 'Black';
     const hexMap = new HexMap(TP.hexRad, true, hexC);
     const cNames = MapCont.cNames.concat() as string[];
+    // add Containers for each Player's path lines:
     for (let ndx = 0; ndx < this.nPlayers; ndx++) {
-      const p = this.makePlayer(ndx, this.gamePlay); // pushes to allPlayers
-      cNames.push(p.pathCname)
+      cNames.push(Player.pathCName(ndx))
     }
-    HexMap.distColor[0] = 'Black';
     hexMap.addToMapCont(Hex2, cNames);       // addToMapCont(hexC, cNames)
     hexMap.makeAllDistricts();               // determines size for this.bgRect
     return hexMap;

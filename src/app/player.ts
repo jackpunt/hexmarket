@@ -21,7 +21,8 @@ export class Player extends PlayerLib {
   }
 
   static override allPlayers: Player[];
-  get pathCname() { return `pathCont${this.index}`}
+  static pathCName(index = 0) { return `pathCont${index}`}
+  get pathCname() { return Player.pathCName(this.index); }
 
   makeShips() {
     this.ships = []
