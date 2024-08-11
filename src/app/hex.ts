@@ -1,7 +1,7 @@
 import { MouseEvent, Shape } from "@thegraid/easeljs-module";
-import { H, HexM as HexMLib, Hex1 as Hex1Lib, Hex2Mixin, Hex2 as Hex2Lib, HexDir, Hex as HexLib, HexMap as HexMapLib, MapCont as MapContLib } from "@thegraid/hexlib";
+import { H, HexM as HexMLib, Hex1 as Hex1Lib, Hex2Mixin, Hex2 as Hex2Lib, HexDir, Hex as HexLib, HexMap as HexMapLib, MapCont as MapContLib, HexM, EwDir } from "@thegraid/hexlib";
 import { AfHex } from "./AfHex";
-import { Planet } from "./planet";
+import { Planet, PlanetLocs } from "./planet";
 import { Ship } from "./ship";
 import { TP } from "./table-params";
 
@@ -89,45 +89,49 @@ export class MktHex2 extends MktHex2Lib {
   }
 }
 
-/** subset of HexMap, typed to HexLib (used for stats for hexline) */
-export interface HexM {
-  readonly district: HexLib[][]      // all the Hex in a given district
-  readonly mapCont: MapContLib
-  rcLinear(row: number, col: number): number
-  forEachHex<K extends MktHex>(fn: (hex: K) => void): void // stats forEachHex(incCounters(hex))
-  update(): void
-  showMark(hex: MktHex): void
+// /** subset of HexMap, typed to HexLib (used for stats for hexline) */
+// export interface HexM {
+//   readonly district: HexLib[][]      // all the Hex in a given district
+//   readonly mapCont: MapContLib
+//   rcLinear(row: number, col: number): number
+//   forEachHex<K extends MktHex>(fn: (hex: K) => void): void // stats forEachHex(incCounters(hex))
+//   update(): void
+//   showMark(hex: MktHex): void
 
-}
+// }
 
 
-export class HexMap extends HexMapLib<HexLib> implements HexM {
+export class HexMap extends HexMapLib<HexLib> implements HexM<HexLib> {
   hexDirPlanets = new Map<HexDir | typeof H.C, MktHex2>();
   get planet0Hex() {
     return this.hexDirPlanets.get(H.C)
   };
 
-  /** color center and 6 planets, dist = 1 ... 7 */  // TODO: random location (1-step)
-  placePlanets(coff = TP.dbp) {
+  /** color center and 6 planets, dist = 1 ... 7 */ // TODO: move to Planet.ts
+  placePlanets(pLocs: PlanetLocs = {}, coff = TP.dbp, offP = TP.offP) {
     Planet.remake();
-    let cHex = this.centerHex as MktHex2;
-    let district = 0;               // planet number...
-    let placePlanet = (key: HexDir | typeof H.C, color: string, hex: MktHex2) => {
+    const cHex = this.centerHex as MktHex2;
+    const placePlanet = (key: HexDir | typeof H.C, color: string, hex: MktHex2) => {
       this.hexDirPlanets.set(key, hex)    // find planet in the given direction
       hex.rmAfHex()
-      hex.planet = Planet.planets[district++]
+      const ndx = 1 + (H.ewDirs.indexOf(key as EwDir) ?? -1 ); // planet number
+      hex.planet = Planet.planets[ndx];
       hex.planet.on('mousedown', (evt: MouseEvent) => {
         if (evt.nativeEvent.buttons === 2) hex.planet.onRightClick(evt)
       })
-      hex.setHexColor(color, district)   // colorPlanets: district = 1..7
+      hex.setHexColor(color, ndx)   // colorPlanets: district = 1..7
       hex.planet.paint();
     }
-    placePlanet(H.C, 'lightblue', cHex)
+    // offset pHex from cHex by random distance, jitter by 1
+    const randomHex = (ds: EwDir) => {
+      const pHex = cHex.nextHex(ds, coff + 1) as MktHex2;
+      const odir = H.ewDirs[Math.floor(Math.random() * H.ewDirs.length)]
+      // do not offset directly towards center
+      return offP && (odir != H.dirRev[ds]) ? pHex.nextHex(odir, 1) as MktHex2 : pHex;
+    }
+    placePlanet(H.C, 'lightblue', cHex);
     for (let ds of H.ewDirs) {
-      let pHex = cHex.nextHex(ds, coff + 1) as MktHex2;
-      // offset pHex in random direction (or not)
-      let odir = H.ewDirs[Math.floor(Math.random() * H.ewDirs.length)]
-      let oHex = TP.offP && (odir != H.dirRev[ds]) ? pHex.nextHex(odir, 1) as MktHex2 : pHex;
+      const oHex = pLocs[ds] ?? randomHex(ds);
       placePlanet(ds, 'lightgreen', oHex)
     }
   }

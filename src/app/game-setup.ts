@@ -1,16 +1,16 @@
 import { Params } from "@angular/router";
-import { C, Constructor, CycleChoice, DropdownStyle, ParamGUI, ParamItem, S, stime } from "@thegraid/easeljs-lib";
+import { C, Constructor, CycleChoice, DropdownStyle, ParamGUI, ParamItem, stime } from "@thegraid/easeljs-lib";
 import { Container } from "@thegraid/easeljs-module";
-import { GameSetup as GameSetupLib, Meeple, Tile, MapCont } from "@thegraid/hexlib";
+import { GameSetup as GameSetupLib, MapCont, Scenario } from "@thegraid/hexlib";
 import { AfHex } from "./AfHex";
 import { EBC, PidChoice } from "./choosers";
 import { GamePlay } from "./game-play";
 import { MktHex as Hex, MktHex2 as Hex2, HexMap } from "./hex";
 import { Cargo } from "./planet";
 import { Player } from "./player";
+import { ScenarioParser, SetupElt } from "./scenario-parser";
 import { Table } from "./table";
 import { TP } from "./table-params";
-import { SetupElt } from "./scenario-parser";
 
 /** show " R" for " N" */
 stime.anno = (obj: string | { constructor: { name: string; }; }) => {
@@ -57,36 +57,39 @@ export class GameSetup extends GameSetupLib {
     hexMap.makeAllDistricts();               // determines size for this.bgRect
     return hexMap;
   }
+  override makeTable(): Table {
+    return new Table(this.stage);
+  }
   /**
    * Make new Table/layout & gamePlay/hexMap & Players.
    * @param ext Extensions from URL
    */
   override startup(qParams: Params = this.qParams) {
-    // super.startup(qParams); // hexmap, table, scenario, gamePlay
-    Tile.allTiles = [];
-    Meeple.allMeeples = [];
-    Player.allPlayers = [];
-    AfHex.makeAllAfHex()
-
-    const n = qParams?.['n'] ? Number.parseInt(qParams['n']) : 2;
-    this.nPlayers = Math.min(TP.maxPlayers, n);
-    this.hexMap = this.makeHexMap();         // only reference is in GamePlay constructor!
-    this.table = new Table(this.stage)       // EventDispatcher, ScaleCont, GUI-Player
-    const scenario = this.initialScenario(); // could specify planet locations & cargo & seed?
-    const gamePlay = new GamePlay(this, scenario);
-    this.gamePlay = gamePlay
-    gamePlay.hexMap[S.Aname] = `mainMap`
-    this.startScenario(scenario);
+    AfHex.makeAllAfHex();
+    super.startup(qParams);
     // makeNPlayers(); layoutTable(); parseScenario(); p.newGame(); makeGUIs(); table.startGame();
+  }
+  override makeGamePlay(scenario: Scenario): GamePlay {
+    return new GamePlay(this, scenario);
   }
 
   override makePlayer(ndx: number, gamePlay: GamePlay) {
     return new Player(ndx, gamePlay);
   }
 
-  override parseScenario(scenario: SetupElt): void {
-    (this.table.hexMap as any as HexMap).placePlanets()
+  override initialScenario(qParams?: { [x: string]: any; }): Scenario {
+    // lookup Scenario from qParams.name, or whatever...
+    const gameState = { ships: 1 }; // some non-null gameState
+    const initialScenario = { turn: 0, Aname: 'defaultScenario', gameState }
+    return initialScenario;
   }
+
+  override makeScenarioParser(hexMap: HexMap, gamePlay =this.gamePlay): ScenarioParser {
+    return new ScenarioParser(hexMap, gamePlay);
+  }
+  // override parseScenario(scenario: SetupElt): void {
+  //   (this.table.hexMap as any as HexMap).placePlanets()
+  // }
 
   residual(table: Table) {
     const gamePlay = table.gamePlay;

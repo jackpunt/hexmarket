@@ -1,10 +1,11 @@
 import { AT, ParamGUI, ParamItem, stime, XY } from "@thegraid/easeljs-lib";
 import { Container, Stage } from "@thegraid/easeljs-module";
-import { IdHex, IHex2, Scenario, Table as TableLib } from "@thegraid/hexlib";
+import { IdHex, IHex2, Scenario, Table as TableLib, HexMap as HexMapLib } from "@thegraid/hexlib";
 import { GamePlay } from "./game-play";
 import { Player } from "./player";
 import { Ship } from "./ship";
 import { PlayerColor, TP } from "./table-params";
+import { HexMap } from "./hex";
 
 
 /** to own file... */
@@ -17,6 +18,7 @@ class TablePlanner {
  * + dragShip: Ship;
  */
 export class Table extends TableLib {
+  override hexMap: HexMap & HexMapLib<IHex2>;
 
   constructor(stage: Stage) {
     super(stage);
@@ -30,6 +32,8 @@ export class Table extends TableLib {
   }
 
   override layoutTable2() {
+    const k = 0;
+    return;
   }
 
   override makeNetworkGUI(parent: Container, x = 0, y = 0): ParamGUI {
@@ -58,21 +62,15 @@ export class Table extends TableLib {
 
   dragShip: Ship; // last ship to be dragged [debug & dragAgain('.') & dragBack(',')]
   override startGame(scenario: Scenario) {
-    // initialize Players & Ships & Commodities
-    this.gamePlay.forEachPlayer(p0 => {
-      const p = p0 as Player;
-      p.placeShips()
-      this.hexMap.update()
-    })
     super.startGame(scenario); // allTiles.makeDragable()
   }
   // see also: ScenarioParser.saveState()
-  override logCurPlayer(curPlayer: Player) {
-    const tn = this.gamePlay.turnNumber
-    const robo = curPlayer.useRobo ? AT.ansiText(['red','bold'],"robo") : "----";
-    const info = { turn: `#${tn}`, plyr: curPlayer.name, gamePlay: this.gamePlay }
-    console.log(stime(this, `.logCurPlayer --${robo}--`), info);
-  }
+  // override logCurPlayer(curPlayer: Player) {
+  //   const tn = this.gamePlay.turnNumber
+  //   const robo = curPlayer.useRobo ? AT.ansiText(['red','bold'],"robo") : "----";
+  //   const info = { turn: `#${tn}`, plyr: curPlayer.name, gamePlay: this.gamePlay }
+  //   console.log(stime(this, `.logCurPlayer --${robo}--`), info);
+  // }
 
   /**
    * All manual moves feed through this (drop & redo)

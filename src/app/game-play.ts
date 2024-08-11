@@ -1,11 +1,11 @@
-import { KeyBinder, S, Undo } from "@thegraid/easeljs-lib";
+import { KeyBinder } from "@thegraid/easeljs-lib";
 import { GamePlay as GamePlayLib, Scenario } from "@thegraid/hexlib";
-import { MktHex, HexMap } from "./hex";
 import { Player } from "./player";
 //import { GameStats, TableStats } from "./stats";
+import { GameSetup } from "./game-setup";
+import { GameState } from "./game-state";
 import { Table } from "./table";
 import { PlayerColor, TP } from "./table-params";
-import { GameSetup } from "./game-setup";
 
 class HexEvent {}
 class Move{}
@@ -61,6 +61,7 @@ class Move{}
 
 /** GamePlay with Table & GUI (KeyBinder, ParamGUI & Dragger) */
 export class GamePlay extends GamePlayLib {
+  override gameState: GameState = new GameState(this);
 
   constructor(gameSetup: GameSetup, scenario: Scenario) {
     super(gameSetup, scenario)

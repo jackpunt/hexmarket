@@ -1,10 +1,29 @@
 import { C, F, stime } from "@thegraid/common-lib";
 import { MouseEvent, Shape, Text } from "@thegraid/easeljs-module";
-import { MapTile } from "@thegraid/hexlib";
+import { EwDir, MapTile } from "@thegraid/hexlib";
 import { TP } from "./table-params";
+import { MktHex2 } from "./hex";
+
+export type PlanetLocs = { [key in EwDir]?: MktHex2 };
 
 export const Items = ['F0', 'F1', 'F2', 'O1', 'O2', 'O3', 'L1', 'L2', 'X1', 'X2'] as const;
 export type Item = typeof Items[number];
+export type PCstat = { [key in Item]?: IPC } // status of given PC on a Planet
+type n = number;
+// 5-tuple, id -> ewDir[id]
+export type PlanetElt = [id: n, row: n, col: n, PCp: PCstat[], PCc: PCstat[]];
+
+// type PublicInterface<T> = { [K in keyof T]: T[K] };
+// type IPC0 = PublicInterface<PC>
+interface IPC {
+  max: number;
+  min: number;
+  lim: number;
+  item: Item;
+  color: string;
+  quant: number;
+  rate: number;
+}
 
 /** production/commodity; quantity changes at rate; quantity determines price. */
 export class PC {
@@ -51,6 +70,7 @@ export class PC {
 
 }
 
+/** could pro'ly be an interface; see also type Cargo = { [key in Item]?: number } */
 export class Cargo {
   constructor(
     public item: Item,
