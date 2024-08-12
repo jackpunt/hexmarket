@@ -1,7 +1,7 @@
 import { C, F, stime } from "@thegraid/common-lib";
 import { DragInfo } from "@thegraid/easeljs-lib";
 import { Container, Graphics, Shape, Text } from "@thegraid/easeljs-module";
-import { Meeple, DragContext, Hex2 as Hex2Lib } from "@thegraid/hexlib";
+import { Meeple, DragContext, IHex2, Hex1 } from "@thegraid/hexlib";
 import { AF, AfColor, AfFill, ATS } from "./AfHex";
 import { MktHex, MktHex2 as Hex2} from "./hex";
 import { EwDir, H, HexDir } from "./hex-intfs";
@@ -34,6 +34,8 @@ export class Ship extends Meeple {
 
   override get hex() { return super.hex as MktHex; }
   override set hex(hex: MktHex) { super.hex = hex; }
+
+  // override fromHex: MktHex;
 
   readonly gShape: Shape = new Shape();
   // readonly Aname: string = `S${Ship.idCounter++}`
@@ -168,10 +170,11 @@ export class Ship extends Meeple {
    */
   findPaths<T extends MktHex>(targetHex: T, limit = 2) {
     if (targetHex.occupied) return []    // includes: this.hex === targetHex
-    let minMetric = this.hex.radialDist(targetHex) * this.transitCost
+    const hex = this.fromHex as any as T;
+    let minMetric = hex.radialDist(targetHex) * this.transitCost
     let paths: Step<T>[]
     do {
-      paths = this.findPathsWithMetric(this.hex as T, targetHex, limit, minMetric = minMetric + 5)
+      paths = this.findPathsWithMetric(hex, targetHex, limit, minMetric = minMetric + 5)
       if (targetHex !== this.targetHex) return paths  // target moved
     } while (paths.length == 0)
     return paths
@@ -246,7 +249,7 @@ export class Ship extends Meeple {
     return sum
   }
   drawDirect(target: Hex2, g: Graphics, cl: string , wl = 2) {
-    let hex0 = this.hex as any as Hex2
+    const hex0 = this.fromHex;
     g.ss(wl).s(cl).mt(hex0.x, hex0.y).lt(target.x, target.y).es()
   }
   /**
@@ -296,7 +299,7 @@ export class Ship extends Meeple {
     v[3] = 255    // reset alpha
     return `rgba(${v[0]},${v[1]},${v[2]},${alpha || (v[3]/255).toFixed(2)})`
   }
-
+  /** Draw straight white line from this.fromHex to target hex */
   async drawDirect2(hex: Hex2) {
     let dshape = new Shape()
     dshape.mouseEnabled = false;
@@ -338,26 +341,25 @@ export class Ship extends Meeple {
   originHex: MktHex;
   lastShift: boolean;
 
+  override get canAutoUnmove(): boolean {
+    return false;
+  }
+  /** called before tile.moveTo(undefined) */
+  override dragStart(ctx: DragContext): void {
+    return;
+  }
+
+  override dragFunc0(hex: IHex2 | undefined, ctx: DragContext): void {
+    this.dragFunc(hex as Hex2, ctx.info);
+  }
   // expand from open node with least (radialDist + metric) <-- DID THIS
   // get estimate of 'minMetric' to prune far branches <-- DID THIS
   dragFunc(hex: Hex2, ctx: DragInfo) {
-    if (ctx?.first) {
-      this.originHex = this.hex as any as Hex2
-      this.lastShift = undefined
-    }
-    if (hex == this.originHex) {
-      this.targetHex = hex
-      this.pCont.removeAllChildren()
-    }
-    if (!hex || hex.occupied) return; // do not move over non-existant or occupied hex
-
     const shiftKey = ctx?.event?.nativeEvent?.shiftKey
-    if (shiftKey === this.lastShift && !ctx?.first && this.targetHex === hex) return;   // nothing new (unless/until ShiftKey)
-    this.lastShift = shiftKey
-
     this.pCont.removeAllChildren()
     this.targetHex = hex;
     if (!shiftKey) return         // no path requested
+    if (hex === this.hex) return  // no path to self
     this.drawDirect2(hex).then(() => {
       this.showPaths(hex, 1)      // show extra paths
     })
@@ -369,16 +371,17 @@ export class Ship extends Meeple {
     let paths = this.findPaths(targetHex, limit);
     if (paths.length === 0) {
       console.log(stime(this, `.setPathToHex: no path to hex`), targetHex)
-      this.hex = this.hex;  // QQQ: is this necessary or useful??
+      this.hex = this.fromHex as any as Hex2;  // QQQ: is this necessary or useful??
     }
     this.path0 = paths[0]?.toPath() // path0 may be undefined
     return paths                    // paths may be empty, but NOT undefined
   }
 
-  // hexlib.Dragger believes it is invoked with hexlib.Hex2!
-  // but our HexMap contains (MktHex2 as Hex2)
-  override dropFunc(hex2: Hex2Lib, ctx: DragContext) {
-    const hex = hex2 as Hex2;
+  // hexlib.Dragger is invoked with hexlib.IHex2
+  // our HexMap contains (MktHex2 as Hex2) extends MktHex implements IHex2;
+  override dropFunc(targetHex: IHex2, ctx: DragContext) {
+    super.dropFunc(ctx.targetHex, ctx);  // placeTile(targetHex) !
+    const hex = targetHex as Hex2;
     if (hex !== this.targetHex || !this.path0 || this.path0[this.path0.length - 1]?.hex !== hex) {
       this.setPathToHex(hex)   // find a path not shown
     }

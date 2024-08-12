@@ -68,6 +68,7 @@ export class GameSetup extends GameSetupLib {
     AfHex.makeAllAfHex();
     super.startup(qParams);
     // makeNPlayers(); layoutTable(); parseScenario(); p.newGame(); makeGUIs(); table.startGame();
+    return;
   }
   override makeGamePlay(scenario: Scenario): GamePlay {
     return new GamePlay(this, scenario);

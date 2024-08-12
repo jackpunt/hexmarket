@@ -1,6 +1,6 @@
 import { stime } from "@thegraid/common-lib"
 import { Container } from "@thegraid/easeljs-module"
-import { GamePlay as GamePlayLib, Hex1 as Hex1Lib, HexMap as HexMapLib, newPlanner, Player as PlayerLib } from "@thegraid/hexlib"
+import { GamePlay as GamePlayLib, Hex1 as Hex1Lib, HexMap as HexMapLib, NamedContainer, newPlanner, Player as PlayerLib } from "@thegraid/hexlib"
 import { ZColor } from "./AfHex"
 import { MktHex, HexMap } from "./hex"
 import { H } from "./hex-intfs"
@@ -18,6 +18,7 @@ export class Player extends PlayerLib {
   constructor(index: number, gamePlay: GamePlay) {
     // color: PlayerColor from Player.colorScheme[index]; red, blue, green, violet, gold...
     super(index, gamePlay);
+    gamePlay.hexMap.mapCont.addChild(this.pathCont);
   }
 
   static override allPlayers: Player[];
@@ -44,7 +45,7 @@ export class Player extends PlayerLib {
     console.log(stime(this, `.chooseShipHex: `), ship, hex)
     return hex
   }
-  pathCont?: Container;
+  pathCont = new NamedContainer(this.pathCname)
 
   /**
    * Before start each new game.

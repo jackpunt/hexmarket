@@ -25,7 +25,10 @@ export class Table extends TableLib {
   }
   override gamePlay: GamePlay;
   /** method invokes closure defined in enableHexInspector. */
-  override toggleText(vis?: boolean) { return undefined; }
+  override toggleText(vis?: boolean) {
+    const v = super.toggleText(vis)
+    return v;
+  }
 
   override layoutTable(gamePlay: GamePlay): void {
       super.layoutTable(gamePlay);
@@ -41,24 +44,24 @@ export class Table extends TableLib {
     return gui;
   }
 
-  override makeParamGUI(parent: Container, x?: number, y?: number): ParamGUI {
-    // TP.setParams({});
-    const TP0 = TP;
-    const gui = new ParamGUI(TP, { textAlign: 'right' });
-    const gamePlay = this.gamePlay.gameSetup;
-    gui.makeParamSpec('hexRad', [30, 60, 90, 120], { fontColor: 'red'}); TP.hexRad;
-    gui.makeParamSpec('nHexes', [2, 3, 4, 5, 6, 7, 8, 9, 10, 11], { fontColor: 'red' }); TP.nHexes;
-    gui.makeParamSpec('mHexes', [1, 2, 3], { fontColor: 'red' }); TP.mHexes;
-    gui.spec("hexRad").onChange = (item: ParamItem) => { gamePlay.restart({ hexRad: item.value }) }
-    gui.spec("nHexes").onChange = (item: ParamItem) => { gamePlay.restart({ nh: item.value }) }
-    gui.spec("mHexes").onChange = (item: ParamItem) => { gamePlay.restart({ mh: item.value }) }
+  // override makeParamGUI(parent: Container, x?: number, y?: number): ParamGUI {
+  //   // TP.setParams({});
+  //   const TP0 = TP;
+  //   const gui = new ParamGUI(TP, { textAlign: 'right' });
+  //   const gamePlay = this.gamePlay.gameSetup;
+  //   gui.makeParamSpec('hexRad', [30, 60, 90, 120], { fontColor: 'red'}); TP.hexRad;
+  //   gui.makeParamSpec('nHexes', [2, 3, 4, 5, 6, 7, 8, 9, 10, 11], { fontColor: 'red' }); TP.nHexes;
+  //   gui.makeParamSpec('mHexes', [1, 2, 3], { fontColor: 'red' }); TP.mHexes;
+  //   gui.spec("hexRad").onChange = (item: ParamItem) => { gamePlay.restart({ hexRad: item.value }) }
+  //   gui.spec("nHexes").onChange = (item: ParamItem) => { gamePlay.restart({ nh: item.value }) }
+  //   gui.spec("mHexes").onChange = (item: ParamItem) => { gamePlay.restart({ mh: item.value }) }
 
-    parent.addChild(gui)
-    gui.x = x // (3*cw+1*ch+6*m) + max(line.width) - (max(choser.width) + 20)
-    gui.y = y
-    gui.makeLines();
-    return gui;
-  }
+  //   parent.addChild(gui)
+  //   gui.x = x // (3*cw+1*ch+6*m) + max(line.width) - (max(choser.width) + 20)
+  //   gui.y = y
+  //   gui.makeLines();
+  //   return gui;
+  // }
 
   dragShip: Ship; // last ship to be dragged [debug & dragAgain('.') & dragBack(',')]
   override startGame(scenario: Scenario) {
