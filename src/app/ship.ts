@@ -1,5 +1,4 @@
 import { C, F, stime } from "@thegraid/common-lib";
-import { DragInfo } from "@thegraid/easeljs-lib";
 import { Container, Graphics, Shape, Text } from "@thegraid/easeljs-module";
 import { Meeple, DragContext, IHex2, Hex1 } from "@thegraid/hexlib";
 import { AF, AfColor, AfFill, ATS } from "./AfHex";
@@ -199,8 +198,8 @@ export class Ship extends Meeple {
       // cycle turns until Step(s) reach targetHex
       // loop here so we can continue vs return; move each dir from prev step:
       for (let dir of H.ewDirs) {
-        let nHex = step.curHex.nextHex(dir) as T, nConfig = { ... step.config } // copy of step.config
-        if (nHex.occupied) continue // occupied
+        const nHex = step.curHex.nextHex(dir) as T, nConfig = { ... step.config } // copy of step.config
+        if (!nHex || nHex.occupied) continue // off map or occupied
         let cost = this.configCost(step.curHex, dir, nHex, nConfig)
         if (cost === undefined) continue; // no afHex, no transit possible
         let turn = step.turn
@@ -341,27 +340,28 @@ export class Ship extends Meeple {
   originHex: MktHex;
   lastShift: boolean;
 
-  override get canAutoUnmove(): boolean {
-    return false;
-  }
   /** called before tile.moveTo(undefined) */
   override dragStart(ctx: DragContext): void {
     return;
   }
 
-  override dragFunc0(hex: IHex2 | undefined, ctx: DragContext): void {
-    this.dragFunc(hex as Hex2, ctx.info);
+  override isLegalTarget(toHex: Hex1, ctx?: DragContext): boolean {
+    if (!toHex) return false;
+    if (toHex.occupied) return false;
+    return true;
   }
+
   // expand from open node with least (radialDist + metric) <-- DID THIS
   // get estimate of 'minMetric' to prune far branches <-- DID THIS
-  dragFunc(hex: Hex2, ctx: DragInfo) {
-    const shiftKey = ctx?.event?.nativeEvent?.shiftKey
+  override dragFunc(hex: IHex2, ctx: DragContext) {
+    const shiftKey = ctx?.info?.event?.nativeEvent?.shiftKey
     this.pCont.removeAllChildren()
-    this.targetHex = hex;
+    const hex2 = hex as Hex2;
+    this.targetHex = hex2;
     if (!shiftKey) return         // no path requested
-    if (hex === this.hex) return  // no path to self
-    this.drawDirect2(hex).then(() => {
-      this.showPaths(hex, 1)      // show extra paths
+    if (hex2 === this.hex) return  // no path to self
+    this.drawDirect2(hex2).then(() => {
+      this.showPaths(hex2, 1)      // show extra paths
     })
   }
 
@@ -380,12 +380,12 @@ export class Ship extends Meeple {
   // hexlib.Dragger is invoked with hexlib.IHex2
   // our HexMap contains (MktHex2 as Hex2) extends MktHex implements IHex2;
   override dropFunc(targetHex: IHex2, ctx: DragContext) {
-    super.dropFunc(ctx.targetHex, ctx);  // placeTile(targetHex) !
+    super.dropFunc(targetHex, ctx);  // placeTile(targetHex) !
     const hex = targetHex as Hex2;
+    this.hex = this.fromHex as Hex2;
     if (hex !== this.targetHex || !this.path0 || this.path0[this.path0.length - 1]?.hex !== hex) {
       this.setPathToHex(hex)   // find a path not shown
     }
-    this.hex = this.originHex;
     this.paint()
     //
     const shiftKey = ctx?.info?.event?.nativeEvent?.shiftKey
