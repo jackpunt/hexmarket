@@ -18,7 +18,7 @@ export class Player extends PlayerLib {
   constructor(index: number, gamePlay: GamePlay) {
     // color: PlayerColor from Player.colorScheme[index]; red, blue, green, violet, gold...
     super(index, gamePlay);
-    gamePlay.hexMap.mapCont.addChild(this.pathCont);
+    this.pathCont = gamePlay.hexMap.mapCont[this.pathCname];
   }
 
   static override allPlayers: Player[];
@@ -45,7 +45,7 @@ export class Player extends PlayerLib {
     console.log(stime(this, `.chooseShipHex: `), ship, hex)
     return hex
   }
-  pathCont = new NamedContainer(this.pathCname)
+  pathCont: Container;  // set from mapCont[this.pathCont]
 
   /**
    * Before start each new game.
