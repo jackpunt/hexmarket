@@ -17,7 +17,7 @@ export class GameState extends GameStateLib {
     // initialize Players & Ships & Commodities
     this.gamePlay.forEachPlayer(p0 => {
       const p = p0 as Player;
-      p.makeShips();
+      // p.makeShips();
       p.placeShips(); // gameState will say where & with what PCs.
       this.gamePlay.hexMap.update()
     })
