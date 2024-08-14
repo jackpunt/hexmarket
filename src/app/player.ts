@@ -53,7 +53,6 @@ export class Player extends PlayerLib {
    * [make newPlanner for this Player]
    */
   override newGame(gamePlay: GamePlayLib, url = TP.networkUrl) {
-    this.makeShips()
     super.newGame(gamePlay, url);
     this.planner = newPlanner(gamePlay.hexMap as any as HexMapLib<Hex1Lib>, this.index)
   }
