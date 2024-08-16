@@ -1,23 +1,24 @@
 import { RC, stime } from "@thegraid/common-lib";
-import { ScenarioParser as SPLib, SetupElt as SetupEltLib } from "@thegraid/hexlib";
+import { SetupElt as SetupEltLib, ScenarioParser as SPLib } from "@thegraid/hexlib";
 import { AfColor, AfFill, ATS } from "./AfHex";
-import { Item, Planet, PlanetElt } from "./planet";
 import { GamePlay } from "./game-play";
+import { HexMap } from "./hex";
+import { PlanetElt } from "./planet";
+import { ShipSpec } from "./ship";
 
 /** quantity of each Cargo Item produced/consumed on Planet or Ship */
-type Cargo = { [key in Item]?: number };
-type ShipSpec = { rc: RC, Cargo: Cargo };
 type AfHexSpec = { aShape: ATS, aColor: AfColor, aFill: AfFill, Aname: string, spin: number };
 type AfSpec = { rc: RC, afHex: AfHexSpec };
 
 
 export interface SetupElt extends SetupEltLib {
   planets?: PlanetElt[];
-  ships?: ShipSpec[];
+  ships?: ShipSpec[][]; // ShipSpec[] per Player
   afspec?: AfSpec[];
 }
 
 export class ScenarioParser extends SPLib {
+  override map: HexMap; // HexMapLib<MktHex>
   override gamePlay: GamePlay;
   /**
    * 3 cases of SetupElt[0]
@@ -33,15 +34,27 @@ export class ScenarioParser extends SPLib {
     const { gameState, turn, planets, ships } = setup;
     const map = this.map, gamePlay = this.gamePlay, allPlayers = gamePlay.allPlayers, table = gamePlay.table;
     const turnSet = (turn !== undefined); // indicates a Saved Scenario: assign & place everything
-    if (turnSet) {
-      gamePlay.turnNumber = turn;
-      table.logText(`turn = ${turn}`, `parseScenario`);
+    const turnNumber = (turnSet) ? turn : -1;
+    {
+      gamePlay.turnNumber = turnNumber;
+      table.logText(`turn = ${turnNumber}`, `parseScenario`);
       //
       this.gamePlay.allTiles.forEach(tile => tile.hex?.isOnMap ? tile.sendHome() : undefined); // clear existing map
     }
-    if (planets) {
-      // TODO: to here from gameState.parseState()
+    { // make & place Planets:
+      const planetMap = gamePlay.planets;
+      planetMap.makePlanets();  // generic Planets with initialPCs
+      if (planets) {
+        planets.forEach(pElt => planetMap.resetPlanet(pElt))
+      } else {
+        planetMap.placePlanets(); // generic Planets in randomHex
+      }
     }
+    // place ships:
+    gamePlay.forEachPlayer(player => {
+      const shipSpecs = ships?.pop() ?? gamePlay.initialShips(player);
+      player.placeShips(shipSpecs);
+    })
     if (gameState) {
       this.gamePlay.gameState.parseState(gameState);
     }

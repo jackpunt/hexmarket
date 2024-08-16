@@ -1,74 +1,52 @@
 import { KeyBinder } from "@thegraid/easeljs-lib";
-import { GamePlay as GamePlayLib, Scenario } from "@thegraid/hexlib";
+import { GamePlay as GamePlayLib } from "@thegraid/hexlib";
 import { Player } from "./player";
 //import { GameStats, TableStats } from "./stats";
-import { GameSetup } from "./game-setup";
 import { GameState } from "./game-state";
+import { HexMap } from "./hex";
+import { PlanetMap } from "./planet";
+import { ShipSpec } from "./ship";
 import { Table } from "./table";
 import { PlayerColor, TP } from "./table-params";
 
 class HexEvent {}
 class Move{}
 
-// /** Implement game, enforce the rules, manage GameStats & hexMap; no GUI/Table required.
-//  *
-//  * Move actions are:
-//  * - move ship to hex
-//  * - buy/sell commodity or upgrade
-//  * - launch sub-space mine/disrupter?
-//  * - alter alignment of ship
-//  * - alter alignment of hex
-//  *
-//  */
-// export class GamePlay0 {
-//   static gpid = 0
-//   readonly id = GamePlay0.gpid++
-//   ll(n: number) { return TP.log > n }
-
-//   readonly hexMap: HexMap = new HexMap()
-//   readonly history   = []          // sequence of Move that bring board to its state
-//   readonly redoMoves = []
-
-//   constructor() {
-
-//   }
-
-//   turnNumber: number = 0    // = history.lenth + 1 [by this.setNextPlayer]
-//   curPlayerNdx: number = 0  // curPlayer defined in GamePlay extends GamePlay0
-
-//   /** Planner may override with alternative impl. */
-//   newMoveFunc: (hex: MktHex, sc: PlayerColor, caps: MktHex[], gp: GamePlay0) => Move
-//   newMove(hex: MktHex, sc: PlayerColor, caps: MktHex[], gp: GamePlay0) {
-//     return this.newMoveFunc? this.newMoveFunc(hex,sc, caps, gp) : new Move()
-//   }
-//   undoRecs: Undo = new Undo().enableUndo();
-//   addUndoRec(obj: Object, name: string, value: any | Function = obj[name]) {
-//     this.undoRecs.addUndoRec(obj, name, value);
-//   }
-
-// }
-
-// /** GamePlayD has compatible hexMap(mh, nh) but does not share components. used by Planner */
-// export class GamePlayD extends GamePlay0 {
-//   //override hexMap: HexMaps = new HexMap();
-//   constructor(dbp: number = TP.dbp, dop: number = TP.dop) {
-//     super()
-//     this.hexMap[S.Aname] = `GamePlayD#${this.id}`
-//     this.hexMap.makeAllDistricts(dbp, dop)
-//     return
-//   }
-// }
-
-/** GamePlay with Table & GUI (KeyBinder, ParamGUI & Dragger) */
+/**
+ * GamePlay with Table & GUI (KeyBinder, ParamGUI & Dragger)
+ *
+ * Implement game, enforce the rules, manage GameStats & hexMap; no GUI/Table required.
+ *
+ * Player actions are:
+ * - move ship to hex
+ * - buy/sell commodity or upgrade/ship
+ * - attach: launch sub-space mine/disrupter?
+ * - alter alignment of ship?
+ * - alter alignment of hex?
+ *
+ */
 export class GamePlay extends GamePlayLib {
   override gameState: GameState = new GameState(this);
-
-  constructor(gameSetup: GameSetup, scenario: Scenario) {
-    super(gameSetup, scenario)
-  }
-
+  override readonly hexMap: HexMap;
   override table: Table;
   override curPlayer: Player;
+  override get allPlayers() { return Player.allPlayers; };
+  planets = new PlanetMap(this.hexMap);
+
+  // Args to f are local Player, not PlayerLib
+  override forEachPlayer(f: (p: Player, index: number, players: Player[]) => void): void {
+    return super.forEachPlayer(f);
+  }
+
+  /** return initial ship positions. some day use a GUI... */
+  initialShips(player: Player): ShipSpec[] {
+    // make and place one Ship for player
+    const hex = player.chooseShipHex();
+    const rc = { row: hex.row, col: hex.col };
+    const cargo = [];
+    const spec = { z0: 2, rc, cargo } as ShipSpec;
+    return [spec];
+  }
 
   override setNextPlayer(turnNumber?: number): void {
     super.setNextPlayer(turnNumber);

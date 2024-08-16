@@ -1,6 +1,6 @@
-import { C, S, stime } from "@thegraid/common-lib"
-import { Shape, Container } from "@thegraid/easeljs-module"
-import { HexDir, H } from "./hex-intfs"
+import { S, stime } from "@thegraid/common-lib"
+import { Container, Shape } from "@thegraid/easeljs-module"
+import { H, HexDir } from "@thegraid/hexlib"
 import { TP } from "./table-params"
 
 /** affinity in three dimensions: Shape(A,T,S), Color(R,G,B=orange), Fill(LINE, FILL) */
@@ -80,7 +80,8 @@ export class AfHex extends Container {
       let afm = new AfMark(ats, afc, aff, ds)
       this.addChild(afm)
     }
-    let w = TP.hexRad * H.sqrt3, h = TP.hexRad * 2 // see also: Hex2.cache()
+    this.mouseEnabled = false;
+    const w = TP.hexRad * H.sqrt3, h = TP.hexRad * 2 // see also: Hex2.cache()
     this.cache(-w / 2, -h / 2, w, h)
   }
   override clone() {

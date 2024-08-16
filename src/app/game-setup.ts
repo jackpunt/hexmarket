@@ -6,9 +6,9 @@ import { AfHex } from "./AfHex";
 import { EBC, PidChoice } from "./choosers";
 import { GamePlay } from "./game-play";
 import { MktHex as Hex, MktHex2 as Hex2, HexMap } from "./hex";
-import { Cargo } from "./planet";
 import { Player } from "./player";
-import { ScenarioParser, SetupElt } from "./scenario-parser";
+import { ScenarioParser } from "./scenario-parser";
+import { Cargo } from "./ship";
 import { Table } from "./table";
 import { TP } from "./table-params";
 
@@ -45,18 +45,16 @@ export class GameSetup extends GameSetupLib {
   }
 
   /** override to inject each Player.pathCont */
-  override makeHexMap(hexC: Constructor<Hex> = Hex) {
+  override makeHexMap() {
     HexMap.distColor[0] = 'Black';
-    const hexMap = new HexMap(TP.hexRad, true, hexC);
     const cNames = MapCont.cNames.concat() as string[];
-    // add Containers for each Player's path lines:
+    // add Container/field name for each Player's path lines:
     for (let ndx = 0; ndx < this.nPlayers; ndx++) {
       cNames.push(Player.pathCName(ndx))
     }
-    hexMap.addToMapCont(Hex2, cNames);       // addToMapCont(hexC, cNames)
-    hexMap.makeAllDistricts();               // determines size for this.bgRect
-    return hexMap;
+    return super.makeHexMap(HexMap, Hex2, cNames);
   }
+
   override makeTable(): Table {
     return new Table(this.stage);
   }
@@ -127,7 +125,7 @@ export class GameSetup extends GameSetupLib {
     gui.spec("offP").onChange = (item: ParamItem) => { gui.setValue(item); setSize(TP.dbp, TP.dop) }
     gui.spec('load').onChange = (item: ParamItem) => {
       gui.setValue(item)
-      restart && Player.allPlayers.forEach(p => p.ships[0].cargo = [new Cargo('F1', item.value)]); // ParamItem, not (PC) Item
+      restart && this.gamePlay.allPlayers.forEach(p => p.ships[0].cargo = [{F1: item.value} as Cargo]); // ParamItem, not (PC) Item
     }
     gui.spec("colorScheme").onChange = (item: ParamItem) => {
       gui.setValue(item)

@@ -50,7 +50,7 @@ export class EBC extends Chooser {
 
 /** like StatsPanel: read-only output field */
 export class PidChoice extends NC {
-  readonly playerShip: Ship = new Ship()
+  readonly playerShip: Ship = new Ship(`S?`)
   paintPid(pid: number) {
     let ship = this.playerShip, color = ship.player?.afColor
     ship.paint(color)

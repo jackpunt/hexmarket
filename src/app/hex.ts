@@ -1,9 +1,7 @@
-import { MouseEvent, Shape } from "@thegraid/easeljs-module";
-import { H, HexM as HexMLib, Hex1 as Hex1Lib, Hex2Mixin, Hex2 as Hex2Lib, HexDir, Hex as HexLib, HexMap as HexMapLib, MapCont as MapContLib, HexM, EwDir } from "@thegraid/hexlib";
+import { Hex1 as Hex1Lib, Hex2 as Hex2Lib, Hex2Mixin, HexDir, Hex as HexLib, HexM, HexMap as HexMapLib, HexM as HexMLib } from "@thegraid/hexlib";
 import { AfHex } from "./AfHex";
-import { Planet, PlanetLocs } from "./planet";
+import { Planet, PlanetMap } from "./planet";
 import { Ship } from "./ship";
-import { TP } from "./table-params";
 
 /** Base Hex, has no connection to graphics.
  *
@@ -16,15 +14,21 @@ export class MktHex extends Hex1Lib {
   //   super(map, row, col, name);
   // }
 
-  override nextHex(dir: HexDir, ns?: number): MktHex | undefined {
-    return super.nextHex(dir, ns) as MktHex;
-  }
+  // override nextHex(dir: HexDir, ns?: number) {
+  //   return super.nextHex(dir, ns) as this | undefined;
+  // }
 
   override get tile() { return super.tile as Planet; }
   override set tile(planet: Planet) { super.tile = planet; }
 
-  override set meep(ship: Ship) { super.meep = ship; }
   override get meep() { return super.meep as Ship; }
+  override set meep(ship: Ship) { super.meep = ship; }
+
+  get planet() { return this.tile; }
+  set planet(planet: Planet) { this.tile = planet; }
+
+  get ship() { return this.meep; }
+  set ship(ship: Ship) { this.meep = ship; }
 
   afhex: AfHex;
 
@@ -48,19 +52,9 @@ export class MktHex extends Hex1Lib {
 
 export class MktHex2Lib extends Hex2Mixin(MktHex) { }
 
-// export class MktHex2 extends MktHex2Lib {
-//   planet: Planet;
-// }
-
 /** One Hex cell in the game, shown as a polyStar Shape */
 export class MktHex2 extends MktHex2Lib {
-
-  get ship() { return super.meep as Ship; }
-  set ship(ship: Ship) { super.meep = ship; }
-
-  get planet() { return super.tile as Planet; }
-  set planet(planet: Planet) { super.tile = planet; }
-
+  isMktHex2 = true;
   /** Hex2 cell with graphics; shown as a polyStar Shape of radius @ (XY=0,0) */
   constructor(map: HexMLib<HexLib>, row: number, col: number, name?: string) {
     // MktHex2() { super(); }
@@ -68,6 +62,31 @@ export class MktHex2 extends MktHex2Lib {
     // Hex2Impl() { super() == MktHex() -> Hex1(); Hex2Impl.consCode(...) }
     // Hex2Impl.consCode() == override MktHex2.consCode() { super.consCode() == Hex2Imp.consCode(); ... }
     super(map, row, col, name);
+  }
+
+  // Mixin idiom compiles type 'this' into type 'any'; so must redeclare proper signatures:
+  // because: new(...args: any[]) {...} is not a class, has no instances, so no 'this' value/type.
+
+  override forEachLinkHex(func: (hex: this | undefined, dir: HexDir | undefined, hex0: this) => unknown, inclCenter = false) {
+    super.forEachLinkHex(func)
+  }
+  override findLinkHex(pred: (hex: this | undefined, dir: HexDir, hex0: this) => boolean) {
+    return super.findLinkHex(pred)
+  }
+  override findInDir(dir: HexDir, pred: (hex: this, dir: HexDir, hex0: this) => boolean): this | undefined {
+    return super.findInDir(dir, pred)
+  }
+  override hexesInDir(dir: HexDir, rv: this[] = []): this[] {
+    return super.hexesInDir(dir, rv)
+  }
+  override forEachHexDir(func: (hex: this, dir: HexDir, hex0: this) => unknown) {
+    super.forEachHexDir(func);
+  }
+  override nextHex(dir: HexDir, ns: number = 1): this | undefined {
+    return super.nextHex(dir, ns) as this | undefined;
+  }
+  override lastHex(ds: HexDir): this {
+    return super.lastHex(ds)
   }
 
   override constructorCode(map: HexMLib<Hex2Lib>, row: number, col: number, name?: string) {
@@ -89,52 +108,7 @@ export class MktHex2 extends MktHex2Lib {
   }
 }
 
-// /** subset of HexMap, typed to HexLib (used for stats for hexline) */
-// export interface HexM {
-//   readonly district: HexLib[][]      // all the Hex in a given district
-//   readonly mapCont: MapContLib
-//   rcLinear(row: number, col: number): number
-//   forEachHex<K extends MktHex>(fn: (hex: K) => void): void // stats forEachHex(incCounters(hex))
-//   update(): void
-//   showMark(hex: MktHex): void
-
-// }
-
-
-export class HexMap extends HexMapLib<HexLib> implements HexM<HexLib> {
-  hexDirPlanets = new Map<HexDir | typeof H.C, MktHex2>();
-  get planet0Hex() {
-    return this.hexDirPlanets.get(H.C)
-  };
-
-  /** color center and 6 planets, dist = 1 ... 7 */ // TODO: move to Planet.ts
-  placePlanets(pLocs: PlanetLocs = {}, coff = TP.dbp, offP = TP.offP) {
-    Planet.remake();
-    const cHex = this.centerHex as MktHex2;
-    const placePlanet = (key: HexDir | typeof H.C, color: string, hex: MktHex2) => {
-      this.hexDirPlanets.set(key, hex)    // find planet in the given direction
-      hex.rmAfHex()
-      const ndx = 1 + (H.ewDirs.indexOf(key as EwDir) ?? -1 ); // planet number
-      hex.planet = Planet.planets[ndx];
-      hex.planet.on('mousedown', (evt: MouseEvent) => {
-        if (evt.nativeEvent.buttons === 2) hex.planet.onRightClick(evt)
-      })
-      hex.setHexColor(color, ndx)   // colorPlanets: district = 1..7
-      hex.planet.paint();
-    }
-    // offset pHex from cHex by random distance, jitter by 1
-    const randomHex = (ds: EwDir) => {
-      const pHex = cHex.nextHex(ds, coff + 1) as MktHex2;
-      const odir = H.ewDirs[Math.floor(Math.random() * H.ewDirs.length)]
-      // do not offset directly towards center
-      return offP && (odir != H.dirRev[ds]) ? pHex.nextHex(odir, 1) as MktHex2 : pHex;
-    }
-    placePlanet(H.C, 'lightblue', cHex);
-    for (let ds of H.ewDirs) {
-      const oHex = pLocs[ds] ?? randomHex(ds);
-      placePlanet(ds, 'lightgreen', oHex)
-    }
-  }
+export class HexMap extends HexMapLib<MktHex> implements HexM<HexLib> {
 
 }
 /** Marker class for HexMap used by GamePlayD */

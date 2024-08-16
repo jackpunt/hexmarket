@@ -48,7 +48,7 @@ export class TP extends TPLib {
   /** distance between planets */
   static dbp = 4; // nCows = nCols = 3*dbp+3
   /** distance outside planets */
-  static dop = 2; // nh = dbp + 2 * dop (length of outer edge)
+  static dop = 1; // nh = dbp + 1 + dop (length of outer edge)
   /** Order [number of rings] of metaHexes */
   static override mHexes = 1   // number hexes on side of Meta-Hex
   /** Order [number of Hexs on side] of District [# rings of Hexes in each metaHex] */

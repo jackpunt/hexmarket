@@ -1,13 +1,14 @@
-import { C, F, stime } from "@thegraid/common-lib";
+import { C, F, RC, stime } from "@thegraid/common-lib";
 import { Container, Graphics, Shape, Text } from "@thegraid/easeljs-module";
-import { Meeple, DragContext, IHex2, Hex1 } from "@thegraid/hexlib";
+import { DragContext, EwDir, H, Hex1, HexDir, IHex2, Meeple } from "@thegraid/hexlib";
 import { AF, AfColor, AfFill, ATS } from "./AfHex";
-import { MktHex, MktHex2 as Hex2} from "./hex";
-import { EwDir, H, HexDir } from "./hex-intfs";
-import { Cargo } from "./planet";
+import { MktHex2 as Hex2, MktHex } from "./hex";
+import { Item } from "./planet";
 import { Player } from "./player";
 import { TP } from "./table-params";
-import { GameState } from "./game-state";
+
+export type Cargo = { [key in Item]?: number };
+export type ShipSpec = { z0: number, Aname: string, rc: RC, cargo: Cargo[] };
 
 class PathElt<T extends MktHex> {
   constructor(public dir: HexDir, public hex: T, public step: Step<T>) {  }
@@ -37,24 +38,16 @@ export class Ship extends Meeple {
 
   // override fromHex: MktHex;
 
-  readonly gShape: Shape = new Shape();
+  readonly shipShape: Shape = new Shape();
   // readonly Aname: string = `S${Ship.idCounter++}`
 
-  /** current location of this Ship. */
-  // _hex: Hex;
-  // get hex() { return this._hex; }
-  // set hex(hex: Hex) {
-  //   if (this.hex !== undefined) this.hex.ship = undefined  // remove this ship from prior hex
-  //   this._hex = hex   // this ship now on hex.
-  //   hex.ship = this   // hex has this ship on it.
-  // }
   /** show path from srcHex to destHex */
   pCont: Container
-  cargo: Cargo[] = [new Cargo('F1', 5)];
   coins: number = Ship.initCoins
 
+  /** total quantity [amount|weight] of Cargo on this ship. */
   get curload() {
-    return this.cargo.map(c => c.quant).reduce((n, p) => n + p, 0 )
+    return Object.keys(this.cargo).map((c: Item) => this.cargo[c]).reduce((n, p) => n + p, 0 )
   }
   /** 'worst-case' cost for single step */
   get transitCost() { return Ship.maxZ * (this.z0 + this.curload) + Ship.step1; }
@@ -72,7 +65,12 @@ export class Ship extends Meeple {
   // maxFuel = mL = (mF - z0 - 1)/mZ;  mF = mL*mZ+z0+1
   readonly maxFuel = [0, 24+2, 36+3, 48+4][this.z0]; // [26,39,52]
   readonly maxLoad = (this.maxFuel - this.z0 - Ship.step1) / Ship.maxZ; // calc maxLoad
-  newTurn() { this.zconfig.fuel = this.maxFuel; this.moved = false; }
+  /** see also: Meeple.faceUp() */
+  newTurn() {
+    this.zconfig.fuel = this.maxFuel;
+    this.moved = false;
+    return;
+  }
 
   //initially: expect maxFuel = (10 + z0*5) = {15, 20, 25}
   /**
@@ -82,17 +80,20 @@ export class Ship extends Meeple {
    * @param size 1: scout, 2: freighter, 3: heavy
    */
   constructor(
+    Aname?: string,
     player?: Player,
     public readonly z0 = 2,
+    public cargo: Cargo[] = [],
   ) {
-    super(`S${Ship.idCounter++}`, player)
-    this.addChild(this.gShape)
+    super(Aname ?? `S${Ship.idCounter++}`, player)
+    this.addChild(this.shipShape)
     let textSize = 16, nameText = new Text(this.Aname, F.fontSpec(textSize))
     nameText.textAlign = 'center'
     nameText.y = -textSize / 2;
     this.addChild(nameText)
     this.paint()  // TODO: makeDraggable/Dropable on hexMap
     this.pCont = player?.pathCont;
+    // this.player.gamePlay.table.makeDragable(this);
   }
   override player: Player;
 
@@ -101,7 +102,7 @@ export class Ship extends Meeple {
    * @param pcolor AF.zcolor of inner ring ("player" color)
    */
   override paint(pcolor = this.player?.afColor) {
-    if (!this.gShape) return;       // Tile calls paint before initialization is complete
+    if (!this.shipShape) return;       // Tile calls paint before initialization is complete
     this.paint1(undefined, pcolor)  // TODO: define source/type of Zcolor
   }
 
@@ -109,7 +110,7 @@ export class Ship extends Meeple {
   paint1(zcolor: AfColor = this.zcolor, pColor?: AfColor) {
     // zcolor-ring(r2-r1), black-ring(r1-r0), pColor-circle(r0)
     let r2 = this.radius + 8, r1 = this.radius, r0 = this.radius - 2
-    let g = this.gShape.graphics.c() // clear
+    let g = this.shipShape.graphics.c() // clear
     if (pColor) {
       g.f(AF.zcolor[zcolor]).dc(0, 0, r2);
       g.f(C.BLACK).dc(0, 0, r1)
@@ -120,7 +121,7 @@ export class Ship extends Meeple {
 
   paint2(zcolor: AfColor) {
     this.paint1(zcolor)
-    this.gShape.graphics.c().f(C.BLACK).dc(0, 0, this.radius/2) // put a hole in it!
+    this.shipShape.graphics.c().f(C.BLACK).dc(0, 0, this.radius/2) // put a hole in it!
     this.updateCache("destination-out") // clear center of Ship!
   }
 
@@ -150,7 +151,7 @@ export class Ship extends Meeple {
   /** move to hex, incur cost to fuel.
    * @return false if move not possible (no Hex, insufficient fuel)
    */
-  move(dir: EwDir, hex = this.hex.nextHex(dir) as MktHex) {
+  move(dir: EwDir, hex = this.hex.nextHex(dir)) {
     let nconfig = { ... this.zconfig }
     if (hex.occupied) return false;
     let cost = this.configCost(this.hex, dir, hex, nconfig)
@@ -200,7 +201,7 @@ export class Ship extends Meeple {
       // cycle turns until Step(s) reach targetHex
       // loop here so we can continue vs return; move each dir from prev step:
       for (let dir of H.ewDirs) {
-        const nHex = step.curHex.nextHex(dir) as T, nConfig = { ... step.config } // copy of step.config
+        const nHex = step.curHex.nextHex(dir), nConfig = { ... step.config } // copy of step.config
         if (!nHex || nHex.occupied) continue // off map or occupied
         let cost = this.configCost(step.curHex, dir, nHex, nConfig)
         if (cost === undefined) continue; // no afHex, no transit possible
@@ -312,7 +313,11 @@ export class Ship extends Meeple {
     });
   }
 
-  path0: Path<Hex2>
+  _path0: Path<Hex2>
+  get path0() { return this._path0; }
+  set path0(path: Path<Hex2>) {
+    this._path0 = path;
+  }
   showPaths(targetHex: Hex2, limit = 1) {
     this.pCont.removeAllChildren()
     let paths = this.setPathToHex(targetHex, limit)  // find paths to show
@@ -380,6 +385,7 @@ export class Ship extends Meeple {
       console.log(stime(this, `.setPathToHex: no path to hex`), targetHex)
     }
     this.path0 = paths[0]?.toPath() // path0 may be undefined
+    console.log(stime(this, `.setPathToHex: path0 =`), this.path0, this.hasPath0);
     return paths                    // paths may be empty, but NOT undefined
   }
 

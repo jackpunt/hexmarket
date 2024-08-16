@@ -1,11 +1,9 @@
-import { AT, ParamGUI, ParamItem, stime, XY } from "@thegraid/easeljs-lib";
+import { ParamGUI, XY } from "@thegraid/easeljs-lib";
 import { Container, Stage } from "@thegraid/easeljs-module";
-import { IdHex, IHex2, Scenario, Table as TableLib, HexMap as HexMapLib } from "@thegraid/hexlib";
+import { IdHex, Scenario, Table as TableLib } from "@thegraid/hexlib";
 import { GamePlay } from "./game-play";
-import { Player } from "./player";
 import { Ship } from "./ship";
 import { PlayerColor, TP } from "./table-params";
-import { HexMap } from "./hex";
 
 
 /** to own file... */
@@ -18,7 +16,7 @@ class TablePlanner {
  * + dragShip: Ship;
  */
 export class Table extends TableLib {
-  override hexMap: HexMap & HexMapLib<IHex2>;
+  // override hexMap: HexMap & HexMapLib<IHex2>;
 
   constructor(stage: Stage) {
     super(stage);

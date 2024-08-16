@@ -1,19 +1,17 @@
 import { stime } from "@thegraid/common-lib"
 import { Container } from "@thegraid/easeljs-module"
-import { GamePlay as GamePlayLib, Hex1 as Hex1Lib, HexMap as HexMapLib, NamedContainer, newPlanner, Player as PlayerLib } from "@thegraid/hexlib"
+import { GamePlay as GamePlayLib, Hex1 as Hex1Lib, HexMap as HexMapLib, newPlanner, Player as PlayerLib } from "@thegraid/hexlib"
 import { ZColor } from "./AfHex"
-import { MktHex, HexMap } from "./hex"
-import { H } from "./hex-intfs"
-import { Ship } from "./ship"
-import { Table } from "./table"
-import { TP } from "./table-params"
 import { GamePlay } from "./game-play"
+import { Ship, ShipSpec } from "./ship"
+import { TP } from "./table-params"
 
 export class Player extends PlayerLib {
   static initialCoins = 400;
   name: string
   get afColor() { return ZColor[this.index]; }
-  ships: Ship[] = []
+  readonly ships: Ship[] = []
+  override gamePlay: GamePlay;
 
   constructor(index: number, gamePlay: GamePlay) {
     // color: PlayerColor from Player.colorScheme[index]; red, blue, green, violet, gold...
@@ -25,25 +23,33 @@ export class Player extends PlayerLib {
   static pathCName(index = 0) { return `pathCont${index}`}
   get pathCname() { return Player.pathCName(this.index); }
 
-  makeShips() {
-    this.ships = []
-    this.ships.push(new Ship(this))  // initial default Ship (Freighter)
+  addShip(shipSpec: ShipSpec) {
+    this.ships.length = 0;
+    const { Aname, z0, rc, cargo } = shipSpec;
+    const ship = new Ship(Aname, this, z0, cargo);
+    this.ships.push(ship)  // initial default Ship (Freighter)
+    ship.hex = this.gamePlay.hexMap[rc.row][rc.col];
+    return ship;
   }
-  placeShips() {
-    this.ships.forEach(ship => ship.hex = this.chooseShipHex(ship))
-  }
-  /** place ship initially on a Hex adjacent to planet0 */
-  chooseShipHex(ship: Ship) {
-    let map = this.gamePlay.table.hexMap as any as HexMap, hexes: MktHex[] = []
-    // find un-occupied hexes surrounding planet0
-    H.ewDirs.forEach(dir => {
-      let hex = map.planet0Hex.nextHex(dir) as MktHex; // assert: planet0 has 6 neighbors
-      if (!hex.occupied) hexes.push(hex)
+  /** put this.ships in their places. */
+  placeShips(shipSpecs: ShipSpec[]) {
+    shipSpecs.forEach((shipSpec) => {
+      const ship = this.addShip(shipSpec), rc = shipSpec.rc;
+      ship.hex = this.gamePlay.hexMap[rc.row][rc.col];
     })
-    let dn = Math.floor(Math.random() * hexes.length);
-    let hex = hexes[dn]
-    console.log(stime(this, `.chooseShipHex: `), ship, hex)
-    return hex
+  }
+
+  /** place ship initially on a Hex adjacent to planet0
+   * some day use a GUI...
+   */
+  chooseShipHex() {
+    const map = this.gamePlay.table.hexMap;
+    // find un-occupied hexes surrounding planet0
+    const hexes = Object.values(map.centerHex.links).filter(hex => !hex.occupied);
+    const dn = Math.floor(Math.random() * hexes.length);
+    const hex = hexes[dn];
+    console.log(stime(this, `.chooseShipHex: `), hex);
+    return hex;
   }
   pathCont: Container;  // set from mapCont[this.pathCont]
 
@@ -57,7 +63,8 @@ export class Player extends PlayerLib {
     this.planner = newPlanner(gamePlay.hexMap as any as HexMapLib<Hex1Lib>, this.index)
   }
   override newTurn() {
-    this.ships.forEach(ship => ship.newTurn())
+    this.ships.forEach(ship => ship.newTurn());
+    return;
   }
   override stopMove() {
     this.planner?.roboMove(false)
