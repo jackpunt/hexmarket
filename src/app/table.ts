@@ -1,8 +1,7 @@
-import { ParamGUI, XY } from "@thegraid/easeljs-lib";
-import { Container, Stage } from "@thegraid/easeljs-module";
-import { IdHex, Scenario, Table as TableLib } from "@thegraid/hexlib";
+import { Constructor, ParamGUI, XY } from "@thegraid/easeljs-lib";
+import { Container, DisplayObject, Stage, Text } from "@thegraid/easeljs-module";
+import { Hex, HexM, HexShape, IdHex, IHex2, Scenario, Table as TableLib, Tile } from "@thegraid/hexlib";
 import { GamePlay } from "./game-play";
-import { Ship } from "./ship";
 import { PlayerColor, TP } from "./table-params";
 
 
@@ -13,7 +12,6 @@ class TablePlanner {
 
 /** layout display components, setup callbacks to GamePlay.
  *
- * + dragShip: Ship;
  */
 export class Table extends TableLib {
   // override hexMap: HexMap & HexMapLib<IHex2>;
@@ -61,7 +59,6 @@ export class Table extends TableLib {
   //   return gui;
   // }
 
-  dragShip: Ship; // last ship to be dragged [debug & dragAgain('.') & dragBack(',')]
   override startGame(scenario: Scenario) {
     super.startGame(scenario); // allTiles.makeDragable()
   }
@@ -90,22 +87,13 @@ export class Table extends TableLib {
     // this.dispatchEvent(new HexEvent(S.add, hex, sc)) // -> GamePlay.playerMoveEvent(hex, sc)
   }
 
-  /** @return the DisplayObject [Tile] to be dragged (becomes this.dragShip) */
+  /** @return the DisplayObject [Ship] to be dragged by toggleDrag() */
   get defaultDrag() {
     return this.gamePlay.curPlayer.shipToMove();
   }
-  /** Toggle dragging: dragTarget(target) OR stopDragging(targetHex)
-   * - attach supplied target to mouse-drag (default is eventHex.tile)
-   * @param target the DisplayObject being dragged
-   * @param xy offset from target to mouse pointer
-   */
-  toggleDrag(xy: XY = { x: TP.hexRad / 2, y: TP.hexRad / 2 }) {
-    const dragging = this.dragger.dragCont.getChildAt(0);
-    if (!!dragging) {
-      this.stopDragging(this.hexUnderObj(dragging)) // drop and set dropTarget make move
-    } else {
-      this.dragger.dragTarget(this.defaultDrag, xy);
-    }
+  /** invoked from keybinder.setKey, with no args. */
+  override dragTarget(dragObj = this.defaultDrag, xy: XY = { x: TP.hexRad * .2, y: TP.hexRad * .2 }): void {
+    super.dragTarget(dragObj, xy)
   }
 
 }

@@ -87,6 +87,6 @@ export class Player extends PlayerLib {
     return      // robo or GUI will invoke gamePlay.doPlayerMove(...)
   }
   shipToMove() {
-    return this.ships.find(ship => !ship.hasPath0)
+    return this.ships.find(ship => !ship.hasPathMove)
   }
 }

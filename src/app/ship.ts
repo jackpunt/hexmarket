@@ -1,5 +1,5 @@
 import { C, F, RC, stime } from "@thegraid/common-lib";
-import { Container, Graphics, Shape, Text } from "@thegraid/easeljs-module";
+import { Container, Graphics, Shape, Text, MouseEvent } from "@thegraid/easeljs-module";
 import { DragContext, EwDir, H, Hex1, HexDir, IHex2, Meeple } from "@thegraid/hexlib";
 import { AF, AfColor, AfFill, ATS } from "./AfHex";
 import { MktHex2 as Hex2, MktHex } from "./hex";
@@ -68,7 +68,7 @@ export class Ship extends Meeple {
   /** see also: Meeple.faceUp() */
   newTurn() {
     this.zconfig.fuel = this.maxFuel;
-    this.moved = false;
+    this.pathFinder.moved = false;
     return;
   }
 
@@ -96,6 +96,11 @@ export class Ship extends Meeple {
     // this.player.gamePlay.table.makeDragable(this);
   }
   override player: Player;
+
+  override onRightClick(evt: MouseEvent) {
+    console.log(stime(this, `.rightclick:`), this.Aname, evt)
+    // TODO: display Ship fuel & cargo
+  }
 
   /**
    * show ship with current zcolor (from last transit config)
@@ -159,9 +164,87 @@ export class Ship extends Meeple {
     nconfig.fuel -= cost
     this.hex = hex;
     this.zconfig = nconfig
+    this.paint()
     hex.map.update()    // TODO: invoke in correct place...
     return true
   }
+
+  /** called before tile.moveTo(undefined) */
+  override dragStart(ctx: DragContext): void {
+    return;
+  }
+
+  override isLegalTarget(toHex: Hex1, ctx?: DragContext): boolean {
+    if (!toHex) return false;
+    if (toHex.occupied) return false;
+    return true;
+  }
+
+  override showTargetMark(hex: IHex2 | undefined, ctx: DragContext): void {
+    return;          // not needed: all Hex that path goes to are legal...
+  }
+
+  override dragFunc(hex: IHex2, ctx: DragContext) {
+    const hex2 = hex as Hex2;
+    const shiftKey = ctx?.info?.event?.nativeEvent?.shiftKey
+    if (!shiftKey || hex2 === this.fromHex) {
+      this.pCont.removeAllChildren();
+      return          // no path requested
+    }
+    if (hex2 === this.hex) return  // no path to self
+    if (hex2 === this.targetHex) return // same path, don't redraw
+    this.targetHex = hex2;
+    this.pathFinder.drawDirect2(hex2).then(() => {
+      this.pathFinder.showPaths(hex2, 1)      // show extra paths
+    })
+  }
+
+  // hexlib.Dragger is invoked with hexlib.IHex2
+  // our HexMap contains (MktHex2 as Hex2) extends MktHex implements IHex2;
+  override dropFunc(targetHex: IHex2, ctx: DragContext) {
+    const hex = targetHex as Hex2;
+    if (ctx.lastCtrl) {
+      super.dropFunc(targetHex, ctx);  // placeTile(targetHex) -- Do a Move !
+    } else {
+      this.hex = this.fromHex as Hex2; // put it back at beginning
+    }
+    const path0 = this.pathFinder.path0;
+    if (hex !== this.targetHex || !path0 || path0[path0.length - 1]?.hex !== hex) {
+      this.pathFinder.setPathToHex(hex)   // find a path not shown
+    }
+    this.paint()
+    //
+    const shiftKey = ctx?.info?.event?.nativeEvent?.shiftKey
+    if (!shiftKey) this.pCont.removeAllChildren();
+    this.lastShift = undefined
+  }
+
+  /** find path to this target hex */
+  targetHex: MktHex;
+  lastShift: boolean;
+  pathFinder = new PathFinder(this);
+
+  /** false if [still] available to move this turn. [see also: meep.faceUp] */
+  moved = true;
+
+  /** Ship has a path set for move. */
+  get hasPathMove() {
+    return this.pathFinder.hasPath0;
+  }
+
+  shipMove() {
+    return this.pathFinder.moveOnPath()
+  }
+}
+
+class PathFinder {
+  constructor(public ship: Ship) {}
+  get pCont() { return this.ship.pCont; }
+  get fromHex() { return this.ship.fromHex; }
+  get targetHex() { return this.ship.targetHex; }
+  set targetHex(hex: MktHex) { this.ship.targetHex = hex; }
+  get moved() { return this.ship.moved; }
+  set moved(v: boolean) { this.ship.moved = v; }
 
   pathLog = false;
   /**
@@ -173,7 +256,7 @@ export class Ship extends Meeple {
   findPaths<T extends MktHex>(targetHex: T, limit = 2) {
     if (targetHex.occupied) return []    // includes: this.hex === targetHex
     const hex = this.fromHex as any as T;
-    let minMetric = hex.radialDist(targetHex) * this.transitCost
+    let minMetric = hex.radialDist(targetHex) * this.ship.transitCost
     let paths: Step<T>[]
     do {
       paths = this.findPathsWithMetric(hex, targetHex, limit, minMetric = minMetric + 5)
@@ -189,8 +272,8 @@ export class Ship extends Meeple {
       return pStep?.curHex === nHex
     }
     // BFS, doing rings (H.ewDirs) around the starting hex.
-    let fuel = this.moved ? this.fuel : this.maxFuel
-    let nConfig = { ... this.zconfig, fuel }
+    let fuel = this.moved ? this.ship.fuel : this.ship.maxFuel
+    let nConfig = { ... this.ship.zconfig, fuel }
     let step = new Step<T>(0, hex0 as T, undefined, undefined, nConfig, 0, hex1)
     let mins = minMetric.toFixed(1), Hex0 = hex0.Aname, Hex1 = hex1.Aname
     this.pathLog && console.log(stime(this, `.findPathsWithMetric:`), { ship: this, mins, Hex0, Hex1, hex0, hex1 })
@@ -203,14 +286,14 @@ export class Ship extends Meeple {
       for (let dir of H.ewDirs) {
         const nHex = step.curHex.nextHex(dir), nConfig = { ... step.config } // copy of step.config
         if (!nHex || nHex.occupied) continue // off map or occupied
-        let cost = this.configCost(step.curHex, dir, nHex, nConfig)
+        let cost = this.ship.configCost(step.curHex, dir, nHex, nConfig)
         if (cost === undefined) continue; // no afHex, no transit possible
         let turn = step.turn
         nConfig.fuel = nConfig.fuel - cost
         if (nConfig.fuel < 0) {   // Oops: we need to refuel before this Step!
           turn += 1
           nConfig.zshape = null;  // shape resets each turn
-          nConfig.fuel = this.maxFuel - cost;
+          nConfig.fuel = this.ship.maxFuel - cost;
           if (nConfig.fuel < 0) break // over max load!
         }
         let nStep = new Step<T>(turn, nHex, dir, step, nConfig, cost, hex1)
@@ -236,7 +319,7 @@ export class Ship extends Meeple {
     if (done.length > 0) {
       let met0 = done[0].metric || -1, clen = closed.length
       let pathm = done.map(p => { return { turn: p.turn, fuel: p.config.fuel, metric: this.pathMetric(p), p: p.toString(), s0: p } })
-      this.pathLog && console.log(stime(this, `.findPathsWithMetric:`), hex0.Aname, hex1.Aname, this.color, this.curload, met0, clen, `paths:`, pathm)
+      this.pathLog && console.log(stime(this, `.findPathsWithMetric:`), hex0.Aname, hex1.Aname, this.ship.color, this.ship.curload, met0, clen, `paths:`, pathm)
     }
     return done
   }
@@ -251,7 +334,7 @@ export class Ship extends Meeple {
     return sum
   }
   drawDirect(target: Hex2, g: Graphics, cl: string , wl = 2) {
-    const hex0 = this.fromHex;
+    const hex0 = this.ship.fromHex;
     g.ss(wl).s(cl).mt(hex0.x, hex0.y).lt(target.x, target.y).es()
   }
   /**
@@ -297,7 +380,7 @@ export class Ship extends Meeple {
   }
 
   pathColor(n: number = 0, alpha?: number | string, decr = 20) {
-    let v = this.colorValues.map(vn => vn + n * (vn > 230 ? -decr : decr))
+    let v = this.ship.colorValues.map(vn => vn + n * (vn > 230 ? -decr : decr))
     v[3] = 255    // reset alpha
     return `rgba(${v[0]},${v[1]},${v[2]},${alpha || (v[3]/255).toFixed(2)})`
   }
@@ -342,41 +425,6 @@ export class Ship extends Meeple {
     return pshape
   }
 
-  /** find path to this target hex */
-  targetHex: MktHex;
-  lastShift: boolean;
-
-  /** called before tile.moveTo(undefined) */
-  override dragStart(ctx: DragContext): void {
-    return;
-  }
-
-  override isLegalTarget(toHex: Hex1, ctx?: DragContext): boolean {
-    if (!toHex) return false;
-    if (toHex.occupied) return false;
-    return true;
-  }
-
-  override showTargetMark(hex: IHex2 | undefined, ctx: DragContext): void {
-    return;          // not needed: all Hex that path goes to are legal...
-  }
-
-
-  override dragFunc(hex: IHex2, ctx: DragContext) {
-    const hex2 = hex as Hex2;
-    const shiftKey = ctx?.info?.event?.nativeEvent?.shiftKey
-    if (!shiftKey || hex2 === this.fromHex) {
-      this.pCont.removeAllChildren();
-      return          // no path requested
-    }
-    if (hex2 === this.hex) return  // no path to self
-    if (hex2 === this.targetHex) return // same path, don't redraw
-    this.targetHex = hex2;
-    this.drawDirect2(hex2).then(() => {
-      this.showPaths(hex2, 1)      // show extra paths
-    })
-  }
-
   /** set this.path0, return all Paths to hex. */
   setPathToHex(targetHex: Hex2, limit = 0) {
     this.targetHex = targetHex
@@ -389,34 +437,12 @@ export class Ship extends Meeple {
     return paths                    // paths may be empty, but NOT undefined
   }
 
-  // hexlib.Dragger is invoked with hexlib.IHex2
-  // our HexMap contains (MktHex2 as Hex2) extends MktHex implements IHex2;
-  override dropFunc(targetHex: IHex2, ctx: DragContext) {
-    const hex = targetHex as Hex2;
-    if (ctx.lastCtrl) {
-      super.dropFunc(targetHex, ctx);  // placeTile(targetHex) -- Do a Move !
-    } else {
-      this.hex = this.fromHex as Hex2; // put it back at beginning
-    }
-
-    if (hex !== this.targetHex || !this.path0 || this.path0[this.path0.length - 1]?.hex !== hex) {
-      this.setPathToHex(hex)   // find a path not shown
-    }
-    this.paint()
-    //
-    const shiftKey = ctx?.info?.event?.nativeEvent?.shiftKey
-    if (!shiftKey) this.pCont.removeAllChildren();
-    this.lastShift = undefined
-  }
-
-  /** false if [still] available to move this turn. [see also: meep.faceUp] */
-  moved = true;
   /** return true if no auto path0 for this ship. */
   get hasPath0() {
     return (this.path0 && this.path0.length > 0);
   }
   /** continue any planned, semi-auto moves toward this.targetHex */
-  shipMove() {
+  moveOnPath() {
     // TODO: continue move if available fuel
     if (this.moved || !this.hasPath0) return this.moved;
     if (!this.path0[0].dir) this.path0.shift();           // skip initial non-Step
@@ -438,11 +464,11 @@ export class Ship extends Meeple {
   takeSteps() {
     let elt = this.path0[0]
     if (!elt) return false; // illegal step
-    let dir = elt.dir as EwDir, hex = this.hex.nextHex(dir)
+    let dir = elt.dir as EwDir, hex = this.ship.hex.nextHex(dir)
     if (hex.occupied) {
       // find alternate path...?
     }
-    if (!this.move(dir, hex)) return false
+    if (!this.ship.move(dir, hex)) return false
     this.path0.shift()
     setTimeout(() => { this.takeSteps() }, TP.stepDwell) // and do other moves this turn
     return true
