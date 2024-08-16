@@ -43,7 +43,7 @@ export class GamePlay extends GamePlayLib {
     // make and place one Ship for player
     const hex = player.chooseShipHex();
     const rc = { row: hex.row, col: hex.col };
-    const cargo = [];
+    const cargo = { F1: 5 };    // load some cargo for testing
     const spec = { z0: 2, rc, cargo } as ShipSpec;
     return [spec];
   }

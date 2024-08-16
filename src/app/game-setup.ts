@@ -125,7 +125,7 @@ export class GameSetup extends GameSetupLib {
     gui.spec("offP").onChange = (item: ParamItem) => { gui.setValue(item); setSize(TP.dbp, TP.dop) }
     gui.spec('load').onChange = (item: ParamItem) => {
       gui.setValue(item)
-      restart && this.gamePlay.allPlayers.forEach(p => p.ships[0].cargo = [{F1: item.value} as Cargo]); // ParamItem, not (PC) Item
+      restart && this.gamePlay.allPlayers.forEach(p => p.ships[0].cargo = { F1: item.value }); // ParamItem, not (PC) Item
     }
     gui.spec("colorScheme").onChange = (item: ParamItem) => {
       gui.setValue(item)

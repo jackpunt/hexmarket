@@ -8,7 +8,7 @@ import { Player } from "./player";
 import { TP } from "./table-params";
 
 export type Cargo = { [key in Item]?: number };
-export type ShipSpec = { z0: number, Aname: string, rc: RC, cargo: Cargo[] };
+export type ShipSpec = { z0: number, Aname: string, rc: RC, cargo: Cargo };
 
 class PathElt<T extends MktHex> {
   constructor(public dir: HexDir, public hex: T, public step: Step<T>) {  }
@@ -83,7 +83,7 @@ export class Ship extends Meeple {
     Aname?: string,
     player?: Player,
     public readonly z0 = 2,
-    public cargo: Cargo[] = [],
+    public cargo: Cargo = {},
   ) {
     super(Aname ?? `S${Ship.idCounter++}`, player)
     this.addChild(this.shipShape)
