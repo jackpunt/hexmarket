@@ -70,7 +70,7 @@
               "buildTarget": "hexmarket:build:production"
             },
             "development": {
-              "port": 4201,
+              "port": 4204,
               "buildTarget": "hexmarket:build:development"
             }
           },
