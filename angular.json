@@ -63,15 +63,15 @@
         "serve": {
           "builder": "@angular-devkit/build-angular:dev-server",
           "options": {
-            "browserTarget": "latest-angular:build"
+            "buildTarget": "latest-angular:build"
           },
           "configurations": {
             "production": {
-              "browserTarget": "hexmarket:build:production"
+              "buildTarget": "hexmarket:build:production"
             },
             "development": {
               "port": 4201,
-              "browserTarget": "hexmarket:build:development"
+              "buildTarget": "hexmarket:build:development"
             }
           },
           "defaultConfiguration": "development"
@@ -79,7 +79,7 @@
         "extract-i18n": {
           "builder": "@angular-devkit/build-angular:extract-i18n",
           "options": {
-            "browserTarget": "hexmarket:build"
+            "buildTarget": "hexmarket:build"
           }
         },
         "test": {
