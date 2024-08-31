@@ -1,6 +1,6 @@
 import { C, F, RC, stime } from "@thegraid/common-lib";
 import { MouseEvent, Shape, Text } from "@thegraid/easeljs-module";
-import { DragContext, EwDir, H, Hex1, MapTile, HexMap as HexMapLib, IHex2, HexM } from "@thegraid/hexlib";
+import { DragContext, EwDir, H, Hex1, MapTile, HexMap as HexMapLib, IHex2, HexM, TP as TPLib } from "@thegraid/hexlib";
 import { TP } from "./table-params";
 import { HexMap, MktHex, MktHex2 } from "./hex";
 
@@ -261,22 +261,22 @@ export class PlanetMap {
 
   /** place all the planets at randomHex */
   placePlanets(coff = TP.dbp, offP = TP.offP, opd = 1) {
-    const cHex = this.hexMap.centerHex;
+    const cHex = this.hexMap.centerHex, TPval = TP, TPlib=TPLib;
 
     // offset pHex from cHex by random distance, jitter by dop=1
-    const randomHex = (ds: EwDir) => {
-      const pHex = cHex.nextHex(ds, coff + 1); // extends on line
+    const randomHex = (ds: EwDir, doff = Math.min(TP.nHexes - 1, coff + 1)) => {
+      const pHex = cHex.nextHex(ds, doff); // extends on line
       const odir = H.ewDirs[Math.floor(Math.random() * H.ewDirs.length)] // offset some dir
       // do not offset directly towards center
       // assert(nHexes > dbp+1+dop)
       // return offP && (odir != H.dirRev[ds]) ? pHex.nextHex(odir, opd) : pHex;
       const off = !offP || (odir == H.dirRev[ds]) ? 0 : opd;
-      return pHex.nextHex(odir, off);
+      return pHex.nextHex(odir, off) ?? randomHex(ds);
     }
     this.placePlanet(H.C, cHex);
     H.ewDirs.forEach ((ds, ndx) => {
       const oHex = randomHex(ds);
-      this.placePlanet(ds, oHex)
+      if (oHex) this.placePlanet(ds, oHex)
     })
   }
 

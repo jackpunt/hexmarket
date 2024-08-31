@@ -1,14 +1,11 @@
 import { Params } from "@angular/router";
-import { C, Constructor, CycleChoice, DropdownStyle, ParamGUI, ParamItem, stime } from "@thegraid/easeljs-lib";
-import { Container } from "@thegraid/easeljs-module";
+import { ParamGUI, stime } from "@thegraid/easeljs-lib";
 import { GameSetup as GameSetupLib, MapCont, Scenario } from "@thegraid/hexlib";
 import { AfHex } from "./AfHex";
-import { EBC, PidChoice } from "./choosers";
 import { GamePlay } from "./game-play";
-import { MktHex as Hex, MktHex2 as Hex2, HexMap } from "./hex";
+import { MktHex2 as Hex2, HexMap } from "./hex";
 import { Player } from "./player";
 import { ScenarioParser } from "./scenario-parser";
-import { Cargo } from "./ship";
 import { Table } from "./table";
 import { TP } from "./table-params";
 
@@ -31,11 +28,10 @@ export class GameSetup extends GameSetupLib {
     TP.useEwTopo = true;
     TP.nHexes = nH ?? TP.nHexes; // [5,6,7,8]
     TP.ghost = host ?? TP.ghost
-    TP.gport = (port !== null) ? Number.parseInt(port) : TP.gport;
-    TP.setParams(TP);   // set host,port in TPLib so TP.buildURL can find them
-    TP.eraseLocal(TP);
-    TP.networkUrl = TP.buildURL(undefined);
+    TP.gport = (port !== undefined) ? Number.parseInt(port) : TP.gport;
     TP.networkGroup = 'hexmarket:game1';
+    TP.setParams(TP);   // set host,port in TPLib so TP.buildURL can find them
+    TP.networkUrl = TP.buildURL(undefined);
 
     let rfn = document.getElementById('readFileName') as HTMLInputElement;
     rfn.value = file ?? 'setup@0';
@@ -89,110 +85,16 @@ export class GameSetup extends GameSetupLib {
   // override parseScenario(scenario: SetupElt): void {
   //   (this.table.hexMap as any as HexMap).placePlanets()
   // }
-
-  residual(table: Table) {
-    const gamePlay = table.gamePlay;
-    const statsx = -300, statsy = 30;
-    if (this.stage.canvas) {
-      console.groupCollapsed('initParamGUI')
-      this.paramGUIs = this.makeParamGUI(table, table.scaleCont, statsx, 30) // modify TP.params...
-      let [gui, gui2] = this.paramGUIs
-      // table.miniMap.mapCont.y = Math.max(gui.ymax, gui2.ymax) + gui.y + table.miniMap.wh.height / 2
-      console.groupEnd()
-    }
-    return gamePlay
-  }
-
-  /** affects the rules of the game & board
-   *
-   * ParamGUI   --> board & rules [under stats panel]
-   * ParamGUI2  --> AI Player     [left of ParamGUI]
-   * NetworkGUI --> network       [below ParamGUI2]
+  /**
+   * Invoked from super.restart(stateInfo)
+   * @param stateInfo { dbp, dop, offP } & { nh, hexRad }
    */
-  makeParamGUI(table: Table, parent: Container, x: number, y: number) {
-    let restart = false, infName = "inf:sac"
-    const gui = new ParamGUI(TP, { textAlign: 'right'})
-    const schemeAry = TP.schemeNames.map(n => { return { text: n, value: TP[n] } })
-    let setSize = (dpb: number, dop: number) => { restart && this.restart.call(this, dpb, dop) }
-    gui.makeParamSpec("dbp", [3, 4, 5, 6], { fontColor: "green" })
-    gui.makeParamSpec("dop", [0, 1, 2, 3], { fontColor: "green" })
-    gui.makeParamSpec("offP", [true, false], { fontColor: "green" })
-    gui.makeParamSpec("load", [0, 5, 10, 15, 20], { fontColor: "green" })
-    gui.makeParamSpec("colorScheme", schemeAry, { chooser: CycleChoice, style: { textAlign: 'center' } })
-
-    gui.spec("dbp").onChange = (item: ParamItem) => { setSize(item.value, TP.dop) }
-    gui.spec("dop").onChange = (item: ParamItem) => { setSize(TP.dbp, item.value) }
-    gui.spec("offP").onChange = (item: ParamItem) => { gui.setValue(item); setSize(TP.dbp, TP.dop) }
-    gui.spec('load').onChange = (item: ParamItem) => {
-      gui.setValue(item)
-      restart && this.gamePlay.allPlayers.forEach(p => p.ships[0].cargo = { F1: item.value }); // ParamItem, not (PC) Item
-    }
-    gui.spec("colorScheme").onChange = (item: ParamItem) => {
-      gui.setValue(item)
-      let hexMap = table.hexMap
-      hexMap.update()
-    }
-    parent.addChild(gui)
-    gui.x = x // (3*cw+1*ch+6*m) + max(line.width) - (max(choser.width) + 20)
-    gui.y = y
-    gui.makeLines()
-    const gui2 = this.makeParamGUI2(table, parent, x - 320, y)
-    const gui3 = this.makeNetworkGUI(table, parent, x - 320, y + gui.ymax + 200 )
-    gui.parent.addChild(gui) // bring to top
-    gui.stage.update()
-    restart = true // *after* makeLines has stablilized selectValue
-    return [gui, gui2, gui3]
-  }
-  /** configures the AI player */
-  makeParamGUI2(table: Table, parent: Container, x: number, y: number) {
-    let gui = new ParamGUI(TP, { textAlign: 'center' })
-    gui.makeParamSpec("log", [-1, 0, 1, 2], { style: { textAlign: 'right' } }); TP.log
-    gui.makeParamSpec("maxPlys", [1, 2, 3, 4, 5, 6, 7, 8], { fontColor: "blue" }); TP.maxPlys
-    gui.makeParamSpec("maxBreadth", [5, 6, 7, 8, 9, 10], { fontColor: "blue" }); TP.maxBreadth
-    // gui.makeParamSpec("nPerDist", [2, 3, 4, 5, 6, 8, 11, 15, 19], { fontColor: "blue" }); TP.nPerDist
-    // gui.makeParamSpec("pWeight", [1, .99, .97, .95, .9]) ; TP.pWeight
-    // gui.makeParamSpec("pWorker", [true, false], { chooser: BC }); TP.pWorker
-    // gui.makeParamSpec("pPlaner", [true, false], { chooser: BC, name: "parallel" }); TP.pPlaner
-    // gui.makeParamSpec("pBoards", [true, false], { chooser: BC }); TP.pBoards
-    // gui.makeParamSpec("pMoves",  [true, false], { chooser: BC }); TP.pMoves
-    // gui.makeParamSpec("pGCM",    [true, false], { chooser: BC }); TP.pGCM
-    parent.addChild(gui)
-    gui.x = x; gui.y = y
-    gui.makeLines()
-    gui.stage.update()
-    return gui
-  }
-  netColor: string = "rgba(160,160,160, .8)"
-  netStyle: DropdownStyle = { textAlign: 'right' };
-  /** controls multiplayer network participation */
-  makeNetworkGUI (table: Table, parent: Container, x: number, y: number) {
-    let gui = this.netGUI = new ParamGUI(TP, this.netStyle)
-    gui.makeParamSpec("Network", [" ", "new", "join", "no", "ref", "cnx"], { fontColor: "red" })
-    gui.makeParamSpec("PlayerId", ["     ", 0, 1, 2, 3, "ref"], { chooser: PidChoice, fontColor: "red" })
-    gui.makeParamSpec("networkGroup", [TP.networkGroup], { chooser: EBC, name: 'gid', fontColor: C.GREEN, style: { textColor: C.BLACK } }); TP.networkGroup
-
-    gui.spec("Network").onChange = (item: ParamItem) => {
-      if (['new', 'join', 'ref'].includes(item.value)) {
-        let group = (gui.findLine('networkGroup').chooser as EBC).editBox.innerText
-        // this.gamePlay.closeNetwork()
-        // this.gamePlay.network(item.value, gui, group)
-      }
-      // if (item.value == "no") this.gamePlay.closeNetwork()     // provoked by ckey
-    }
-    (this.stage.canvas as HTMLCanvasElement).parentElement.addEventListener('paste', (ev) => {
-      let text = ev.clipboardData.getData('Text')
-      ;(gui.findLine('networkGroup').chooser as EBC).setValue(text)
-    });
-    this.showNetworkGroup()
-    parent.addChild(gui)
-    gui.makeLines()
-    gui.x = x; gui.y = y
-    parent.stage.update()
-    return gui
-  }
-  showNetworkGroup(group_name = TP.networkGroup) {
-    document.getElementById('group_name').innerText = group_name
-    let line = this.netGUI.findLine("networkGroup"), chooser = line?.chooser
-    chooser?.setValue(group_name, chooser.items[0], undefined)
+  override resetState(stateInfo: Record<string, any>): void {
+    const tpvals = { dbp: TP.dbp, dop: TP.dop, offP: TP.offP };
+    const { dbp, dop, offP } = { ...tpvals, ...stateInfo } as
+      { dbp: number, dop: number, offP: boolean, nHexes: number };
+    TP.setParams({ dbp, dop, offP }, false, TP); // set these in TP, TPLib
+    delete stateInfo['mh'];      // prevent changing mHexes
+    super.resetState(stateInfo); // resetState({nh, mh, hexRad}) -> TP.nHexes, TP.hexRad
   }
 }

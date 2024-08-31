@@ -1,11 +1,11 @@
 import { KeyBinder } from "@thegraid/easeljs-lib";
-import { GamePlay as GamePlayLib } from "@thegraid/hexlib";
+import { GamePlay as GamePlayLib, GameSetup } from "@thegraid/hexlib";
 import { Player } from "./player";
 //import { GameStats, TableStats } from "./stats";
 import { GameState } from "./game-state";
 import { HexMap } from "./hex";
 import { PlanetMap } from "./planet";
-import { ShipSpec } from "./ship";
+import { Ship, ShipSpec } from "./ship";
 import { Table } from "./table";
 import { PlayerColor, TP } from "./table-params";
 
@@ -26,6 +26,7 @@ class Move{}
  *
  */
 export class GamePlay extends GamePlayLib {
+  override gameSetup: GameSetup;
   override gameState: GameState = new GameState(this);
   override readonly hexMap: HexMap;
   override table: Table;
@@ -43,8 +44,8 @@ export class GamePlay extends GamePlayLib {
     // make and place one Ship for player
     const hex = player.chooseShipHex();
     const rc = { row: hex.row, col: hex.col };
-    const cargo = { F1: 5 };    // load some cargo for testing
-    const spec = { z0: 2, rc, cargo } as ShipSpec;
+    const cargo = TP.load;    // load some cargo for testing { F1: 5 }
+    const spec = { z0: Ship.z0[Ship.defaultShipSize], rc, cargo } as ShipSpec;
     return [spec];
   }
 
@@ -75,6 +76,7 @@ export class GamePlay extends GamePlayLib {
     KeyBinder.keyBinder.setKey('Escape', {thisArg: table, func: table.stopDragging}) // Escape
     KeyBinder.keyBinder.setKey('C-s', { thisArg: this.gameSetup, func: () => { this.gameSetup.restart({}) } })// C-s START
     KeyBinder.keyBinder.setKey('C-c', { thisArg: this, func: this.stopPlayer })// C-c Stop Planner
+    KeyBinder.keyBinder.setKey('C', () => this.table.reCacheTiles())// reCacheTiles
     KeyBinder.keyBinder.setKey('m', { thisArg: this, func: this.makeMove, argVal: true })
     KeyBinder.keyBinder.setKey('M', { thisArg: this, func: this.makeMoveAgain, argVal: true })
     KeyBinder.keyBinder.setKey('n', { thisArg: this, func: this.autoMove, argVal: false })
