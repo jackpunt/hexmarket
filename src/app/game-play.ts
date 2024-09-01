@@ -85,7 +85,7 @@ export class GamePlay extends GamePlayLib {
     KeyBinder.keyBinder.setKey('v', { thisArg: this, func: this.autoPlay, argVal: 1})
 
     // diagnostics:
-    KeyBinder.keyBinder.setKey('x', { thisArg: this, func: () => {this.table.enableHexInspector(); }})
+    KeyBinder.keyBinder.setKey('I', { thisArg: this, func: () => {this.table.enableHexInspector(); }})
     KeyBinder.keyBinder.setKey('t', { thisArg: this, func: () => {this.table.toggleText(undefined); }})
 
     KeyBinder.keyBinder.setKey('M-r', { thisArg: this, func: () => { this.gameSetup.netState = "ref" } })

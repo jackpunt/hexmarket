@@ -1,6 +1,6 @@
-import { ParamGUI, ParamItem, XY } from "@thegraid/easeljs-lib";
+import { afterUpdate, KeyBinder, ParamGUI, ParamItem, ScaleableContainer, XY } from "@thegraid/easeljs-lib";
 import { Container, Stage } from "@thegraid/easeljs-module";
-import { IdHex, Scenario, Table as TableLib, Tile } from "@thegraid/hexlib";
+import { IdHex, Scenario, Table as TableLib, Tile, XYWH } from "@thegraid/hexlib";
 import { GamePlay } from "./game-play";
 import { TP } from "./table-params";
 
@@ -31,12 +31,33 @@ export class Table extends TableLib {
   }
 
   override layoutTable2() {
-    const k = 0;
+    this.initialVis = true;
+    super.layoutTable2()
     return;
   }
 
-  override makeParamGUI(parent: Container, x?: number, y?: number): ParamGUI {
+  override layoutTurnlog(rowy = 8, colx?: number): void {
+    super.layoutTurnlog(rowy, colx);
+  }
+
+  override bindKeysToScale(scaleC: ScaleableContainer, ...views: XY[]): void {
+    this.viewA.x = 442;
+    const viewZ = { x: 240, y: -25, ssk: 'Z', isk: 'z', scale: .65 }
+    const viewX = { x: 240, y: -25, ssk: 'X', isk: 'x', scale: .8 }
+    super.bindKeysToScale(scaleC, viewZ, this.viewA, viewX)
+  }
+
+  override makeGUIs(scale = TP.hexRad / 60, cx = -80, cy = 170, dy = 20) {
+    super.makeGUIs(scale, cx, cy, dy);
+  }
+  override setupUndoButtons(xOffs: number, bSize: number, skipRad: number, bgr: XYWH, row = 7, col = -3): void {
+    super.setupUndoButtons(xOffs, bSize, skipRad, bgr, row, col)
+  }
+
+  override makeParamGUI(parent: Container, x = 0, y = 0): ParamGUI {
     const gui = new ParamGUI(TP, { textAlign: 'right' });
+    gui['Aname'] = gui.name = 'ParamGUI';
+
     const gameSetup = this.gamePlay.gameSetup;
     const setStateValue = (item: ParamItem) => {
       gui.setValue(item); // set in TP-local and GUI-Chooser
@@ -70,9 +91,8 @@ export class Table extends TableLib {
     }
 
     parent.addChild(gui)
+    gui.x = x; gui.y = y;
     gui.makeLines();
-    gui.stage.update();
-
     return gui;
   }
 

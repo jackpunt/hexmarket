@@ -2,7 +2,7 @@ import { C, F, RC, stime } from "@thegraid/common-lib";
 import { CenterText } from "@thegraid/easeljs-lib";
 import { Container, Graphics, MouseEvent, Shape, Text } from "@thegraid/easeljs-module";
 import { DragContext, EwDir, H, Hex1, HexDir, IHex2, Meeple } from "@thegraid/hexlib";
-import { AF, AfColor, AfFill, ATS } from "./AfHex";
+import { AF, AfColor, AfFill, ATS, ZColor } from "./AfHex";
 import { MktHex2 as Hex2, MktHex } from "./hex";
 import { InfoBox } from "./info-box";
 import { Item } from "./planet";
@@ -82,8 +82,9 @@ export class Ship extends Meeple {
    */
   get transitCost() { return Ship.maxZ * (this.z0 + this.curload) + Ship.step1; }
 
-  get color() { return this.player?.afColor } // as AfColor!
-  readonly colorValues = C.nameToRgba(AF.zcolor[this.color]); // with alpha component
+  get color() { return ZColor[this.player.index] } // as AfColor!
+  /** color used for showing paths */
+  readonly colorBytes = C.nameToRgba(this.player.color); // with alpha component
 
   /** current Z-configuration of Ship */
   zconfig: ZConfig = { zshape: null, zcolor: this.color, zfill: AF.F, fuel: 0, step0: false };
@@ -181,17 +182,16 @@ export class Ship extends Meeple {
 
   /**
    * show ship with current zcolor (from last transit config)
-   * @param pcolor AF.zcolor of inner ring ("player" color)
+   * @param pColor AF.zcolor of inner ring ("player" color)
    */
-  override paint(pcolor = this.player?.afColor) {
+  override paint(pColor = this.player?.color) {
     if (!this.shipShape) return;       // Tile calls paint before initialization is complete
-    this.paint1(undefined, pcolor)  // TODO: define source/type of Zcolor
-    // this.showShipInfo()
+    this.paint1(pColor)
     return;
   }
 
-  /** repaint with new Zcolor or TP.colorScheme */
-  paint1(zcolor: AfColor = this.zcolor, pColor?: AfColor) {
+  /** repaint with new Zcolor around Player.color */
+  paint1(pColor = this.player?.color, zcolor: AfColor = this.zcolor) {
     // stack three disks: r2(zcolor) r1(black) r0(pcolor)
     // zcolor-ring(r2-r1), black-ring(r1-r0), pColor-circle(r0)
     let r2 = this.radius + 8, r1 = this.radius, r0 = this.radius - 2
@@ -199,13 +199,14 @@ export class Ship extends Meeple {
     if (pColor) {
       g.f(AF.zcolor[zcolor]).dc(0, 0, r2);
       g.f(C.BLACK).dc(0, 0, r1)
-      g.f(AF.zcolor[pColor]).dc(0, 0, r0)
+      g.f(pColor).dc(0, 0, r0)
     }
     this.shipShape.setBounds(-r2, -r2, 2 * r2, 2 * r2)
   }
 
-  paint2(zcolor: AfColor) {
-    this.paint1(zcolor)
+  /** old style: paint a ring, leave center ship color visible: */
+  paint2(pColor = this.player?.color, zcolor: AfColor) {
+    this.paint1(pColor, zcolor)
     this.shipShape.graphics.c().f(C.BLACK).dc(0, 0, this.radius/2) // put a hole in it!
     this.updateCache("destination-out") // clear center of Ship!
   }
@@ -399,7 +400,7 @@ class PathFinder {
     if (done.length > 0) {
       let met0 = done[0].metric || -1, clen = closed.length
       let pathm = done.map(p => { return { turn: p.turn, fuel: p.config.fuel, metric: this.pathMetric(p), p: p.toString(), s0: p } })
-      this.pathLog && console.log(stime(this, `.findPathsWithMetric:`), hex0.Aname, hex1.Aname, this.ship.color, this.ship.curload, met0, clen, `paths:`, pathm)
+      this.pathLog && console.log(stime(this, `.findPathsWithMetric:`), hex0.Aname, hex1.Aname, this.ship.zcolor, this.ship.curload, met0, clen, `paths:`, pathm)
     }
     return done
   }
@@ -461,7 +462,7 @@ class PathFinder {
   }
 
   pathColor(n: number = 0, alpha?: number | string, decr = 20) {
-    let v = this.ship.colorValues.map(vn => vn + n * (vn > 230 ? -decr : decr))
+    let v = this.ship.colorBytes.map(vn => vn + n * (vn > 230 ? -decr : decr))
     v[3] = 255    // reset alpha
     return `rgba(${v[0]},${v[1]},${v[2]},${alpha || (v[3]/255).toFixed(2)})`
   }

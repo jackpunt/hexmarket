@@ -6,15 +6,26 @@ import { GamePlay } from "./game-play"
 import { Ship, ShipSpec } from "./ship"
 import { TP } from "./table-params"
 
+const playerColors = ['red', 'lightblue', 'green', 'violet', 'gold'] as const;
+export type PlayerColor = typeof playerColors[number];
 export class Player extends PlayerLib {
   static initialCoins = 400;
+  // set our multi-player colors (concept from Ankh?); we don't use the TP.colorScheme
+  static { PlayerLib.colorScheme = playerColors.concat() }
+  static override colorScheme: PlayerColor[];
+  override get color(): PlayerColor {
+    return super.color as PlayerColor;
+  }
+  override set color(c:  PlayerColor) {
+    super.color = c;
+  }
+
   name: string
-  get afColor() { return ZColor[this.index]; }
+  get afColor() { return Player.colorScheme[this.index]; } // === player.color as PlayerColor
   readonly ships: Ship[] = []
   override gamePlay: GamePlay;
 
   constructor(index: number, gamePlay: GamePlay) {
-    // color: PlayerColor from Player.colorScheme[index]; red, blue, green, violet, gold...
     super(index, gamePlay);
     this.pathCont = gamePlay.hexMap.mapCont[this.pathCname];
   }
