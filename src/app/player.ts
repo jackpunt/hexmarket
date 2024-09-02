@@ -1,6 +1,6 @@
-import { stime } from "@thegraid/common-lib"
+import { C, stime } from "@thegraid/common-lib"
 import { Container } from "@thegraid/easeljs-module"
-import { GamePlay as GamePlayLib, Hex1 as Hex1Lib, HexMap as HexMapLib, newPlanner, Player as PlayerLib } from "@thegraid/hexlib"
+import { GamePlay as GamePlayLib, Hex1 as Hex1Lib, HexMap as HexMapLib, newPlanner, Player as PlayerLib, Tile } from "@thegraid/hexlib"
 import { ZColor } from "./AfHex"
 import { GamePlay } from "./game-play"
 import { Ship, ShipSpec } from "./ship"
@@ -73,9 +73,28 @@ export class Player extends PlayerLib {
     super.newGame(gamePlay, url);
     this.planner = newPlanner(gamePlay.hexMap as any as HexMapLib<Hex1Lib>, this.index)
   }
+  // only invoked on the newly curPlayer!
   override newTurn() {
-    this.ships.forEach(ship => ship.newTurn());
-    return;
+    // this.ships.forEach(ship => ship.newTurn());
+    // return;
+    Tile.allTiles.forEach(ship => {
+      if (!(ship instanceof Ship)) return;
+      if (ship.player === this) {
+        ship.paint()
+        ship.newTurn()
+      } else {
+        ship.paint('grey' as PlayerColor)
+      }
+    })
+    this.gamePlay.hexMap.update();
+  }
+    /** color used for showing paths */
+  readonly colorBytes = C.nameToRgba(this.color); // with alpha component
+
+  pathColor(n: number = 0, alpha?: number, decr = 20) {
+    let v = this.colorBytes.map(vn => vn + n * (vn > 230 ? -decr : decr))
+    v[3] = Math.floor(255 * alpha)    // reset alpha
+    return `rgba(${v[0]},${v[1]},${v[2]},${alpha || (v[3]/255).toFixed(2)})` as PlayerColor;
   }
   override stopMove() {
     this.planner?.roboMove(false)
@@ -85,7 +104,7 @@ export class Player extends PlayerLib {
     let running = this.plannerRunning
     // feedback for KeyMove:
 
-    TP.log > 0 && console.log(stime(this, `(${this.colorn}).playerMove(${useRobo}): useRobo=${this.useRobo}, running=${running}`))
+    TP.log > 0 && console.log(stime(this, `(${this.plyrId}).playerMove(${useRobo}): useRobo=${this.useRobo}, running=${running}`))
     if (running) return
     if (useRobo || this.useRobo) {
     // continue any semi-auto moves for ship:

@@ -1,12 +1,12 @@
 import { C, F, RC, stime } from "@thegraid/common-lib";
 import { CenterText } from "@thegraid/easeljs-lib";
 import { Container, Graphics, MouseEvent, Shape, Text } from "@thegraid/easeljs-module";
-import { DragContext, EwDir, H, Hex1, HexDir, IHex2, Meeple } from "@thegraid/hexlib";
+import { CGF, DragContext, EwDir, H, Hex1, HexDir, IHex2, Meeple, PaintableShape } from "@thegraid/hexlib";
 import { AF, AfColor, AfFill, ATS, ZColor } from "./AfHex";
-import { MktHex2 as Hex2, MktHex } from "./hex";
+import { MktHex2 as Hex2, MktHex, MktHex2 } from "./hex";
 import { InfoBox } from "./info-box";
 import { Item } from "./planet";
-import { Player } from "./player";
+import { Player, PlayerColor } from "./player";
 import { TP } from "./table-params";
 
 export type Cargo = { [key in Item]?: number };
@@ -24,6 +24,25 @@ type ZConfig = {
   zfill: AfFill, // AF.F | AF.L
   fuel: number,
   step0: boolean,
+}
+
+class ShipShape extends PaintableShape {
+
+  constructor(public ship: Ship) {
+    super((fillc) => this.sscgf(fillc)); // no color, no g0
+  }
+  sscgf(pColor: string, g = this.g0) {
+    const r = this.ship.radius
+    const r2 = r + 8, r1 = r, r0 = r - 2;
+    const zcolor: AfColor = this.ship.zcolor
+    g.c() // clear
+    if (pColor) {
+      g.f(AF.zcolor[zcolor]).dc(0, 0, r2);
+      g.f(C.BLACK).dc(0, 0, r1)
+      g.f(pColor).dc(0, 0, r0)
+    }
+    return g;
+  }
 }
 
 export class Ship extends Meeple {
@@ -83,8 +102,6 @@ export class Ship extends Meeple {
   get transitCost() { return Ship.maxZ * (this.z0 + this.curload) + Ship.step1; }
 
   get color() { return ZColor[this.player.index] } // as AfColor!
-  /** color used for showing paths */
-  readonly colorBytes = C.nameToRgba(this.player.color); // with alpha component
 
   /** current Z-configuration of Ship */
   zconfig: ZConfig = { zshape: null, zcolor: this.color, zfill: AF.F, fuel: 0, step0: false };
@@ -93,19 +110,23 @@ export class Ship extends Meeple {
   get zfill() { return this.zconfig.zfill; }
   get fuel() { return this.zconfig.fuel; }
   get step0() { return this.zconfig.step0; }
-  z0 = Ship.z0[Ship.defaultShipSize]; // TODO: put z0 back into Ship
+  readonly z0 = Ship.z0[Ship.defaultShipSize]; // Set in constructor
 
   // maxLoad = [0, 8, 12, 16]
   // maxFuel = mL = (mF - z0 - 1)/mZ;  mF = mL*mZ+z0+1
 
   get maxFuel() { return Ship.maxFuel[this.size] }
-   // calc maxLoad
+   // calc maxLoad: constraint when Trade('buy')
   get maxLoad() { return  (this.maxFuel - this.z0 - Ship.step1) / Ship.maxZ;}
   /** see also: Meeple.faceUp() */
   newTurn() {
     this.zconfig.fuel = this.maxFuel;
     this.pathFinder.moved = false;
     return;
+  }
+
+  override makeShape(): PaintableShape {
+    return new ShipShape(this);
   }
 
   //initially: expect maxFuel = (10 + z0*5) = {15, 20, 25}
@@ -124,7 +145,7 @@ export class Ship extends Meeple {
   ) {
     super(Aname ?? `S${Ship.idCounter++}`, player)
     this.cargo = cargo;
-    Ship.z0[size]; this.zconfig;
+    this.z0 = Ship.z0[size]; this.zconfig;
     this.addChild(this.shipShape) // use MeepleShape with our CGF
     let textSize = 16, nameText = new Text(this.Aname, F.fontSpec(textSize))
     nameText.textAlign = 'center'
@@ -179,12 +200,12 @@ export class Ship extends Meeple {
       this.hex?.map.update();
     }
   }
-
+  // pColor = this.player.color
   /**
    * show ship with current zcolor (from last transit config)
    * @param pColor AF.zcolor of inner ring ("player" color)
    */
-  override paint(pColor = this.player?.color) {
+  override paint(pColor = this.pColor as PlayerColor) {
     if (!this.shipShape) return;       // Tile calls paint before initialization is complete
     this.paint1(pColor)
     return;
@@ -290,8 +311,8 @@ export class Ship extends Meeple {
       this.hex = this.fromHex as Hex2; // put it back at beginning
     }
     const path0 = this.pathFinder.path0;
-    if (hex !== this.targetHex || !path0 || path0[path0.length - 1]?.hex !== hex) {
-      this.pathFinder.setPathToHex(hex)   // find a path not shown
+    if (true || hex !== this.targetHex || !path0 || path0[path0.length - 1]?.hex !== hex) {
+      this.pathFinder.setPathToHex(hex)   // find a path to targetHex from this.fromHex
     }
     const shiftKey = ctx?.info?.event?.nativeEvent?.shiftKey
     if (!shiftKey) this.pCont.removeAllChildren();
@@ -316,6 +337,23 @@ export class Ship extends Meeple {
   }
 }
 
+/** PlanC Ship: simplified fuel, cargo and costs */
+export class ShipC extends Ship {
+  _maxFuel: number
+  _maxLoad: number
+  override get maxFuel(): number { return this._maxFuel }
+  override get maxLoad(): number { return this._maxLoad }
+
+  constructor(Aname?: string,
+    player?: Player,
+    size = Ship.defaultShipSize,
+    cargo: Cargo = {},) {
+    super(Aname, player, size, cargo)
+    this._maxFuel = [0, 3, 5, 7][this.size]
+    this._maxLoad = [0, 3, 4, 6][this.size]
+  }
+}
+
 class PathFinder {
   constructor(public ship: Ship) {}
   get pCont() { return this.ship.pCont; }
@@ -334,30 +372,34 @@ class PathFinder {
    */
   findPaths<T extends MktHex>(targetHex: T, limit = 2) {
     if (targetHex.occupied) return []    // includes: this.hex === targetHex
-    const hex0 = this.fromHex as any as T;
-    let minMetric = hex0.radialDist(targetHex) * this.ship.transitCost
-    const maxMetric = 2 * minMetric
+    const hex0 = this.fromHex as any as T, tc = this.ship.transitCost;
+    let minMetric = hex0.radialDist(targetHex) * tc;
+    const maxMetric = 3 * minMetric
     let paths: Step<T>[]
     do {
-      paths = this.findPathsWithMetric(hex0, targetHex, limit, minMetric = minMetric + 5)
-      if (targetHex !== this.targetHex) return paths  // target moved
-    } while (paths.length == 0 && minMetric < maxMetric)
+      // minMetric to prune bad paths; try raising it if no good paths:
+      paths = this.findPathsWithMetric(hex0, targetHex, limit, minMetric = minMetric + tc)
+      if (targetHex !== this.targetHex) return paths     // target moved
+    } while (paths.length == 0 && minMetric < maxMetric) // stop looping, no viable paths
     return paths
   }
   /** @return (possibly empty) array of Paths. from hex0 to hex1 */
   findPathsWithMetric<T extends MktHex>(hex0: T, hex1: T, limit: number, minMetric: number) {
-    let isLoop = (nStep: Step<MktHex>) => { // 'find' for linked list:
+    const isLoop = (nStep: Step<MktHex>) => { // 'find' for linked list:
       let nHex = nStep.curHex, pStep = nStep.prevStep
       while (pStep && pStep.curHex !== nHex) pStep = pStep.prevStep
       return pStep?.curHex === nHex
     }
+    const ship = this.ship;
+    if (this.pathLog) {
+      const mins = minMetric.toFixed(1), Hex0 = hex0.Aname, Hex1 = hex1.Aname;
+      console.log(stime(this, `.findPathsWithMetric:`), { ship: ship.Aname, mins, Hex0, Hex1, hex0, hex1 })
+    }
     // BFS, doing rings (H.ewDirs) around the starting hex.
-    let fuel = this.moved ? this.ship.fuel : this.ship.maxFuel
-    let nConfig = { ... this.ship.zconfig, fuel }
-    let step = new Step<T>(0, hex0 as T, undefined, undefined, nConfig, 0, hex1)
-    let mins = minMetric.toFixed(1), Hex0 = hex0.Aname, Hex1 = hex1.Aname
-    this.pathLog && console.log(stime(this, `.findPathsWithMetric:`), { ship: this, mins, Hex0, Hex1, hex0, hex1 })
-    let open: Step<T>[] = [step], closed: Step<T>[] = [], done: Step<T>[] = []
+    let fuel = this.moved ? ship.fuel : ship.maxFuel
+    const config0 = { ... ship.zconfig, fuel }
+    let step = new Step<T>(0, hex0 as T, undefined, undefined, config0, 0, hex1)
+    const open: Step<T>[] = [step], closed: Step<T>[] = [], done: Step<T>[] = []
     // loop through all [current/future] open nodes:
     while (step = open.shift()) {
       if (hex1 !== this.targetHex) break; // ABORT Search (targetHex has changed)
@@ -366,17 +408,17 @@ class PathFinder {
       for (let dir of H.ewDirs) {
         const nHex = step.curHex.nextHex(dir), nConfig = { ... step.config } // copy of step.config
         if (!nHex || nHex.occupied) continue // off map or occupied
-        let cost = this.ship.configCost(step.curHex, dir, nHex, nConfig)
+        let cost = ship.configCost(step.curHex, dir, nHex, nConfig)
         if (cost === undefined) continue; // no afHex, no transit possible
         let turn = step.turn
-        nConfig.fuel = nConfig.fuel - cost
-        if (nConfig.fuel < 0) {   // Oops: we need to refuel before this Step!
+        if (cost > nConfig.fuel) {   // Oops: we need to refuel before this Step!
           turn += 1
           nConfig.zshape = null;  // shape resets each turn
-          nConfig.fuel = this.ship.maxFuel - cost;
+          nConfig.fuel = ship.maxFuel;
           nConfig.step0 = true;
-          if (nConfig.fuel < 0) continue // over max load! (cost > maxFuel)
+          if (cost > nConfig.fuel) continue // over max load! (cost > maxFuel)
         }
+        nConfig.fuel = nConfig.fuel - cost
         let nStep = new Step<T>(turn, nHex, dir, step, nConfig, cost, hex1)
         if (closed.find(nStep.isMatchingElement, nStep)) continue  // already evaluated & expanded
         if (open.find(nStep.isExistingPath, nStep) ) continue     // already a [better] path to nHex
@@ -385,7 +427,7 @@ class PathFinder {
         let metric = nStep.metric
         if (metric > minMetric + limit) continue // abandon path: too expensive
         if (nHex == hex1) {
-          if (done.length === 0) this.pathLog && console.log(stime(this, `.findPathsWithMetric: first done ${metric}`), nStep)
+          if (done.length === 0) this.pathLog && console.log(stime(this, `.findPathsWithMetric: [0]:${metric}`), nStep)
           done.push(nStep)
           if (metric < minMetric) minMetric = metric
         } else {
@@ -430,7 +472,7 @@ class PathFinder {
     // [arcto(hex1,~dir)]*, lineto(center), endStroke
     let pShape = new Shape(), g = pShape.graphics
     pShape.mouseEnabled = false;
-    const showTurn = (hex: Hex2, step: Step<MktHex>, c = cl) => {
+    const showTurnFuel = (hex: Hex2, step: Step<MktHex>, c = cl) => {
       const { turn, config } = step;
       let tn = new Text(`${turn.toFixed(0)} ${config.fuel}`, F.fontSpec(16), c)
       tn.textAlign = 'center'; tn.mouseEnabled = false;
@@ -441,10 +483,10 @@ class PathFinder {
     let [{ hex: hex0 }, { dir: dir0 }] = path      // Initial Hex and direction of FIRST Step
     let ep = hex0.edgePoint(dir0)
     g.ss(wl).s(cl).mt(hex0.x, hex0.y).lt(ep.x, ep.y)
-
+    showTurnFuel(hex0, path[0].step);  // initial turn+fuel
     // all the intermediate steps of the path: coming in on pdir, out on ndir
     path.slice(1, - 1).forEach(({ dir: pdir, hex: hexN, step }, index) => {
-      showTurn(hexN, step)
+      showTurnFuel(hexN, step)         // each step turn+fuel
       // step into & across hexN
       let { dir: ndir } = path[index + 2] // exit direction
       ep = hexN.edgePoint(ndir)
@@ -455,17 +497,13 @@ class PathFinder {
       }
     })
     let { dir, hex: hexZ, step } = path[path.length - 1]
-    showTurn(hexZ, step)
+    showTurnFuel(hexZ, step)    // final turn+fuel
     g.lt(hexZ.x, hexZ.y)        // draw line (final step)
     g.es()
     return pShape
   }
 
-  pathColor(n: number = 0, alpha?: number | string, decr = 20) {
-    let v = this.ship.colorBytes.map(vn => vn + n * (vn > 230 ? -decr : decr))
-    v[3] = 255    // reset alpha
-    return `rgba(${v[0]},${v[1]},${v[2]},${alpha || (v[3]/255).toFixed(2)})`
-  }
+
   /** Draw straight white line from this.fromHex to target hex */
   async drawDirect2(hex: Hex2) {
     let dshape = new Shape()
@@ -484,6 +522,7 @@ class PathFinder {
     this._path0 = path;
   }
   showPaths(targetHex: Hex2, limit = 1) {
+    const player = this.ship.player;
     this.pCont.removeAllChildren()
     let paths = this.setPathToHex(targetHex, limit)  // find paths to show
     this.pCont.parent.addChild(this.pCont);  // put *this* pathCont on top
@@ -491,7 +530,7 @@ class PathFinder {
     if (!paths[0]) return                    // no path to targetHex; !this.path0
     let met0 = paths[0].metric, n = 0, k = 4;
     for (let stepZ of paths) {
-      let pcolor = this.pathColor(n, 1, stepZ.metric === met0 ? 20 : 30)
+      let pcolor = player.pathColor(n, 1, stepZ.metric === met0 ? 20 : 30)
       let pshape = this.showPath(stepZ, pcolor)
       pshape.x += n * (k * (Math.random() - .5));
       pshape.y -= n * (k * (Math.random() - .5));
@@ -507,13 +546,13 @@ class PathFinder {
     return pshape
   }
 
-  /** set this.path0, return all Paths to hex. */
+  /** set this.path0, return all Paths to targetHex. */
   setPathToHex(targetHex: Hex2, limit = 0) {
-    this.pathLog && console.log(stime(this, `.setPathToHex: targetHex =`), targetHex, limit);
+    this.pathLog && console.log(stime(this, `.setPathToHex: from = ${this.fromHex} targetHex = ${targetHex}`), limit);
     this.targetHex = targetHex
     let paths = this.findPaths(targetHex, limit);
     if (paths.length === 0) {
-      console.log(stime(this, `.setPathToHex: no path to hex`), targetHex)
+      console.log(stime(this, `.setPathToHex: no path from ${this.fromHex} to ${targetHex}`))
     }
     this.path0 = paths[0]?.toPath() // path0 may be undefined
     this.pathLog && console.log(stime(this, `.setPathToHex: path0 =`), this.path0, this.hasPath0);
@@ -528,8 +567,9 @@ class PathFinder {
   moveOnPath() {
     // TODO: continue move if available fuel
     if (this.moved || !this.hasPath0) return this.moved;
-    if (!this.path0[0].dir) this.path0.shift();           // skip initial non-Step
+    if (!this.path0[0].dir) this.path0.shift();     // skip initial non-Step
     if (this.pathHasOccupiedHex()) {
+      this.ship.fromHex = this.ship.hex as MktHex2; // ship has moved since path...
       this.showPaths(this.targetHex as Hex2)  // make a new plan (unless targetHex is occupied!)
       if (!this.path0) return false   // targetHex now occupied!
       this.path0.shift();             // skip initial non-Step

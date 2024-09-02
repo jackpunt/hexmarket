@@ -1,4 +1,4 @@
-import { KeyBinder } from "@thegraid/easeljs-lib";
+import { KeyBinder, stime } from "@thegraid/easeljs-lib";
 import { GamePlay as GamePlayLib, GameSetup } from "@thegraid/hexlib";
 import { Player } from "./player";
 //import { GameStats, TableStats } from "./stats";
@@ -47,6 +47,12 @@ export class GamePlay extends GamePlayLib {
     const cargo = TP.load;    // load some cargo for testing { F1: 5 }
     const spec = { z0: Ship.z0[Ship.defaultShipSize], rc, cargo } as ShipSpec;
     return [spec];
+  }
+
+  override logNextPlayer(from: string): void {
+    const { logAt } = this.logWriterInfo();
+    this.table.logText(`${stime.fs()} ${this.curPlayer.Aname}`, from, false);
+    ; (document.getElementById('readFileName') as HTMLTextAreaElement).value = logAt;
   }
 
   override setNextPlayer(turnNumber?: number): void {

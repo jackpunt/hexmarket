@@ -40,6 +40,10 @@ export class Table extends TableLib {
     super.layoutTurnlog(rowy, colx);
   }
 
+  override panelLocsForNp(np: number): number[] {
+    return [[], [0], [0, 2], [0, 1, 2], [0, 3, 4, 1], [0, 3, 4, 2, 1], [0, 3, 4, 5, 2, 1]][np];
+  }
+
   override bindKeysToScale(scaleC: ScaleableContainer, ...views: XY[]): void {
     this.viewA.x = 442;
     const viewZ = { x: 240, y: -25, ssk: 'Z', isk: 'z', scale: .65 }
