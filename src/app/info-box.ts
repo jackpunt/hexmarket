@@ -8,7 +8,7 @@ export class InfoBox extends TextInRect {
 
   constructor(color: string, text: Text, cgf?: CGF) {
     // RectShape.rectText = InfoBox.rectText;
-    super(color, text, undefined, undefined, cgf);
+    super(text, color, undefined, undefined, cgf);
     // this.paint(C.WHITE)
     this.name = 'InfoBox'
   }

@@ -10,6 +10,7 @@ import { ShipSpec } from "./ship";
 type AfHexSpec = { aShape: ATS, aColor: AfColor, aFill: AfFill, Aname: string, spin: number };
 type AfSpec = { rc: RC, afHex: AfHexSpec };
 
+export type ActionIdent = 'Move' | 'Clock' | 'Trade' | 'Attack';
 
 export interface SetupElt extends SetupEltLib {
   planets?: PlanetElt[];
