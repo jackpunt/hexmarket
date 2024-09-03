@@ -1,9 +1,8 @@
-import { afterUpdate, KeyBinder, ParamGUI, ParamItem, S, ScaleableContainer, XY } from "@thegraid/easeljs-lib";
-import { Container, Graphics, Stage } from "@thegraid/easeljs-module";
-import { IdHex, NamedContainer, RectShape, Scenario, Table as TableLib, Tile, UtilButton, XYWH } from "@thegraid/hexlib";
+import { ParamGUI, ParamItem, ScaleableContainer, XY } from "@thegraid/easeljs-lib";
+import { Container, Stage } from "@thegraid/easeljs-module";
+import { IdHex, NamedContainer, Scenario, Table as TableLib, Tile, XYWH } from "@thegraid/hexlib";
 import { GamePlay } from "./game-play";
 import { TP } from "./table-params";
-import { GameState } from "./game-state";
 
 
 /** to own file... */
