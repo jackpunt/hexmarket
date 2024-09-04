@@ -1,5 +1,5 @@
-import { C, S } from "@thegraid/easeljs-lib";
-import { Container, Graphics } from "@thegraid/easeljs-module";
+import { C, CenterText, S } from "@thegraid/easeljs-lib";
+import { Container } from "@thegraid/easeljs-module";
 import { GameState as GameStateLib, NamedContainer, Phase, RectWithDisp, UtilButton } from "@thegraid/hexlib";
 import type { GamePlay } from "./game-play";
 import { ActionIdent } from "./scenario-parser";
@@ -22,32 +22,43 @@ class ButtonLine extends RectWithDisp {
     super(cont, C.WHITE, 5, 0)
     // make a stack of UtilButton:
     this.addButtons(cont, actions, fSize, bf, col)
-    cont.setBounds(undefined, 0, 0, 0)
-    this.setBounds(undefined, 0, 0, 0)
-    this.rectShape._g0 = new Graphics().ss(4);
-    this.paint(C.WHITE, true)
+    // this.rectShape._g0 = new Graphics().ss(4);
+    this.paint(C.lightpink, true)
   }
   buttons: UtilButton[] = []
   /** add a stack of UtilButtons to the given Container */
   addButtons(cont: Container, actions: string[], fSize: number, bf: (b: UtilButton) => void, col = true) {
     this.buttons.length = 0;
+    const rb = .3, gap = fSize * rb; // UtilButton._border = .3, gap between buttons
     let x = 0, y = 0;
     actions.forEach(actn => {
-      const button = new UtilButton(actn, 'grey', fSize);
+      // fSize =~= measuredLineHeight; rb = .3
+      // fb = rb * fSize, tb = rb * tSize
+      // H = (2 * tSize + 2 * tb) == (fSize + 2 * fb);
+      // 2 * tSize = fSize + 2 * (rb * fSize) - 2 * (rb * tSize);
+      // 2 * tSize = fSize + 2 * rb * fSize - 2 * rb * tSize
+      // tSize * 2 * (1 + rb) = fSize * (1 + 2 * rb)
+      // tSize = fSize * (1+2*rb)/(2+2*rb) = fSize * (.5 + rb)/(1 + rb)
+      const tSize = actn.includes('\n') ? fSize * (rb + .5) / (rb + 1) : fSize;
+      const text = new CenterText(actn, tSize); text.textBaseline = 'top';
+      text.y = rb * tSize;     // offset - THEN put in UtilButton; rect.y == 0
+      const button = new UtilButton(text, 'grey', tSize, C.BLACK, rb);
       // Note: highlight = undefined;
-      const gap = button.border * 1;
       this.buttons.push(button);
+
       const rect = button.rectShape._rect
       button.x = x, button.y = y
       if (col) {
         y += rect.h + gap;
       } else {
         x += rect.w + gap;
-        button.x += rect.w / 2
+        button.x += rect.w / 2; // align center->left
       }
       cont.addChild(button)
       bf(button);
     })
+    cont.setBounds(undefined, 0, 0, 0)
+    this.setBounds(undefined, 0, 0, 0)
   }
   activate(activate = true) {
     this.buttons.forEach(button => activate ? button.activate() : button.deactivate())
@@ -112,7 +123,7 @@ export class GameState extends GameStateLib {
   tradeActions = ['Clock', 'Trade', 'Attack']
   selPanel: SelectorPanel;
   /** invoked from layoutTable2() */
-  makeActionSelectors(parent: Container, row = 4, col = -4) {
+  makeActionSelectors(parent: Container, col = true) {
     const setClick = (button: UtilButton) => {
       button.on(S.click, () => {
         this.selPanel.activate(false, button)   // deactivate(line(button))
@@ -125,7 +136,7 @@ export class GameState extends GameStateLib {
     this.selPanel = new SelectorPanel([
       { name: 'mActions', actions: this.moveActions, dir: -1 },
       { name: 'tActions', actions: this.tradeActions, dir: 1 }
-    ], setClick, { col: true });
+    ], setClick, { col });
     parent.addChild(this.selPanel);
     // this.table.setToRowCol(this.twoSels, row, col);
   }

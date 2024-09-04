@@ -35,7 +35,7 @@ export class Table extends TableLib {
     const selPanel = new NamedContainer('selPanel')
     this.gamePlay.gameState.makeActionSelectors(selPanel)
     const { x, y, width: w, height: h } = selPanel.getBounds()
-    this.addDoneButton(selPanel, 0, h - y)
+    this.addDoneButton(selPanel, x + w / 2, h, 'center')
 
     const panel = selPanel; // new RectWithDisp(selPanel, 'pink', 8, 4)
     this.setToRowCol(panel, 6, -2)
