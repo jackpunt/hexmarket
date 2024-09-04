@@ -1,6 +1,7 @@
 import { C, S } from "@thegraid/easeljs-lib";
 import { Container, Graphics } from "@thegraid/easeljs-module";
 import { GameState as GameStateLib, NamedContainer, Phase, RectWithDisp, UtilButton } from "@thegraid/hexlib";
+import type { GamePlay } from "./game-play";
 import { ActionIdent } from "./scenario-parser";
 import { Table } from "./table";
 import { TP } from "./table-params";
@@ -85,12 +86,16 @@ class SelectorPanel extends NamedContainer {
   }
   lines: ButtonLine[]
   activate(activate = true, button?: UtilButton) {
-    const nth = button ? this.lines.findIndex(line=> line.contains(button)) : undefined;
-    this.lines.forEach((line, n) => (!nth || n === nth) && line.activate(activate))
+    const aline = button ? this.lines.find(line=> line.contains(button)) : undefined;
+    this.lines.forEach(line => (!aline || (line === aline)) && line.activate(activate))
   }
 }
 
 export class GameState extends GameStateLib {
+  constructor(gamePlay: GamePlay) {
+    super(gamePlay)
+    this.defineStates(this.states, false);
+  }
   override get table(): Table {
     return super.table as Table;
   }
@@ -136,6 +141,9 @@ export class GameState extends GameStateLib {
         this.selectedAction = undefined;
         this.selectedActions.length = 0;
         this.saveGame();
+        // enable and highlight buttons on ActionSelectors
+        this.selPanel.activate(true); // BeginTurn
+        this.table.doneButton.activate()
         this.phase('ChooseAction');
       },
       done: () => {
@@ -149,8 +157,6 @@ export class GameState extends GameStateLib {
       start: () => {
         const maxActs = 2;
         if (this.actionsDone >= maxActs) this.phase('EndTurn');
-        // enable and highlight buttons on ActionSelectors
-        this.selPanel.activate();
         const active = true;
         if (!active) {
           this.phase('EndTurn');  // assert: selectedActions[0] === 'Ankh'
@@ -174,40 +180,40 @@ export class GameState extends GameStateLib {
         this.phase(action ?? 'EndTurn');
       }
     },
-    Action1: {
-      start: () => {
-        console.log('Action1')
-      },
-    },
-    Action2: {
-      start: () => {
-        console.log('Action2')
-      },
-    },
     Clock: {
       start: () => {
-
+        this.done();
       },
     },
     Move: {
       start: () => {
-
+        this.done();
       },
     },
     Trade: {
       start: () => {
-
+        this.done();
       },
     },
     Attack: {
       start: () => {
-
+        this.done();
       },
     },
     'Move-Attack': {
       start: () => {
-
+        this.done();
       },
+    },
+    EndAction: {
+      nextPhase: 'ChooseAction',
+      start: () => {
+        const nextPhase = this.state.nextPhase = (this.actionsDone >= 2) ? 'EndTurn' : 'ChooseAction';
+        this.phase(nextPhase);     // directly -> nextPhase
+      },
+      done: () => {
+        this.phase(this.state.nextPhase ?? 'Start'); // TS want defined...
+      }
     },
     EndTurn: {
       start: () => {
