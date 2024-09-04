@@ -1,6 +1,6 @@
 {
   "name": "@thegraid/hexmarket",
-  "version": "0.0.9",
+  "version": "0.0.10",
   "browser": "true",
   "scripts": {
     "ng": "ng",

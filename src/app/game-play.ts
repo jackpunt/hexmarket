@@ -83,12 +83,18 @@ export class GamePlay extends GamePlayLib {
     KeyBinder.keyBinder.setKey('C-s', { thisArg: this.gameSetup, func: () => { this.gameSetup.restart({}) } })// C-s START
     KeyBinder.keyBinder.setKey('C-c', { thisArg: this, func: this.stopPlayer })// C-c Stop Planner
     KeyBinder.keyBinder.setKey('C', () => this.table.reCacheTiles())// reCacheTiles
+    // auto move:
     KeyBinder.keyBinder.setKey('m', { thisArg: this, func: this.makeMove, argVal: true })
     KeyBinder.keyBinder.setKey('M', { thisArg: this, func: this.makeMoveAgain, argVal: true })
     KeyBinder.keyBinder.setKey('n', { thisArg: this, func: this.autoMove, argVal: false })
     KeyBinder.keyBinder.setKey('N', { thisArg: this, func: this.autoMove, argVal: true})
     KeyBinder.keyBinder.setKey('c', { thisArg: this, func: this.autoPlay, argVal: 0})
     KeyBinder.keyBinder.setKey('v', { thisArg: this, func: this.autoPlay, argVal: 1})
+
+    // click the confirm/cancel buttons:
+    KeyBinder.keyBinder.setKey('c', { thisArg: this, func: this.clickConfirm, argVal: false })
+    KeyBinder.keyBinder.setKey('y', { thisArg: this, func: this.clickConfirm, argVal: true })
+    KeyBinder.keyBinder.setKey('d', { thisArg: this, func: this.clickDone, argVal: true })
 
     // diagnostics:
     KeyBinder.keyBinder.setKey('I', { thisArg: this, func: () => {this.table.enableHexInspector(); }})

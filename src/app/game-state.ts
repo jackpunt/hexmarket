@@ -1,33 +1,28 @@
-import { C, S, XYWH } from "@thegraid/easeljs-lib";
+import { C, S } from "@thegraid/easeljs-lib";
 import { Container, Graphics } from "@thegraid/easeljs-module";
-import { GameState as GameStateLib, NamedContainer, Phase, RectShape, RectWithDisp, UtilButton } from "@thegraid/hexlib";
+import { GameState as GameStateLib, NamedContainer, Phase, RectWithDisp, UtilButton } from "@thegraid/hexlib";
 import { ActionIdent } from "./scenario-parser";
 import { Table } from "./table";
 import { TP } from "./table-params";
 
 /** expect to make 2 of these */
-class ActionSelector extends RectWithDisp {
-// class ActionSelector extends Container {
-  bgRect({ x, y, w, h }: XYWH, b = 5) {
-    return { x: x - b, y: y - b, w: w + 2 * b, h: h + 2 * b }
-  }
-
+class ButtonLine extends RectWithDisp {
   /**
-   * make a Container with a stack of buttons
+   * make a Container with a col/row of buttons
    * @param name
    * @param actions
    * @param bf [(b)=>{}] a function to invoke on each button after it is created
    * @param fSize [TP.hexRad/2]
+   * @param col [true] set false to arrange buttons as rows
    */
-  constructor(name: string, actions: string[], bf: (b: UtilButton) => {}, fSize = TP.hexRad / 2, col = true) {
+  constructor(name: string, actions: string[], bf: (b: UtilButton) => void, fSize = TP.hexRad / 2, col = true) {
     const cont = new NamedContainer(name);
-    cont.setBounds(-300, -300, 100, 100); // calcBounds() needs something to start with.
+    cont.setBounds(0, 0, 100, 100); // calcBounds() needs something to start with.
     super(cont, C.WHITE, 5, 0)
     // make a stack of UtilButton:
     this.addButtons(cont, actions, fSize, bf, col)
     cont.setBounds(undefined, 0, 0, 0)
     this.setBounds(undefined, 0, 0, 0)
-    console.log(`ActionSelector: cont.bounds=`, cont.getBounds(), `this.bounds=`, this.getBounds())
     this.rectShape._g0 = new Graphics().ss(4);
     this.paint(C.WHITE, true)
   }
@@ -38,8 +33,8 @@ class ActionSelector extends RectWithDisp {
     let x = 0, y = 0;
     actions.forEach(actn => {
       const button = new UtilButton(actn, 'grey', fSize);
-      const gap = TP.hexRad * button.border / 2;
       // Note: highlight = undefined;
+      const gap = button.border * 1;
       this.buttons.push(button);
       const rect = button.rectShape._rect
       button.x = x, button.y = y
@@ -53,10 +48,48 @@ class ActionSelector extends RectWithDisp {
       bf(button);
     })
   }
-  activate() {
-    this.buttons.forEach(button => button.activate())
+  activate(activate = true) {
+    this.buttons.forEach(button => activate ? button.activate() : button.deactivate())
   }
 }
+
+class SelectorPanel extends NamedContainer {
+  /** An array of ActionSelector */
+  constructor(
+    specs: { name: string, actions: string[], dir: number }[],
+    bf: (b: UtilButton) => void,
+    opts?: { col?: boolean, cx?: number, cy?: number }
+  ) {
+    super('SelectorPanel');
+    const { col } = { col: true, ...opts }
+    const { cx, cy } = { cx: (col ? 0 : -200), cy: 0, ...opts }
+    // TODO: find maxwidth to align-left rows
+    const makeSelector = (name: string, acts: string[], dir = -1) => {
+      const acts2 = acts.map(n => n.replace(/-/g, '-\n'))
+      const sel = new ButtonLine(name, col ? acts2 : acts, bf, undefined, col)
+      const { width: w, height: h } = sel.getBounds(), gap = TP.hexRad / 10
+      sel.x += cx; sel.y += cy;
+      if (col) {
+        sel.x += (w + gap) * dir * .5;
+      } else {
+        sel.y += (h + gap) * dir * .5 + h / 2;
+      }
+      sel.activate(false)
+      return sel;
+    }
+    this.lines = specs.map(({name, actions, dir}) => {
+      const as = makeSelector(name, actions, dir)
+      return as;
+    })
+    this.addChild(...this.lines);
+  }
+  lines: ButtonLine[]
+  activate(activate = true, button?: UtilButton) {
+    const nth = button ? this.lines.findIndex(line=> line.contains(button)) : undefined;
+    this.lines.forEach((line, n) => (!nth || n === nth) && line.activate(activate))
+  }
+}
+
 export class GameState extends GameStateLib {
   override get table(): Table {
     return super.table as Table;
@@ -69,40 +102,33 @@ export class GameState extends GameStateLib {
   selectedAction: ActionIdent; // set when click on action panel or whatever. read by ActionPhase;
   readonly selectedActions: ActionIdent[] = [];
   get actionsDone() { return this.selectedActions.length};
+
   moveActions =['Clock', 'Move', 'Move-Attack']
   tradeActions = ['Clock', 'Trade', 'Attack']
-  as1: ActionSelector;
-  as2: ActionSelector;
-  makeActionSelectors(parent: Container) {
-    const col = false;
-    const setClick = (button: UtilButton) =>
+  selPanel: SelectorPanel;
+  /** invoked from layoutTable2() */
+  makeActionSelectors(parent: Container, row = 4, col = -4) {
+    const setClick = (button: UtilButton) => {
       button.on(S.click, () => {
-        button.deactivate()   // TODO
-        const act = button.label_text.replace('/\n/g', '-') as ActionIdent;
+        this.selPanel.activate(false, button)   // deactivate(line(button))
+        const act = button.label_text.replace(/\n/g, '') as ActionIdent;
         this.selectedAction = act;
         this.selectedActions.push(act)
         this.phase(act);
-      });
-    const makeSelector = (name: string, acts: string[], dir = -1, dx = col ? 50 : -150, dy = 250) => {
-      const sel = new ActionSelector(name, acts, setClick, undefined, col)
-      const { width: w, height: h } = sel.getBounds(), gap = TP.hexRad / 10
-      if (col) {
-        sel.x += (dx + (w + gap) * .5 * dir);
-        sel.y += dy;
-      } else {
-        sel.x += dx // - w / 2
-        sel.y += (dy + h / 2 + (h + gap) * .5 * dir);
-      }
-      return sel;
-    }
-    this.as1 = makeSelector('mActions', this.moveActions, -1)
-    this.as2 = makeSelector('tActions', this.tradeActions, 1)
-    // this.table.dragger.makeDragable(as1)
-    // this.table.dragger.makeDragable(as2)
-    parent.addChild(this.as1, this.as2);
+      })
+    };
+    this.selPanel = new SelectorPanel([
+      { name: 'mActions', actions: this.moveActions, dir: -1 },
+      { name: 'tActions', actions: this.tradeActions, dir: 1 }
+    ], setClick, { col: true });
+    parent.addChild(this.selPanel);
+    // this.table.setToRowCol(this.twoSels, row, col);
   }
   get panel() { return this.curPlayer.panel; }
 
+  override start(): void {
+    super.start()
+  }
 
   override readonly states: { [index: string]: Phase } = {
     BeginTurn: {
@@ -124,8 +150,7 @@ export class GameState extends GameStateLib {
         const maxActs = 2;
         if (this.actionsDone >= maxActs) this.phase('EndTurn');
         // enable and highlight buttons on ActionSelectors
-        this.as1.activate()
-        this.as2.activate()
+        this.selPanel.activate();
         const active = true;
         if (!active) {
           this.phase('EndTurn');  // assert: selectedActions[0] === 'Ankh'

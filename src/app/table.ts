@@ -32,10 +32,14 @@ export class Table extends TableLib {
 
   override layoutTable2() {
     this.initialVis = true;
-    const aspanel = new NamedContainer('aspanel')
-    this.gamePlay.gameState.makeActionSelectors(aspanel)
-    this.scaleCont.addChild(aspanel)
-    aspanel.x = 100; aspanel.y = 300;
+    const selPanel = new NamedContainer('selPanel')
+    this.gamePlay.gameState.makeActionSelectors(selPanel)
+    const { x, y, width: w, height: h } = selPanel.getBounds()
+    this.addDoneButton(selPanel, 0, h - y)
+
+    const panel = selPanel; // new RectWithDisp(selPanel, 'pink', 8, 4)
+    this.setToRowCol(panel, 6, -2)
+    this.scaleCont.addChild(panel)
     super.layoutTable2()
     return;
   }
@@ -58,7 +62,7 @@ export class Table extends TableLib {
   override makeGUIs(scale = TP.hexRad / 60, cx = -80, cy = 170, dy = 20) {
     super.makeGUIs(scale, cx, cy, dy);
   }
-  override setupUndoButtons(xOffs: number, bSize: number, skipRad: number, bgr: XYWH, row = 7, col = -3): void {
+  override setupUndoButtons(xOffs: number, bSize: number, skipRad: number, bgr: XYWH, row = 8, col = -6): void {
     super.setupUndoButtons(xOffs, bSize, skipRad, bgr, row, col)
   }
 
@@ -106,6 +110,7 @@ export class Table extends TableLib {
 
   override startGame(scenario: Scenario) {
     super.startGame(scenario); // allTiles.makeDragable()
+    this.gamePlay.gameState.start();   // enable Table.GUI to drive game state.
   }
   // see also: ScenarioParser.saveState()
   // override logCurPlayer(curPlayer: Player) {
