@@ -7,7 +7,7 @@ import { CGF, UtilButton, UtilButtonOptions } from "@thegraid/hexlib";
 export class InfoText extends UtilButton {
   constructor(label: Text | string, color = 'rgba(250,250,250,.8)', options?: UtilButtonOptions, cgf?: CGF) {
     super(label, color, options, cgf)
-    this.name = 'InfoBox'
+    this.name = 'InfoText'
     this.paint()
   }
   updateText(vis: boolean, generate: () => string, cache = false) {
