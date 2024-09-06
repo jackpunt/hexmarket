@@ -1,10 +1,9 @@
-import { C, F, stime } from "@thegraid/common-lib";
-import { MouseEvent, Shape, Text } from "@thegraid/easeljs-module";
-import { DragContext, EwDir, H, Hex1, MapTile, TP as TPLib } from "@thegraid/hexlib";
+import { C } from "@thegraid/common-lib";
+import { MouseEvent, Shape } from "@thegraid/easeljs-module";
+import { DragContext, EwDir, H, Hex1, MapTile, rightClickable, TP as TPLib } from "@thegraid/hexlib";
 import { HexMap, MktHex, MktHex2 } from "./hex";
 import { InfoText } from "./info-box";
 import { TP } from "./table-params";
-import { CenterText } from "@thegraid/easeljs-lib";
 
 export type PlanetLocs = { [key in EwDir]?: MktHex2 };
 
@@ -106,7 +105,8 @@ export class Planet extends MapTile {
     this.gShape.name = 'planetRings';
     this.setNameText(Aname);
     this.setPCs(prod, cons);
-    this.addChild(this.gShape, this.nameText, this.infoText)
+    this.addChild(this.gShape, this.nameText)
+    // placePlanet moves infoText to counterCont
     this.rightClickable()
     // this.paint()
   }
@@ -303,7 +303,12 @@ export class PlanetPlacer {
       const color = (id == H.C) ? 'lightblue' : 'lightgreen';
       const ndx = [H.C, ...H.ewDirs].indexOf(id);
       hex.setHexColor(color, ndx)   // colorPlanets: district = 0,1..6
-      hex.planet.paint();
+      planet.paint();
+      // put infoText on foreCont so other Tiles do not cover it:
+      const foreCont = hex.mapCont.counterCont, { parent, x, y, infoText } = planet;
+      foreCont.addChild(infoText)
+      parent.localToLocal(x, y, foreCont, infoText)
+      rightClickable(infoText, (evt) => planet.onRightClick(evt))
     }
     return planet
   }

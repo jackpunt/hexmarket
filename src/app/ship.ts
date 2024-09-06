@@ -1,7 +1,7 @@
 import { C, F, RC, stime } from "@thegraid/common-lib";
 import { CenterText } from "@thegraid/easeljs-lib";
 import { Container, Graphics, MouseEvent, Shape, Text } from "@thegraid/easeljs-module";
-import { CGF, DragContext, EwDir, H, Hex1, HexDir, IHex2, Meeple, PaintableShape } from "@thegraid/hexlib";
+import { DragContext, EwDir, H, Hex1, HexDir, IHex2, Meeple, PaintableShape } from "@thegraid/hexlib";
 import { AF, AfColor, AfFill, ATS, ZColor } from "./AfHex";
 import { MktHex2 as Hex2, MktHex, MktHex2 } from "./hex";
 import { InfoText } from "./info-box";
@@ -150,6 +150,7 @@ export class Ship extends Meeple {
     this.addChild(nameText) // included with Meeple
     this.addChild(this.infoText) // last child, top of display
     this.rightClickable() ; //(evt: MouseEvent) => this.showShipInfo(evt)
+    this.infoText.mouseEnabled = true; // to get rightClick
     this.paint()  // TODO: makeDraggable/Dropable on hexMap
     this.pCont = player?.pathCont;
     // this.player.gamePlay.table.makeDragable(this);
