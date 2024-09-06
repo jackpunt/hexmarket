@@ -2,7 +2,7 @@ import { C } from "@thegraid/common-lib";
 import { MouseEvent, Shape } from "@thegraid/easeljs-module";
 import { DragContext, EwDir, H, Hex1, MapTile, rightClickable, TP as TPLib } from "@thegraid/hexlib";
 import { HexMap, MktHex, MktHex2 } from "./hex";
-import { InfoText } from "./info-box";
+import { InfoText } from "./info-text";
 import { TP } from "./table-params";
 
 export type PlanetLocs = { [key in EwDir]?: MktHex2 };

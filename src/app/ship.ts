@@ -4,7 +4,7 @@ import { Container, Graphics, MouseEvent, Shape, Text } from "@thegraid/easeljs-
 import { DragContext, EwDir, H, Hex1, HexDir, IHex2, Meeple, PaintableShape } from "@thegraid/hexlib";
 import { AF, AfColor, AfFill, ATS, ZColor } from "./AfHex";
 import { MktHex2 as Hex2, MktHex, MktHex2 } from "./hex";
-import { InfoText } from "./info-box";
+import { InfoText } from "./info-text";
 import { Item } from "./planet";
 import { Player, PlayerColor } from "./player";
 import { TP } from "./table-params";
