@@ -1,6 +1,6 @@
 import { Hex1 as Hex1Lib, Hex2 as Hex2Lib, Hex2Mixin, HexDir, Hex as HexLib, HexM, HexMap as HexMapLib, HexM as HexMLib } from "@thegraid/hexlib";
 import { AfHex } from "./AfHex";
-import { Planet, PlanetMap } from "./planet";
+import { Planet } from "./planet";
 import { Ship } from "./ship";
 
 /** Base Hex, has no connection to graphics.

@@ -1,8 +1,10 @@
-import { C, F, RC, stime } from "@thegraid/common-lib";
+import { C, F, stime } from "@thegraid/common-lib";
 import { MouseEvent, Shape, Text } from "@thegraid/easeljs-module";
-import { DragContext, EwDir, H, Hex1, MapTile, HexMap as HexMapLib, IHex2, HexM, TP as TPLib } from "@thegraid/hexlib";
-import { TP } from "./table-params";
+import { DragContext, EwDir, H, Hex1, MapTile, TP as TPLib } from "@thegraid/hexlib";
 import { HexMap, MktHex, MktHex2 } from "./hex";
+import { InfoText } from "./info-box";
+import { TP } from "./table-params";
+import { CenterText } from "@thegraid/easeljs-lib";
 
 export type PlanetLocs = { [key in EwDir]?: MktHex2 };
 
@@ -14,7 +16,7 @@ type PlanetPC = PCdef;
 type n = number;
 // 5-tuple, id -> ewDir[id]
 export type PlanetElt = { id: PlanetDir, row: n, col: n, prod: PCdef, cons: PCdef };
-type PlanetDir = (typeof H.C) | EwDir;
+export type PlanetDir = (typeof H.C) | EwDir;
 
 // type PublicInterface<T> = { [K in keyof T]: T[K] };
 // type IPC0 = PublicInterface<PC>
@@ -101,13 +103,30 @@ export class Planet extends MapTile {
     cons: PCdef,
   ) {
     super(Aname)
+    this.gShape.name = 'planetRings';
+    this.setNameText(Aname);
     this.setPCs(prod, cons);
-    this.addChild(this.gShape)
-    let textSize = 16, nameText = new Text(this.Aname, F.fontSpec(textSize))
-    nameText.textAlign = 'center'
-    nameText.y = -textSize/2;
-    this.addChild(nameText)
+    this.addChild(this.gShape, this.nameText, this.infoText)
+    this.rightClickable()
     // this.paint()
+  }
+
+  override onRightClick(evt: MouseEvent) {
+    this.showPlanetPC()
+  }
+
+  infoText = new InfoText(`Planet`, undefined, { fontSize: TP.hexRad * .3, active: true, visible: false });
+
+  showPlanetPC (vis = !this.infoText.visible) {
+    this.infoText.updateText(vis, () => {
+      const src = this.prodPCs
+      let infoLine = `${this.Aname}`;
+      Object.entries(src).forEach(([key, value]) => {
+        infoLine = `${infoLine}\n${value.item}: ${value.quant} @ ${value.price()}`;
+      })
+      return infoLine;
+    })
+    if (this.cacheID) this.setCache()
   }
 
   setPCs(prod: PCdef, cons: PCdef,) {
@@ -134,6 +153,7 @@ export class Planet extends MapTile {
     let r3 = TP.hexRad - 9, r2 = r3 - 2, r0 = r2 / 3, r1 = (r2 + r0) / 2
     let g = this.gShape.graphics.c(), pi2 = Math.PI * 2
 
+    // ring with colored sector for each PC:
     let paintRing = (pca: PC[], r = 20, alt = 'lightgrey') => {
       let angle = pca.length == 0 ? pi2 : pi2 / pca.length;
       g.f(alt).dc(0, 0, r);  // fill(alt) in case pca is empty
@@ -146,7 +166,7 @@ export class Planet extends MapTile {
     paintRing(this.prodPCs, r2, 'darkgrey')
     paintRing(this.consPCs, r1, 'grey')
     g.f('lightgrey').dc(0, 0, r0)
-    this.cache(-r3, -r3, 2 * r3, 2 * r3); // Container of Shape & Text
+    // this.cache(-r3, -r3, 2 * r3, 2 * r3); // Container of Shape & Text
   }
 
   consPC(item: Item) { return this.consPCs.find(pc => pc.item === item) }
@@ -189,15 +209,10 @@ export class Planet extends MapTile {
     return this.sell_price(item, quant, true)
   }
 
-  override onRightClick(evt: MouseEvent) {
-    console.log(stime(this, `.rightclick:`), this.Aname, evt)
-    // TODO: display Planet market state
-  }
-
 }
 
-/** Extension to HexMap to manage Planet placement. */
-export class PlanetMap {
+/** Helper class to manage placement of Planets on a HexMap. */
+export class PlanetPlacer {
   constructor(public hexMap: HexMap) {
     // If we *really* cared, we could get hexMap: MktHex2
   }
@@ -284,10 +299,6 @@ export class PlanetMap {
     const planet = this.planetByDir.get(id);
     hex.rmAfHex()
     hex.planet = planet;
-    // planet.hex = hex
-    planet.on('mousedown', (evt: MouseEvent) => {
-      if (evt.nativeEvent.buttons === 2) hex.planet.onRightClick(evt)
-    })
     if (hex instanceof MktHex2) {
       const color = (id == H.C) ? 'lightblue' : 'lightgreen';
       const ndx = [H.C, ...H.ewDirs].indexOf(id);

@@ -4,7 +4,7 @@ import { Container, Graphics, MouseEvent, Shape, Text } from "@thegraid/easeljs-
 import { CGF, DragContext, EwDir, H, Hex1, HexDir, IHex2, Meeple, PaintableShape } from "@thegraid/hexlib";
 import { AF, AfColor, AfFill, ATS, ZColor } from "./AfHex";
 import { MktHex2 as Hex2, MktHex, MktHex2 } from "./hex";
-import { InfoBox } from "./info-box";
+import { InfoText } from "./info-box";
 import { Item } from "./planet";
 import { Player, PlayerColor } from "./player";
 import { TP } from "./table-params";
@@ -66,7 +66,6 @@ export class Ship extends Meeple {
   static maxZ = 1;       // for now: {shape + color + color}
   static fuelPerStep = 0;
 
-  // readonly radius = this.z0 * 10;
   override get radius() { return this.z0 * TP.hexRad / 6 };
 
   override get hex() { return super.hex as MktHex; }
@@ -147,9 +146,7 @@ export class Ship extends Meeple {
     this.cargo = cargo;
     this.z0 = Ship.z0[size]; this.zconfig;
     this.addChild(this.shipShape) // use MeepleShape with our CGF
-    let textSize = 16, nameText = new Text(this.Aname, F.fontSpec(textSize))
-    nameText.textAlign = 'center'
-    nameText.y = -textSize / 2;
+    const nameText = new CenterText(this.Aname, TP.hexRad / 3)
     this.addChild(nameText) // included with Meeple
     this.addChild(this.infoText) // last child, top of display
     this.rightClickable() ; //(evt: MouseEvent) => this.showShipInfo(evt)
@@ -160,17 +157,10 @@ export class Ship extends Meeple {
   override player: Player;
 
   override onRightClick(evt: MouseEvent) {
-    // TODO: display Ship fuel & cargo
-    this.showShipInfo(!this.infoText.visible); // toggle visibility
+    this.showShipInfo(); // toggle visibility
   }
 
-  infoText = this.newInfoText()
-  newInfoText() {
-    const label = new CenterText('Fuel: -1', F.fontSpec(TP.hexRad * .2));
-    const rv = new InfoBox('rgba(250,250,250,.6)', label);
-    rv.visible = false;
-    return rv;
-  }
+  infoText = new InfoText('Fuel: -1', 'rgba(250,250,250,.8)', { fontSize: TP.hexRad * .3 });
 
   /** TODO move to library: see PaintableShape.setBounds(undefined, 0, 0, 0) */
   /** re-cache Tile if children have changed size or visibility. */
@@ -182,23 +172,16 @@ export class Ship extends Meeple {
     this.cache(b.x, b.y, b.width, b.height, TP.cacheTiles);
   }
 
-  showShipInfo(vis = this.infoText.visible) {
-    const info = this.infoText, v0 = this.infoText.visible;
-    if (vis) {
+  showShipInfo(vis = !this.infoText.visible) {
+    this.infoText.updateText(vis, () => {
       let infoLine = `Fuel: ${this.fuel}`;
       infoLine = `${infoLine}\nzLoad: ${this.transitCost}`
       Object.keys(this.cargo).forEach(key => {
         const cargoLine = `${key}: ${this.cargo[key]}`;
         infoLine = `${infoLine}\n${cargoLine}`;
       })
-      info.label_text = infoLine; // includes info.setBounds(info.calcBounds())
-      this.addChild(info);        // infoText to top of list
-    }
-    info.visible = vis;
-    if (vis || vis !== v0) {
-      this.setCache();              // create new cache with Ship & info
-      this.hex?.map.update();
-    }
+      return infoLine;
+    })
   }
   // pColor = this.player.color
   /**

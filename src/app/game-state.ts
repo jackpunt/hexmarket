@@ -17,20 +17,18 @@ class ButtonLine extends RectWithDisp {
    * @param col [true] set false to arrange buttons as rows
    */
   constructor(name: string, actions: string[], bf: (b: UtilButton) => void, fSize = TP.hexRad / 2, col = true) {
-    const cont = new NamedContainer(name);
-    cont.setBounds(0, 0, 100, 100); // calcBounds() needs something to start with.
-    super(cont, C.WHITE, 5, 0)
+    const color = C.lightgrey, colort = 'rgba(0,0,0,0)';
+    super(new NamedContainer(name), color, 5, 0)
     // make a stack of UtilButton:
-    this.addButtons(cont, actions, fSize, bf, col)
-    // this.rectShape._g0 = new Graphics().ss(4);
-    this.paint(C.lightpink, true)
+    this.addButtons(this.disp as Container, actions, fSize, bf, col)
+    this.paint(undefined, true)
   }
   buttons: UtilButton[] = []
   /** add a stack of UtilButtons to the given Container */
   addButtons(cont: Container, actions: string[], fSize: number, bf: (b: UtilButton) => void, col = true) {
     this.buttons.length = 0;
     const rb = .3, gap = fSize * rb; // UtilButton._border = .3, gap between buttons
-    let x = 0, y = 0;
+    let x = 0, y = 0, maxw = 0, maxh = 0;
     actions.forEach(actn => {
       // fSize =~= measuredLineHeight; rb = .3
       // fb = rb * fSize, tb = rb * tSize
@@ -42,11 +40,13 @@ class ButtonLine extends RectWithDisp {
       const tSize = actn.includes('\n') ? fSize * (rb + .5) / (rb + 1) : fSize;
       const text = new CenterText(actn, tSize); text.textBaseline = 'top';
       text.y = rb * tSize;     // offset - THEN put in UtilButton; rect.y == 0
-      const button = new UtilButton(text, 'grey', tSize, C.BLACK, rb);
+      const button = new UtilButton(text, 'grey', { fontSize: tSize, border: rb, visible: true });
       // Note: highlight = undefined;
       this.buttons.push(button);
 
       const rect = button.rectShape._rect
+      maxw = Math.max(maxw, rect.w)
+      maxh = Math.max(maxh, rect.h)
       button.x = x, button.y = y
       if (col) {
         y += rect.h + gap;
@@ -57,11 +57,16 @@ class ButtonLine extends RectWithDisp {
       cont.addChild(button)
       bf(button);
     })
-    cont.setBounds(undefined, 0, 0, 0)
+    // make all buttons the same size:
+    this.buttons.forEach(b => {
+      b.rectShape.setRectRad({ x: -maxw / 2, y: 0, w: maxw, h: maxh })
+      b.rectShape.setBounds(undefined, 0, 0, 0)
+      b.rectShape.paint(undefined, true)
+    })
     this.setBounds(undefined, 0, 0, 0)
   }
   activate(activate = true) {
-    this.buttons.forEach(button => activate ? button.activate() : button.deactivate())
+    this.buttons.forEach(button => button.activate(activate, true))
   }
 }
 
@@ -103,6 +108,7 @@ class SelectorPanel extends NamedContainer {
 }
 
 export class GameState extends GameStateLib {
+  declare gamePlay: GamePlay;
   constructor(gamePlay: GamePlay) {
     super(gamePlay)
     this.defineStates(this.states, false);
@@ -193,6 +199,7 @@ export class GameState extends GameStateLib {
     },
     Clock: {
       start: () => {
+        this.gamePlay.advanceClock()
         this.done();
       },
     },

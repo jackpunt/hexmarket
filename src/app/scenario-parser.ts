@@ -43,7 +43,7 @@ export class ScenarioParser extends SPLib {
       this.gamePlay.allTiles.forEach(tile => tile.hex?.isOnMap ? tile.sendHome() : undefined); // clear existing map
     }
     { // make & place Planets:
-      const planetMap = gamePlay.planets;
+      const planetMap = gamePlay.planetPlacer;
       planetMap.makePlanets();  // generic Planets with initialPCs
       if (planets) {
         planets.forEach(pElt => planetMap.resetPlanet(pElt))

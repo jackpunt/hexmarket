@@ -4,7 +4,7 @@ import { Player } from "./player";
 //import { GameStats, TableStats } from "./stats";
 import { GameState } from "./game-state";
 import { HexMap } from "./hex";
-import { PlanetMap } from "./planet";
+import { Planet, PlanetDir, PlanetPlacer } from "./planet";
 import { Ship, ShipSpec } from "./ship";
 import { Table } from "./table";
 import { PlayerColor, TP } from "./table-params";
@@ -32,11 +32,15 @@ export class GamePlay extends GamePlayLib {
   override table: Table;
   override curPlayer: Player;
   override get allPlayers() { return Player.allPlayers; };
-  planets = new PlanetMap(this.hexMap);
+  planetPlacer = new PlanetPlacer(this.hexMap);
 
   // Args to f are local Player, not PlayerLib
   override forEachPlayer(f: (p: Player, index: number, players: Player[]) => void): void {
     return super.forEachPlayer(f);
+  }
+
+  forEachPlanet(f: (p: Planet, key: PlanetDir, ps: Map<PlanetDir, Planet>) => void): void {
+    this.planetPlacer.planetByDir.forEach((planet, key, map) => f(planet, key, map))
   }
 
   /** return initial ship positions. some day use a GUI... */
@@ -57,6 +61,28 @@ export class GamePlay extends GamePlayLib {
 
   override setNextPlayer(turnNumber?: number): void {
     super.setNextPlayer(turnNumber);
+  }
+
+  /** set at start of GamePlay [constructor] */
+  clock = 0;
+  /** implement the Clock action; all planets Produce * Consume */
+  advanceClock() {
+    this.forEachPlanet((planet: Planet, key) => {
+      let hasAllCons = 1;
+      planet.consPCs.forEach(cons => {
+        if (cons.quant < cons.rate) {
+          hasAllCons = 0;
+          cons.quant = 0;
+        } else {
+          cons.quant -= cons.rate;
+        }
+      })
+      planet.prodPCs.forEach(prod => {
+        prod.quant = Math.min(prod.max, prod.quant + prod.rate * hasAllCons)
+      })
+    })
+    this.clock += 1
+    return this.clock;
   }
 
   override bindKeys() {
@@ -109,12 +135,6 @@ export class GamePlay extends GamePlayLib {
     // table.skipShape.on(S.click, () => this.skipMove(), this)
   }
 
-  // skipMove() {
-  //   this.table.stopDragging() // drop on nextHex (no Move)
-  // }
-  // resignMove() {
-  //   this.table.stopDragging() // drop on nextHex (no Move)
-  // }
 }
 
 /** a uniquifying 'symbol table' of Board.id */

@@ -1,7 +1,6 @@
 import { C, stime } from "@thegraid/common-lib"
 import { Container } from "@thegraid/easeljs-module"
 import { GamePlay as GamePlayLib, Hex1 as Hex1Lib, HexMap as HexMapLib, newPlanner, Player as PlayerLib, Tile } from "@thegraid/hexlib"
-import { ZColor } from "./AfHex"
 import { GamePlay } from "./game-play"
 import { Ship, ShipSpec } from "./ship"
 import { TP } from "./table-params"
