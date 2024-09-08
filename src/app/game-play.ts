@@ -66,20 +66,19 @@ export class GamePlay extends GamePlayLib {
   /** set at start of GamePlay [constructor] */
   clock = 0;
   /** implement the Clock action; all planets Produce * Consume */
-  advanceClock() {
+  advanceClock(dir = 1) { // dir = -1 for testing, maybe for undo...
     this.forEachPlanet((planet: Planet, key) => {
       let hasAllCons = 1;
       planet.consPCs.forEach(cons => {
-        if (cons.quant < cons.rate) {
-          hasAllCons = 0;
-          cons.quant = 0;
-        } else {
-          cons.quant -= cons.rate;
-        }
+        cons.quant = Math.max(0, Math.min(cons.lim, cons.quant + dir * cons.rate))
+        if (cons.quant === 0) { hasAllCons = 0; }
       })
       planet.prodPCs.forEach(prod => {
-        prod.quant = Math.min(prod.max, prod.quant + prod.rate * hasAllCons)
+        prod.quant = Math.max(0, Math.min(prod.lim, prod.quant + dir * prod.rate * hasAllCons))
       })
+      if (planet.infoCont.visible) {
+        planet.showPlanetPC(true)
+      }
     })
     this.clock += 1
     return this.clock;

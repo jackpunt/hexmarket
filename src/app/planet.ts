@@ -1,6 +1,6 @@
 import { C } from "@thegraid/common-lib";
-import { MouseEvent, Shape } from "@thegraid/easeljs-module";
-import { DragContext, EwDir, H, Hex1, MapTile, rightClickable, TP as TPLib } from "@thegraid/hexlib";
+import { MouseEvent, Shape, Text } from "@thegraid/easeljs-module";
+import { CGF, DragContext, EwDir, H, Hex1, MapTile, NamedContainer, rightClickable, TP as TPLib, UtilButtonOptions } from "@thegraid/hexlib";
 import { HexMap, MktHex, MktHex2 } from "./hex";
 import { InfoText } from "./info-text";
 import { TP } from "./table-params";
@@ -33,6 +33,7 @@ interface IPlanetPC {
 
 /** production/commodity; quantity changes at rate; quantity determines price. */
 export class PC {
+  /** Market definition: [min$, max$, limQuant, color] for each resource. */
   static readonly refspec: {[key in Item]: [max: n, min: n, lim: n, color: string]} = {
     F1: [30, 10, 20, 'darkgreen'],
     F2: [30, 10, 20, 'yellow'],
@@ -40,19 +41,21 @@ export class PC {
     O1: [20, 10, 32, 'red'],
     O2: [30, 20, 40, 'GoldenRod'],
     O3: [20, 10, 32, 'orange'],
-    L1: [50, 30,  4, 'blue'],       // luxury (produced in center)
-    L2: [80, 40,  4, 'darkviolet'], // luxury
-    X1: [80, 40,  4, 'violet'],     // exotic
-    X2: [50, 30,  4, 'lightblue'],  // exotic (consumed in center)
+    L1: [50, 30,  4, 'lightblue'],       // luxury (produced in center)
+    L2: [80, 40,  4, 'violet'], // luxury
+    X1: [50, 30,  4, 'blue'],  // exotic (consumed in center)
+    X2: [80, 40,  4, 'darkviolet'],     // exotic
   }
-  static readonly allPCs = Object.keys(PC.refspec).map((key) => {
-    const [max, min, lim, color] = PC.refspec[key];
-    return new PC(key as Item, max, min, lim, color)
-  });
   /** canonical reference PCs, clone to add (rate, quant) from PCdef */
-  static readonly reference = PC.allPCs.reduce((pv, cv) => {
-    pv[cv.item] = cv;
-    return pv}, {} as {[key in Item]?: PC});
+  static readonly reference = Object.keys(PC.refspec)
+    .map((key) => {
+      const [max, min, lim, color] = PC.refspec[key];
+      return new PC(key as Item, max, min, lim, color)
+    }) // all PC[]
+    .reduce((pv, cv) => {
+      pv[cv.item] = cv;
+      return pv;
+    }, {} as { [key in Item]?: PC });
 
   constructor(
     /** identify the Item */
@@ -76,73 +79,117 @@ export class PC {
    * @param quant amount currently in stock [0..lim]
    * @return unit price assuming given quant in stock
    */
-  price(quant = this.quant) {
-    const qlow = this.lim * .25;  // when stock is qlow, price is max
-    const qhigh = this.lim * .75; // when stock is qhigh, price is min
-    const q = Math.min(Math.max(qlow, quant), qhigh) - qlow;
-    const p = q * (this.max - this.min) / (qhigh - qlow) + this.min;
-    return p;
+  price(quant = this.quant, dd = .1) {
+    const qlow = this.lim * dd;  // when stock is qlow, price is max
+    const qhigh = this.lim * (1-dd); // when stock is qhigh, price is min
+    const q = Math.min(Math.max(qlow, quant), qhigh) - qlow; // q: [0...(high-low)]
+    const p =  this.max + q * (this.min - this.max) / (qhigh - qlow);
+    return Math.round(p);
   }
 
+  clone([quant, rate]: [number, number] = [this.quant, this.rate]) {
   /** inject 'rate' for production on Planet */
-  clone(rate = this.rate, quant = this.quant) {
+  // clone(rate = this.rate, quant = this.quant) {
     return new PC(this.item, this.max, this.min, this.lim, this.color, quant, rate)
   }
+}
+/** InfoText with PC[] for prod or cons. */
+class PCInfo extends InfoText {
+  constructor(pcary: PC[], label: Text | string, color?: string, options?: UtilButtonOptions, cgf?: CGF) {
+    super(label, color, options, cgf)
+    this.pcary = pcary;
+  }
+  pcary: PC[]
 }
 
 export class Planet extends MapTile {
 
   gShape = new Shape();  // Rings to indicate PC of Planet
-  public prodPCs: PC[]
-  public consPCs: PC[]
 
   constructor(
     Aname: string,
-    prod: PCdef,
-    cons: PCdef,
+    public prodDef: PCdef, // initial prod for this planet
+    public consDef: PCdef, // initial prod for this planet
   ) {
     super(Aname)
     this.gShape.name = 'planetRings';
     this.setNameText(Aname);
-    this.setPCs(prod, cons);
+    this.setPCs(prodDef, consDef); // initial constructor
     this.addChild(this.gShape, this.nameText)
+    this.addInfoText(this.infoCont, this.prodText, this.consText)
     // placePlanet moves infoText to counterCont
     this.rightClickable()
     // this.paint()
   }
 
   override onRightClick(evt: MouseEvent) {
-    this.showPlanetPC()
+    this.showPlanetPC(!this.infoCont.visible)
   }
 
-  infoText = new InfoText(`Planet`, undefined, { fontSize: TP.hexRad * .3, active: true, visible: false });
+  public readonly prodPCs: PC[] = [];
+  public readonly consPCs: PC[] = [];
 
-  showPlanetPC (vis = !this.infoText.visible) {
-    this.infoText.updateText(vis, () => {
-      const src = this.prodPCs
-      let infoLine = `${this.Aname}`;
-      Object.entries(src).forEach(([key, value]) => {
-        infoLine = `${infoLine}\n${value.item}: ${value.quant} @ ${value.price()}`;
-      })
-      return infoLine;
+  prodText = new PCInfo(this.prodPCs, `prod`, undefined, { fontSize: TP.hexRad * .3, textColor: C.GREEN, active: true, visible: false });
+  consText = new PCInfo(this.consPCs, `cons`, undefined, { fontSize: TP.hexRad * .3, textColor: C.PURPLE, active: true, visible: false });
+  infoCont = new NamedContainer(`${this.Aname}info`)
+
+  addInfoText(cont = this.infoCont, ...pciary: PCInfo[]) {
+    let y = 0;
+    cont.addChild(...pciary);
+    pciary.forEach(pci => {
+      pci.visible = true;
+      pci.rectShape.setBounds(undefined, 0, 0, 0)
+      pci.setBounds(undefined, 0, 0, 0)
+      const { y: y0, height: h } = pci.getBounds()
+      pci.y = y - y0;
+      y += h
     })
+  }
+
+  updateInfoText(cont = this.infoCont, vis = true) {
+    if (vis) {
+      const itary = cont.children as PCInfo[];
+      let y = 0;
+      itary.forEach((itc, ndx) => {
+        const pc = itc.pcary;
+        itc.label_text = Object.entries(pc)
+          .map(([key, value]) => {
+            const {item, min, max, lim, quant, rate} = value, sign = rate > 0 ? '+' : ''
+            return `${item}: ${quant}/${lim} $${value.price()} ${sign}${rate}`
+          })
+          .reduce((pv, cv) => `${pv}${pv.length > 0 ? '\n' : ''}${cv}`, '')
+        const { y: y0, height: h } = itc.rectShape.getBounds();
+        itc.y = (y - y0);
+        y += h
+        return
+      })
+    }
+    cont.visible = vis;
+    cont.stage?.update()
+  }
+
+  showPlanetPC(vis = this.infoCont.visible) {
+    this.updateInfoText(this.infoCont, vis);
     if (this.cacheID) this.setCache()
+      this.infoCont.stage?.update()
   }
 
+  /** set [quant, rate] for each Resource produced & consumed by this Planet. */
   setPCs(prod: PCdef, cons: PCdef,) {
-    this.prodPCs = this.pcary(prod)
-    this.consPCs = this.pcary(cons)
+    this.prodPCs.length = this.consPCs.length = 0;
+    this.pcary(prod).forEach(pc => this.prodPCs.push(pc))
+    this.pcary(cons).forEach(pc => this.consPCs.push(pc))
   }
 
-  // extract the PCs from PCdef and return clone(rate, quant)
+  /**
+   * extract the PCs from PCdef and return clone(rate, quant)
+   * @param pcdef \{key: [quant, rate]} of resources for this Planet
+   * @returns initial PC[] for a Planet
+   */
   pcary(pcdef: PCdef) {
     const refs = PC.reference
     const items = Object.keys(pcdef) as Item[];
-    return items.map(key => {
-      const refPC = refs[key] as PC;
-      const [quant, rate] = pcdef[key]
-      return refPC.clone(rate, quant)
-    })
+    return items.map(key => refs[key].clone(pcdef[key]))
   }
 
   override isLegalTarget(toHex: Hex1, ctx?: DragContext): boolean {
@@ -169,12 +216,11 @@ export class Planet extends MapTile {
     // this.cache(-r3, -r3, 2 * r3, 2 * r3); // Container of Shape & Text
   }
 
-  consPC(item: Item) { return this.consPCs.find(pc => pc.item === item) }
-  prodPC(item: Item) { return this.prodPCs.find(pc => pc.item === item) }
+  getPC(item: Item, pcary: PC[]) { return pcary.find(pc => pc.item === item) }
 
   /** price for Planet to buy consumable (quant) */
   buy_price(item: Item, quant: number, commit = false) {
-    let cons = this.consPC(item), cost = 0;
+    let cons = this.getPC(item, this.consPCs), cost = 0;
     if (!cons) return cost // not consumed by this Planet
     // pricing each unit, incrementally:
     let n = 0, q = quant   // n = number bought so far; q = number still to buy
@@ -188,7 +234,7 @@ export class Planet extends MapTile {
   }
   /** price for Planet to sell production (quant) */
   sell_price(item: Item, quant: number, commit = false) {
-    let prod = this.prodPC(item), cost = 0
+    let prod = this.getPC(item, this.prodPCs), cost = 0
     if (!prod) return cost // not for sale
     let n = 0, q = quant   // n = number sold so far; q = number still to sell
     while(n < prod.quant && q-- > 0) {
@@ -217,38 +263,56 @@ export class PlanetPlacer {
     // If we *really* cared, we could get hexMap: MktHex2
   }
   makePlanets() {
-    // TODO: refactor to pass actual PC.clone(rate) into planet
-    // TODO: planet will consume L1/L2 if consumables are 'full'
-    // TODO: planet will produce X1/X1 if Lux is 'full'
-    // So: provide consumables *and* Lux so can buy exotics
-    // TODO: rework to use clock-action to advance prod/cons by rate.
     // TODO: option to permute order of planets around hexMap
 
-    // at this time, nobody *produces* exotics! (X1, X2)
-    // at this time, nobody *consumes* luxuries! (L1, L2)
+    // TODO: design L - X protocol:
+    // Non-center planets will cons L* and export X*. (L1->X1, L2->X2)
+    // price/demand for L* set by system-wide quant of L on planets
+    // planet will buy L* if consumables are 'full' (ie: until next tick)
+    // planet will consume {1-L, 1ea-C, 1ea-P} to produce an X (when cons is 'full')
+    // 1. trade(sell cons->full, sell L+)
+    // 2. tick(while C is full & has L) -> L--, C*--, P*-- ==> X++ (so only 1-X per tick)
+    // TODO: planet will produce X1/X1 if has a Lux & Cons is full
+    // So: trade[sell consumables & Lux], tick, trade[buy X]
+
     // TODO: include planet0 produces Ships for each Player
 
-    const q5r1 = [5, 1] as [number, number];
+    const pMidR1 = [undefined, +1] as [number, number];
+    const cMidR1 = [undefined, -1] as [number, number];
     const nonExotic = Items.filter(item => !item.startsWith('X'));
     const planet0Prod: PCdef = nonExotic.map(key => {
       const v = {};
-      v[key] = q5r1;
+      v[key] = pMidR1;
       return v as PCdef;
     }).reduce((pv, cv) => { return { ...pv, ...cv } }, {})
 
+    const setMid = (pcdef: PCdef) => {
+      const rv = { } as PCdef;
+      Object.entries(pcdef).forEach(([key, [quant, rate]]) => {
+        if (quant === undefined) {
+          const ref = PC.refspec[key] as [max: n, min: n, lim: n, color: string]
+          const [max, min, lim] = ref
+          quant = Math.floor(lim / 2)
+        }
+        rv[key] = [quant, rate]
+      })
+      return rv;
+    }
+
     const initialPCs: { [key in PlanetDir]: [p: PlanetPC, c: PlanetPC] } = {
-       C: [planet0Prod, { X1: q5r1, X2: q5r1 }],
-      NE: [{ F1: q5r1, F2: q5r1 }, { O1: q5r1, O3: q5r1 }],
-       E: [{ O1: q5r1 }, { F3: q5r1 }],
-      SE: [{ O2: q5r1 }, { F2: q5r1 }],
-      SW: [{ O1: q5r1, O3: q5r1 }, { F1: q5r1 }],
-       W: [{ F3: q5r1, F2: q5r1 }, { O2: q5r1 }],
-      NW: [{ F3: q5r1 }, { O1: q5r1, O2: q5r1 }],
+       C: [planet0Prod, { X1: [0, 0], X2: [0, 0] }],
+      NE: [{ F1: pMidR1, F2: pMidR1 }, { O1: cMidR1, O3: cMidR1 }],
+       E: [{ O1: pMidR1 }, { F3: cMidR1 }],
+      SE: [{ O2: pMidR1 }, { F2: cMidR1 }],
+      SW: [{ O1: pMidR1, O3: pMidR1 }, { F1: cMidR1 }],
+       W: [{ F3: pMidR1, F2: pMidR1 }, { O2: cMidR1 }],
+      NW: [{ F3: pMidR1 }, { O1: cMidR1, O2: cMidR1 }],
     }
 
     this.planetByDir.clear();
     Object.keys(initialPCs).forEach((key: PlanetDir) => {
-      const [pp, pc] = initialPCs[key] as [PCdef, PCdef];
+      const [pp0, pc0] = initialPCs[key] as [PCdef, PCdef]; // [quant, rate]
+      const pp = setMid(pp0), pc = setMid(pc0);
       const planet = new Planet(key, pp, pc);
       this.planetByDir.set(key, planet);
       planet.paint()
@@ -270,7 +334,7 @@ export class PlanetPlacer {
   resetPlanet(pElt: PlanetElt) {
     const { id, row, col, prod, cons } = pElt; // PCp: PCstat[]
     const planet = this.placePlanet(id, this.hexMap[row][col])
-    planet.setPCs(prod, cons);
+    planet.setPCs(prod, cons);   // restore from PlanetElt
     return planet;
   }
 
@@ -305,10 +369,10 @@ export class PlanetPlacer {
       hex.setHexColor(color, ndx)   // colorPlanets: district = 0,1..6
       planet.paint();
       // put infoText on foreCont so other Tiles do not cover it:
-      const foreCont = hex.mapCont.counterCont, { parent, x, y, infoText } = planet;
-      foreCont.addChild(infoText)
-      parent.localToLocal(x, y, foreCont, infoText)
-      rightClickable(infoText, (evt) => planet.onRightClick(evt))
+      const foreCont = hex.mapCont.counterCont, { parent, x, y, infoCont } = planet;
+      foreCont.addChild(infoCont)
+      parent.localToLocal(x, y, foreCont, infoCont)
+      rightClickable(infoCont, (evt) => planet.onRightClick(evt))
     }
     return planet
   }

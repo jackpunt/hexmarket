@@ -15,7 +15,6 @@ export class InfoText extends UtilButton {
     if (vis) {
       this.label_text = generate()
       this.parent?.addChild(this);  // bring to top
-      this.paint(undefined, true);
     }
     this.visible = vis;
     if (vis || vis !== v0) {

@@ -40,7 +40,14 @@ class ButtonLine extends RectWithDisp {
       const tSize = actn.includes('\n') ? fSize * (rb + .5) / (rb + 1) : fSize;
       const text = new CenterText(actn, tSize); text.textBaseline = 'top';
       text.y = rb * tSize;     // offset - THEN put in UtilButton; rect.y == 0
-      const button = new UtilButton(text, 'grey', { fontSize: tSize, border: rb, visible: true });
+      const opts = {
+        fontSize: tSize, border: rb, visible: true,
+        rollover: (mi: boolean) => {
+          button.paint(mi ? 'pink' : 'grey')
+          button.stage?.update();
+        }
+      }
+      const button = new UtilButton(text, 'grey', opts);
       // Note: highlight = undefined;
       this.buttons.push(button);
 
@@ -66,7 +73,10 @@ class ButtonLine extends RectWithDisp {
     this.setBounds(undefined, 0, 0, 0)
   }
   activate(activate = true) {
-    this.buttons.forEach(button => button.activate(activate, true))
+    this.buttons.forEach(button => {
+      activate && button.paint('grey')
+      button.activate(activate, true)
+    })
   }
 }
 
@@ -102,6 +112,7 @@ class SelectorPanel extends NamedContainer {
   }
   lines: ButtonLine[]
   activate(activate = true, button?: UtilButton) {
+    // activate/deactivate particular ButtonLine
     const aline = button ? this.lines.find(line=> line.contains(button)) : undefined;
     this.lines.forEach(line => (!aline || (line === aline)) && line.activate(activate))
   }
@@ -125,13 +136,14 @@ export class GameState extends GameStateLib {
   readonly selectedActions: ActionIdent[] = [];
   get actionsDone() { return this.selectedActions.length};
 
-  moveActions =['Clock', 'Move', 'Move-Attack']
-  tradeActions = ['Clock', 'Trade', 'Attack']
+  moveActions =['Move', 'Move-Attack', 'Clock', ]
+  tradeActions = ['Trade', 'Attack', 'Clock', ]
   selPanel: SelectorPanel;
   /** invoked from layoutTable2() */
   makeActionSelectors(parent: Container, col = true) {
-    const setClick = (button: UtilButton) => {
+    const onClick = (button: UtilButton) => {
       button.on(S.click, () => {
+        button.paint('deeppink')
         this.selPanel.activate(false, button)   // deactivate(line(button))
         const act = button.label_text.replace(/\n/g, '') as ActionIdent;
         this.selectedAction = act;
@@ -142,9 +154,8 @@ export class GameState extends GameStateLib {
     this.selPanel = new SelectorPanel([
       { name: 'mActions', actions: this.moveActions, dir: -1 },
       { name: 'tActions', actions: this.tradeActions, dir: 1 }
-    ], setClick, { col });
+    ], onClick, { col });
     parent.addChild(this.selPanel);
-    // this.table.setToRowCol(this.twoSels, row, col);
   }
   get panel() { return this.curPlayer.panel; }
 
@@ -210,6 +221,7 @@ export class GameState extends GameStateLib {
     },
     Trade: {
       start: () => {
+        this.gamePlay.advanceClock(-1); // for demo/text
         this.done();
       },
     },
