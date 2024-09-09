@@ -40,6 +40,8 @@ export class TP extends TPLib {
 
   // timeout: see also 'autoEvent'
   static stepDwell:  number = 150
+  /** force draw during ship.drag */
+  static drawPath = true;
 
   static override bgColor: string = 'tan' //'wheat'// C.BROWN
   static borderColor: string = 'peru'//TP.bgColor; //'burlywood'

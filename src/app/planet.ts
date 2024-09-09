@@ -117,13 +117,14 @@ export class Planet extends MapTile {
     this.setPCs(prodDef, consDef); // initial constructor
     this.addChild(this.gShape, this.nameText)
     this.addInfoText(this.infoCont, this.prodText, this.consText)
+    this.infoCont.visible = false;
     // placePlanet moves infoText to counterCont
     this.rightClickable()
     // this.paint()
   }
 
   override onRightClick(evt: MouseEvent) {
-    this.showPlanetPC(!this.infoCont.visible)
+    this.showPlanetPC(!this.infoCont.visible) // toggle visible
   }
 
   public readonly prodPCs: PC[] = [];

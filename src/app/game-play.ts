@@ -84,6 +84,12 @@ export class GamePlay extends GamePlayLib {
     return this.clock;
   }
 
+  /** makeMove ('m' key): advance one [lrt] Ship on its path. */
+  override makeMove(auto?: boolean, ev?: any, incb?: number): void {
+    if (this.gamePhase?.Aname !== 'Move') return;
+    super.makeMove(auto, ev, incb); // --> Player.playerMove()
+  }
+
   override bindKeys() {
     let table = this.table
     let roboPause = () => { this.forEachPlayer(p => this.pauseGame(p) )}
@@ -109,7 +115,7 @@ export class GamePlay extends GamePlayLib {
     KeyBinder.keyBinder.setKey('C-c', { thisArg: this, func: this.stopPlayer })// C-c Stop Planner
     KeyBinder.keyBinder.setKey('C', () => this.table.reCacheTiles())// reCacheTiles
     // auto move:
-    KeyBinder.keyBinder.setKey('m', { thisArg: this, func: this.makeMove, argVal: true })
+    KeyBinder.keyBinder.setKey('m', () => this.makeMove(true))
     KeyBinder.keyBinder.setKey('M', { thisArg: this, func: this.makeMoveAgain, argVal: true })
     KeyBinder.keyBinder.setKey('n', { thisArg: this, func: this.autoMove, argVal: false })
     KeyBinder.keyBinder.setKey('N', { thisArg: this, func: this.autoMove, argVal: true})

@@ -74,29 +74,51 @@ export class Player extends PlayerLib {
   }
   // only invoked on the newly curPlayer!
   override newTurn() {
+    // nothing to do... until 'Move' action.
     // this.ships.forEach(ship => ship.newTurn());
     // return;
-    Tile.allTiles.forEach(ship => {
-      if (!(ship instanceof Ship)) return;
-      if (ship.player === this) {
-        ship.paint()
-        ship.newTurn()
-      } else {
-        ship.paint('grey' as PlayerColor)
-      }
-    })
-    this.gamePlay.hexMap.update();
   }
-    /** color used for showing paths */
+
+  /** new 'Move' Action: refuel, show paths, wait for 'm' */
+  enableMove() {
+    this.ships.forEach(ship => {
+      ship.newTurn();    // using ship.newTurn() as semantically: enableMove()
+    })
+  }
+
+  /** Ships with targets & paths, [least-recenctly-touched, ..., most-recently-touched] */
+  lrtShips: Ship[] = []
+  touchShip(ship: Ship) {
+    const lrts = this.lrtShips
+    const ndx = lrts.indexOf(ship);
+    if (ndx >= 0) {
+      lrts.splice(ndx, 1)
+    }
+    lrts.push(ship)
+    return ship;
+  }
+
+  /** color used for showing paths */
   readonly colorBytes = C.nameToRgba(this.color); // with alpha component
 
+  /**
+   * modify r,g,b from this.colorBytes
+   * @param n path metric ordinal: 0 is best path, 1 is more expensive
+   * @param alpha [decr] alpha (fractional) for resulting color
+   * @param decr [20] if component is bright, diminish it; if dim, enhance it.
+   * @returns a modified version of this.colorBytes
+   */
   pathColor(n: number = 0, alpha?: number, decr = 20) {
     let v = this.colorBytes.map(vn => vn + n * (vn > 230 ? -decr : decr))
-    v[3] = Math.floor(255 * alpha)    // reset alpha
-    return `rgba(${v[0]},${v[1]},${v[2]},${alpha || (v[3]/255).toFixed(2)})` as PlayerColor;
+    // v[3] = Math.floor(255 * alpha)    // reset alpha
+    return `rgba(${v[0]},${v[1]},${v[2]},${alpha ?? (v[3]/255).toFixed(2)})` as PlayerColor;
   }
   override stopMove() {
     this.planner?.roboMove(false)
+  }
+  /** move the currently selected Ship. */
+  moveShip() {
+
   }
   /** if Planner is not running, maybe start it; else wait for GUI */ // TODO: move Table.dragger to HumanPlanner
   override playerMove(useRobo = this.useRobo, incb = 0) {
@@ -106,15 +128,20 @@ export class Player extends PlayerLib {
     TP.log > 0 && console.log(stime(this, `(${this.plyrId}).playerMove(${useRobo}): useRobo=${this.useRobo}, running=${running}`))
     if (running) return
     if (useRobo || this.useRobo) {
-    // continue any semi-auto moves for ship:
-      if (!this.ships.find(ship => !ship.shipMove())) {
-        this.gamePlay.setNextPlayer();    // if all ships moved
-      }
+      // continue any semi-auto moves for ship:
+      const turn = this.gamePlay.turnNumber
+      const ship = this.lrtShips.find(s => s.movedOnTurn !== turn)
+      if (ship) ship.moveOnPath()
+      // if (!this.ships.find(ship => !ship.moveOnPath())) {
+      //   this.gamePlay.setNextPlayer();    // if all ships moved
+      // }
       // start plannerMove from top of stack:
       // setTimeout(() => this.plannerMove(incb))
     }
     return      // robo or GUI will invoke gamePlay.doPlayerMove(...)
   }
+
+  /** Space-key: select this ship as the dragObj */
   shipToMove() {
     return this.ships.find(ship => !ship.hasPathMove)
   }

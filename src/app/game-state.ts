@@ -2,6 +2,7 @@ import { C, CenterText, S } from "@thegraid/easeljs-lib";
 import { Container } from "@thegraid/easeljs-module";
 import { GameState as GameStateLib, NamedContainer, Phase, RectWithDisp, UtilButton } from "@thegraid/hexlib";
 import type { GamePlay } from "./game-play";
+import { Player } from "./player";
 import { ActionIdent } from "./scenario-parser";
 import { Table } from "./table";
 import { TP } from "./table-params";
@@ -120,6 +121,10 @@ class SelectorPanel extends NamedContainer {
 
 export class GameState extends GameStateLib {
   declare gamePlay: GamePlay;
+  override get curPlayer(): Player {
+    return super.curPlayer as Player; // this.gamePlay.curPlayer
+  }
+
   constructor(gamePlay: GamePlay) {
     super(gamePlay)
     this.defineStates(this.states, false);
@@ -185,14 +190,9 @@ export class GameState extends GameStateLib {
       start: () => {
         const maxActs = 2;
         if (this.actionsDone >= maxActs) this.phase('EndTurn');
-        const active = true;
-        if (!active) {
-          this.phase('EndTurn');  // assert: selectedActions[0] === 'Ankh'
-        } else {
-          const n = this.selectedActions.length + 1;
-          this.selectedAction = undefined;
-          this.doneButton(`Choice ${n} Done`); // ???
-         }
+        const n = this.selectedActions.length + 1;
+        this.selectedAction = undefined;
+        this.doneButton(`Choice ${n} Done`); // ???
       },
       done: (ok?: boolean) => {
         const action = this.selectedAction; // set by dropFunc() --> state.done()
@@ -215,8 +215,31 @@ export class GameState extends GameStateLib {
       },
     },
     Move: {
+      nextPhase: 'EndAction',
+      // refuel & faceUp curPlayer Ships; show paths if defined
+      // Drag/Drop to create or extend path; 'm' to move ship
+      // continue to move other Ships.
+      // click "Done"
+      start: (shipMoved?: boolean) => {
+        if (shipMoved === undefined) {
+          // first 'start' of this 'Move' action: refuel & faceUp curPlayer Ships.
+          this.curPlayer.enableMove();
+        }
+        // wait for shipMoved or doneButton; either will call this.state.done(true/false)
+        this.doneButton('Move done')
+      },
+      // mouse-disable curPlayer ships, do 'm' for each ship to complete moves for this turn
+      done: (shipMoved = false) => {
+        // if (shipMoved && unmovedShip) this.phase.start(shipMoved)
+        this.phase(this.state.nextPhase);
+      },
+    },
+    'Move-Attack': {
+      // refuel & mouse-enable curPlayer Ships; show paths if defined
+      // Drag/Drop to create or extend path; 'm' to move ship
+      //
       start: () => {
-        this.done();
+        this.phase('Move', 'Attack')
       },
     },
     Trade: {
@@ -225,14 +248,11 @@ export class GameState extends GameStateLib {
         this.done();
       },
     },
+    // activate curPlayer Ships with Cargo & fuel & adjacent to opponent Ship.
+    // select 1 Ship as attacker, drop it on [adjacent] target.
     Attack: {
       start: () => {
-        this.done();
-      },
-    },
-    'Move-Attack': {
-      start: () => {
-        this.done();
+        this.doneButton('Attack done');
       },
     },
     EndAction: {
