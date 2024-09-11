@@ -5,6 +5,7 @@ import { AfHex } from "./AfHex";
 import { GamePlay } from "./game-play";
 import { MktHex2 as Hex2, HexMap } from "./hex";
 import { Player } from "./player";
+import { Random } from "./random";
 import { ScenarioParser } from "./scenario-parser";
 import { Table } from "./table";
 import { TP } from "./table-params";
@@ -21,10 +22,11 @@ export class GameSetup extends GameSetupLib {
   netGUI: ParamGUI // paramGUIs[2]
   override gamePlay: GamePlay;
 
-  override initialize(canvasId: string, qParams: Params = {}): void {
+  override initialize(canvasId: string, qParams: Params = this.qParams): void {
     window.addEventListener('contextmenu', (evt: MouseEvent) => evt.preventDefault())
     // useEwTopo, size 7.
-    const { host, port, file, nH } = qParams;
+    const { host, port, file, nH, rand } = qParams;
+    if (rand) Random.random = Random.mulberry32(rand);
     TP.useEwTopo = true;
     TP.nHexes = nH ?? TP.nHexes; // [5,6,7,8]
     TP.ghost = host ?? TP.ghost

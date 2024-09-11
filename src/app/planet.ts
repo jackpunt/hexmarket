@@ -3,6 +3,7 @@ import { MouseEvent, Shape, Text } from "@thegraid/easeljs-module";
 import { CGF, DragContext, EwDir, H, Hex1, MapTile, NamedContainer, rightClickable, TP as TPLib, UtilButtonOptions } from "@thegraid/hexlib";
 import { HexMap, MktHex, MktHex2 } from "./hex";
 import { InfoText } from "./info-text";
+import { Random } from "./random";
 import { TP } from "./table-params";
 
 export type PlanetLocs = { [key in EwDir]?: MktHex2 };
@@ -346,7 +347,7 @@ export class PlanetPlacer {
     // offset pHex from cHex by random distance, jitter by dop=1
     const randomHex = (ds: EwDir, doff = Math.min(TP.nHexes - 1, coff + 1)) => {
       const pHex = cHex.nextHex(ds, doff); // extends on line
-      const odir = H.ewDirs[Math.floor(Math.random() * H.ewDirs.length)] // offset some dir
+      const odir = H.ewDirs[Math.floor(Random.random() * H.ewDirs.length)] // offset some dir
       // do not offset directly towards center
       // assert(nHexes > dbp+1+dop)
       // return offP && (odir != H.dirRev[ds]) ? pHex.nextHex(odir, opd) : pHex;

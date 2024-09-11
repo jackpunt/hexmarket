@@ -273,42 +273,34 @@ export class Ship extends Meeple {
   }
 
   override showTargetMark(hex: IHex2 | undefined, ctx: DragContext): void {
-    return;          // not needed: all Hex that path goes to are legal...
+    return;          // not needed, can see the Path
   }
 
-  override dragFunc(hex: IHex2, ctx: DragContext) {
-    const hex2 = hex as Hex2, alwaysDraw = TP.drawPath, tp = TP;
-    if (!alwaysDraw) {
-      // else drawPath only if ctrlKey is *still* down
-      if (!ctx?.lastCtrl || hex2 === this.fromHex) {
-        this.pCont.removeAllChildren();
-        return          // no path requested
-      }
+    override dragFunc(hex: IHex2, ctx: DragContext) {
+    const hex2 = hex as Hex2, alwaysDraw = TP.drawPath
+    if (ctx.info.first) this.targetHex = undefined;
+    if (!alwaysDraw && (!ctx?.lastCtrl || hex2 === this.fromHex)) {
+      this.pCont.removeAllChildren();  // compute no paths, show no paths
+      return            // no path requested
     }
     if (!hex2) return;  // cantMoveTile?
     if (hex2 === this.hex) return  // no path to self
     if (hex2 === this.targetHex) return // same path, don't redraw
     this.targetHex = hex2;
     this.pathFinder.drawDirect2(hex2).then(() => {
-      this.pathFinder.showPaths(hex2, undefined, 3)      // show extra paths
+      this.pathFinder.showPaths(hex2)      // show extra paths
     })
   }
 
   // hexlib.Dragger is invoked with hexlib.IHex2
   // our HexMap contains (MktHex2 as Hex2) extends MktHex implements IHex2;
   override dropFunc(targetHex: IHex2, ctx: DragContext) {
-    const hex = targetHex as Hex2;
     if (ctx.lastShift) {
       super.dropFunc(targetHex, ctx);  // placeTile(targetHex) -- Do a Move !
     } else {
       this.hex = this.fromHex as Hex2; // put it back at beginning
     }
-    const path0 = this.pathFinder.path0;
-    // when dropped compute new/final paths:
-    if (true || hex !== this.targetHex || !path0 || path0[path0.length - 1]?.hex !== hex) {
-      this.pathFinder.setPathToHex(hex)   // find a path to targetHex from this.fromHex
-      this.player.touchShip(this);
-    }
+    this.player.touchShip(this);
     if (!ctx?.lastCtrl) this.pCont.removeAllChildren();
     this.lastShift = undefined
   }
@@ -385,10 +377,14 @@ class PathFinder {
    * @returns (possibly empty) array of Paths. from hex0 to hex1
    */
   findPathsWithMetric<T extends MktHex>(hex0: T, hex1: T, limit: number, minMetric: number) {
+    /** returns true if nStep.hex is in prevStep(s) of nStep */
     const isLoop = (nStep: Step<MktHex>) => { // 'find' for linked list:
-      let nHex = nStep.curHex, pStep = nStep.prevStep
-      while (pStep && pStep.curHex !== nHex) pStep = pStep.prevStep
-      return pStep?.curHex === nHex
+      let pStep = nStep.prevStep?.prevStep;   // ASSERT: (nStep.prevStep.hex !== nStep.hex)
+      while (pStep) {
+        if (pStep.hex === nStep.hex) { return true; }
+        pStep = pStep.prevStep
+      }
+      return false;
     }
     const ship = this.ship;
     if (this.pathLog) {
@@ -406,9 +402,9 @@ class PathFinder {
       // cycle turns until Step(s) reach targetHex
       // loop here so we can continue vs return; move each dir from prev step:
       for (let dir of H.ewDirs) {
-        const nHex = step.curHex.nextHex(dir), nConfig = { ... step.config } // copy of step.config
+        const nHex = step.hex.nextHex(dir), nConfig = { ... step.config } // copy of step.config
         if (!nHex || nHex.occupied) continue // off map or occupied
-        let cost = ship.configCost(step.curHex, dir, nHex, nConfig)
+        let cost = ship.configCost(step.hex, dir, nHex, nConfig)
         if (cost === undefined) continue; // no afHex, no transit possible
         let turn = step.turn
         if (cost > nConfig.fuel) {   // Oops: we need to refuel before this Step!
@@ -420,6 +416,7 @@ class PathFinder {
         }
         nConfig.fuel = nConfig.fuel - cost
         let nStep = new Step<T>(turn, nHex, dir, step, nConfig, cost, hex1)
+        if (isLoop(nStep)) continue; // loop: previous visit to nHex already in closed or open.
         if (closed.find(nStep.isMatchingElement, nStep)) continue  // already evaluated & expanded
         if (open.find(nStep.isExistingPath, nStep) ) continue     // already a [better] path to nHex
         // assert: open contains only 1 path to any Step(Hex, config) that path has minimal metric
@@ -428,10 +425,9 @@ class PathFinder {
         if (metric > minMetric + limit) continue // abandon path: too expensive
         if (nHex == hex1) {
           if (done.length === 0) this.pathLog && console.log(stime(this, `.findPathsWithMetric: [0]:${metric}`), nStep)
-          done.push(nStep)
           if (metric < minMetric) minMetric = metric
+          done.push(nStep);
         } else {
-          if (isLoop(nStep)) continue; // abandon path: looping
           open.push(nStep); // save path, check back later
         }
       }
@@ -461,23 +457,32 @@ class PathFinder {
     g.ss(wl).s(cl).mt(hex0.x, hex0.y).lt(target.x, target.y).es()
   }
   /**
-   *
-   * @param step the final step, work back until step.prevHex === undefined
+   * Add graphical path (and showTurnFuel) to bottom of pCont
+   * @param zStep the final Step, work back until step.prevStep === undefined
    * @param cl color of line
    * @param wl width of line
-   * @param offs x, y offset with hex
+   * @param ndx [0] which dxy offsets to use
+   * @returns the path Shape
    */
-  drawPath(path: Path<Hex2>, cl: string, wl = 2, {x: dx, y: dy}) {
+  drawPath(zStep: Step<Hex2>, cl: string, wl = 2, ndx = 0) {
     // setStrokeStyle().beginStroke(color).moveto(center).lineto(edge=hex0,dir)
     // [arcto(hex1,~dir)]*, lineto(center), endStroke
+    const path = zStep.toPath()
     let pShape = new Shape(), g = pShape.graphics
     pShape.mouseEnabled = false;
+    const k = 5, dxy = [{ x: 0, y: 0 }, { x: -1, y: 1 }, { x: 1, y: 1 }, { x: 0, y: 1 }, { x: 1, y: -1 }]
+    const { x: dx, y: dy } = { x: k * dxy[ndx].x, y: k * dxy[ndx].y }
     pShape.x = dx; pShape.y = dy
+    const hexes = [], brk = true;  // redundant check for loop
+    // sTF visits each hex on the path
     const showTurnFuel = (hex: Hex2, step: Step<MktHex>, c = cl) => {
       const { turn, config } = step;
-      let tn = new Text(`${turn.toFixed(0)} ${config.fuel}`, F.fontSpec(16), c)
-      tn.textAlign = 'center'; tn.mouseEnabled = false;
-      tn.x = hex.x + dx; tn.y = hex.y - 39 + dy;
+      if (hexes.includes(hex) && brk) { debugger } hexes.push(hex); // isLoop() failed
+      const fs = TP.hexRad / 4, fs2 = fs * 2, fsk = fs2 * 27 / 32;
+      let tn = new CenterText(`${turn.toFixed(0)} ${config.fuel}`, F.fontSpec(fs), c)
+      tn.mouseEnabled = false;
+      const [dx, dy] = [[0, -fs2], [-fsk, fs], [fsk, fs]][ndx] ?? [0, fs2];
+      tn.x = hex.x + dx; tn.y = hex.y + dy;
       this.pCont.addChildAt(tn, 0) // turn number on hexN
     }
     // Path: [dir, hex] in proper order
@@ -501,6 +506,7 @@ class PathFinder {
     showTurnFuel(hexZ, step)    // final turn+fuel
     g.lt(hexZ.x, hexZ.y)        // draw line (final step)
     g.es()
+    this.pCont.addChildAt(pShape, 0) // push under the better paths (and tn Text)
     return pShape
   }
 
@@ -523,36 +529,27 @@ class PathFinder {
     this._path0 = path;
   }
   /**
-   *
+   * clear pCont and find new paths to targetHex
    * @param targetHex
    * @param limit abandon search if metric exceeds minMetric by limit
    * @param showLim [3] max number of paths to show
    * @returns
    */
-  showPaths(targetHex: Hex2, limit?: number, showLim = 3) {
+  showPaths(targetHex: Hex2, showLim = 4) {
     const player = this.ship.player;
     this.pCont.removeAllChildren()
-    let paths = this.setPathToHex(targetHex, limit)  // find paths to show
+    let paths = this.setPathToHex(targetHex)  // find paths to show
     this.pCont.parent.addChild(this.pCont);  // put *this* pathCont on top
     // if (targetHex !== this.targetHex) return // without changing display! [if target has moved]
     if (!paths[0]) return                    // no path to targetHex; !this.path0
     paths.length = Math.min(showLim, paths.length);   // show at most 2 paths
     let met0 = paths[0].metric, n = 0, k = 6;
-    const dxy = [{ x: 0, y: 0 }, { x: 1, y: 1 }, { x: -1, y: 1 }, { x: -1, y: -1 }, { x: 1, y: -1 }]
-    for (let stepZ of paths) {
-      let pcolor = player.pathColor(n, undefined, stepZ.metric === met0 ? 20 : 30)
-      const offs = {x: k * dxy[n].x, y: k * dxy[n].y}
-      let pshape = this.showPath(stepZ, pcolor, offs)
+    for (let zStep of paths) {
+      let pcolor = player.pathColor(n, undefined, zStep.metric === met0 ? 20 : 30), wl = 2;
+      this.drawPath(zStep, pcolor, wl, n)
       n += 1;
     }
     this.pCont.stage.update()
-  }
-
-  showPath(stepZ: Step<Hex2>, pcolor: string, offs: XY) {
-    let path = stepZ.toPath()
-    let pshape = this.drawPath(path, pcolor, 2, offs)
-    this.pCont.addChildAt(pshape, 0) // push under the better paths (and tn Text)
-    return pshape
   }
 
   /** set this.path0, return all Paths to targetHex. */
@@ -621,14 +618,14 @@ class PathFinder {
 class Step<T extends MktHex> {
   constructor(
     public turn: number, // incremental, relative turn?
-    public curHex: T,
+    public hex: T,
     public dir: EwDir,
     public prevStep: Step<T>,
     public config: ZConfig,
     public cost: number,             // cost for this Step
     targetHex: T,  // crow-fly distance to target from curHex
   ) {
-    this.metricb = this.metric + this.curHex.radialDist(targetHex)
+    this.metricb = this.metric + this.hex.radialDist(targetHex)
   }
   /** Actual cost from original Hex to this Step */
   readonly metric = this.cost + (this.prevStep?.metric || 0);
@@ -637,7 +634,7 @@ class Step<T extends MktHex> {
 
   /** used as predicate for find (ignore ndx & obj) */
   isMatchingElement(s: Step<T>, ndx?: number, obj?: Step<T>[]) {
-    return s.curHex === this.curHex &&
+    return s.hex === this.hex &&
       s.config.zcolor === this.config.zcolor &&
       s.config.zshape === this.config.zshape &&
       s.config.zfill === this.config.zfill
@@ -646,6 +643,9 @@ class Step<T extends MktHex> {
   /**
    * find (and possibly replace) best metric to this Step)
    * if this is better than existing open Step, replace 's' with this
+   * @param s a previous step from 'open'
+   * @param ndx s = obj[ndx]
+   * @param obj s = obj[ndx]
    */
   isExistingPath(s: Step<T>, ndx: number, obj: Step<T>[]) {
     if (!s.isMatchingElement(this)) return false
@@ -660,7 +660,7 @@ class Step<T extends MktHex> {
   toPath() {
     let rv: Path<T> = [], cs = this as Step<T>
     while (cs !== undefined) {
-      rv.unshift(new PathElt<T>(cs.dir, cs.curHex, cs))
+      rv.unshift(new PathElt<T>(cs.dir, cs.hex, cs))
       cs = cs.prevStep
     }
     return rv;

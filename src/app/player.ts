@@ -1,7 +1,8 @@
 import { C, stime } from "@thegraid/common-lib"
 import { Container } from "@thegraid/easeljs-module"
-import { GamePlay as GamePlayLib, Hex1 as Hex1Lib, HexMap as HexMapLib, newPlanner, Player as PlayerLib, Tile } from "@thegraid/hexlib"
+import { GamePlay as GamePlayLib, Hex1 as Hex1Lib, HexMap as HexMapLib, newPlanner, Player as PlayerLib } from "@thegraid/hexlib"
 import { GamePlay } from "./game-play"
+import { Random } from "./random"
 import { Ship, ShipSpec } from "./ship"
 import { TP } from "./table-params"
 
@@ -56,7 +57,7 @@ export class Player extends PlayerLib {
     const map = this.gamePlay.table.hexMap;
     // find un-occupied hexes surrounding planet0
     const hexes = Object.values(map.centerHex.links).filter(hex => !hex.occupied);
-    const dn = Math.floor(Math.random() * hexes.length);
+    const dn = Math.floor(Random.random() * hexes.length);
     const hex = hexes[dn];
     console.log(stime(this, `.chooseShipHex: `), hex);
     return hex;
@@ -129,14 +130,8 @@ export class Player extends PlayerLib {
     if (running) return
     if (useRobo || this.useRobo) {
       // continue any semi-auto moves for ship:
-      const turn = this.gamePlay.turnNumber
-      const ship = this.lrtShips.find(s => s.movedOnTurn !== turn)
+      const ship = this.lrtShips.find(s => s.pathFinder.path0?.[0].step.turn === 0)
       if (ship) ship.moveOnPath()
-      // if (!this.ships.find(ship => !ship.moveOnPath())) {
-      //   this.gamePlay.setNextPlayer();    // if all ships moved
-      // }
-      // start plannerMove from top of stack:
-      // setTimeout(() => this.plannerMove(incb))
     }
     return      // robo or GUI will invoke gamePlay.doPlayerMove(...)
   }
