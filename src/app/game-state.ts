@@ -243,10 +243,29 @@ export class GameState extends GameStateLib {
       },
     },
     Trade: {
+      // Highlight each Ship adjacent to a Planet.
+      // popup tradePanel(Ship, Planet) on curPlayer.panel
+      // Ship.onClick -> populate panel with Ship & adjacent Planet
+      // tradePanel Choice(s) with 'name: - [______] + $price' (an EditBox, two buttons, $text)
+      // and a 'Trade' (commit) button
+      // continue to select Ship(s) until "Trade Done"
       start: () => {
-        this.gamePlay.advanceClock(-1); // for demo/text
-        this.done();
+        const ships0 = this.curPlayer.ships
+          .map(s => (s.faceUp(false), s))
+        this.table.hexMap.update();
+        const ships = ships0
+          .filter(s => s.adjacentPlanet())
+        ships.map(s => s.faceUp(true))
+
+        // this.gamePlay.advanceClock(-1); // for demo/text
+        // this.done();
+        this.doneButton('Trade Done')
       },
+      done: () => {
+        const ships0 = this.curPlayer.ships
+          .map(s => (s.faceUp(true), s))
+        this.phase('EndAction')
+      }
     },
     // activate curPlayer Ships with Cargo & fuel & adjacent to opponent Ship.
     // select 1 Ship as attacker, drop it on [adjacent] target.

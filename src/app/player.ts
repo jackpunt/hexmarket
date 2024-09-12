@@ -45,8 +45,7 @@ export class Player extends PlayerLib {
   /** put this.ships in their places. */
   placeShips(shipSpecs: ShipSpec[]) {
     shipSpecs.forEach((shipSpec) => {
-      const ship = this.addShip(shipSpec), rc = shipSpec.rc;
-      ship.hex = this.gamePlay.hexMap[rc.row][rc.col];
+      this.addShip(shipSpec)
     })
   }
 

@@ -1,7 +1,7 @@
-import { C, F, RC, stime, type XY } from "@thegraid/common-lib";
+import { C, F, RC, stime } from "@thegraid/common-lib";
 import { CenterText } from "@thegraid/easeljs-lib";
-import { Container, Graphics, MouseEvent, Shape, Text } from "@thegraid/easeljs-module";
-import { DragContext, EwDir, H, Hex1, HexDir, IHex2, Meeple, PaintableShape } from "@thegraid/hexlib";
+import { Container, Graphics, MouseEvent, Shape } from "@thegraid/easeljs-module";
+import { DragContext, EwDir, H, Hex1, HexDir, IHex2, Meeple, MeepleShape, PaintableShape } from "@thegraid/hexlib";
 import { AF, AfColor, AfFill, ATS, ZColor } from "./AfHex";
 import { MktHex2 as Hex2, MktHex, MktHex2 } from "./hex";
 import { InfoText } from "./info-text";
@@ -26,21 +26,43 @@ type ZConfig = {
   step0: boolean,
 }
 
-class ShipShape extends PaintableShape {
+class ShipShape extends MeepleShape {
 
   constructor(public ship: Ship) {
-    super((fillc) => this.sscgf(fillc)); // no color, no g0
+    super(ship.player, TP.meepleRad); // no color, no g0
+    this._cgf = this.sscgf
   }
-  sscgf(pColor: string, g = this.g0) {
+  // during Tile construction, radius is not set, so do it after Meeple constructor
+  setRadius(radius = this.ship.radius) {
+    const y0 = this.y = TP.meepleY0;
+    this.radius = radius;
+    this.setMeepleBounds();
+    const { x, width: w } = this.getBounds();
+    const over = this.backSide;
+    over.graphics.c().f(MeepleShape.backColor).dc(x + w / 2, y0, w / 2);
+    this.paint();
+  }
+
+  zColor: AfColor;
+
+  override paint(colorn?: string, force?: boolean): Graphics {
+    return super.paint(colorn, force || this.zColor !== this.ship.zcolor)
+  }
+
+  /** paint ring of Zcolor around pColor */
+  sscgf(pColor = this.ship.player.color, g = this.g0) {
+    // stack three disks: r2(zcolor) r1(black) r0(pcolor)
+    // zcolor-ring(r2-r1), black-ring(r1-r0), pColor-circle(r0)
     const r = this.ship.radius
     const r2 = r + 8, r1 = r, r0 = r - 2;
     const zcolor: AfColor = this.ship.zcolor
     g.c() // clear
     if (pColor) {
-      g.f(AF.zcolor[zcolor]).dc(0, 0, r2);
+      g.f(AF.zcolor[zcolor] ?? 'grey').dc(0, 0, r2);
       g.f(C.BLACK).dc(0, 0, r1)
       g.f(pColor).dc(0, 0, r0)
     }
+    this.zColor = zcolor
     return g;
   }
 }
@@ -71,10 +93,7 @@ export class Ship extends Meeple {
   override get hex() { return super.hex as MktHex; }
   override set hex(hex: MktHex) { super.hex = hex; }
 
-  // override fromHex: MktHex;
-
-  readonly shipShape: Shape = new Shape(); // TODO: use this.meepleShape!
-  // readonly Aname: string = `S${Ship.idCounter++}`
+  get shipShape() { return this.baseShape as ShipShape; }
 
   /** show path from srcHex to destHex */
   pCont: Container
@@ -103,7 +122,7 @@ export class Ship extends Meeple {
   get color() { return ZColor[this.player.index] } // as AfColor!
 
   /** current Z-configuration of Ship */
-  zconfig: ZConfig = { zshape: null, zcolor: this.color, zfill: AF.F, fuel: 0, step0: false };
+  zconfig: ZConfig = { zshape: null, zcolor: undefined, zfill: AF.F, fuel: 0, step0: false };
   get zshape() { return this.zconfig.zshape; }
   get zcolor() { return this.zconfig.zcolor; }
   get zfill() { return this.zconfig.zfill; }
@@ -120,6 +139,7 @@ export class Ship extends Meeple {
    // calc maxLoad: constraint when Trade('buy')
   get maxLoad() { return  (this.maxFuel - this.z0 - Ship.step1) / Ship.maxZ;}
 
+  /** called in Tile constructor */
   override makeShape(): PaintableShape {
     return new ShipShape(this);
   }
@@ -141,9 +161,7 @@ export class Ship extends Meeple {
     super(Aname ?? `S${Ship.idCounter++}`, player)
     this.cargo = cargo;
     this.z0 = Ship.z0[size]; this.zconfig;
-    this.addChild(this.shipShape) // use MeepleShape with our CGF
-    const nameText = new CenterText(this.Aname, TP.hexRad / 3)
-    this.addChild(nameText) // included with Meeple
+    this.shipShape.setRadius(this.radius); // now that z0 is set
     this.addChild(this.infoText) // last child, top of display
     this.rightClickable() ; //(evt: MouseEvent) => this.showShipInfo(evt)
     this.infoText.mouseEnabled = true; // to get rightClick
@@ -190,36 +208,15 @@ export class Ship extends Meeple {
       return infoLine;
     })
   }
-  // pColor = this.player.color
+
   /**
    * show ship with current zcolor (from last transit config)
    * @param pColor AF.zcolor of inner ring ("player" color)
    */
   override paint(pColor = this.pColor as PlayerColor) {
-    if (!this.shipShape) return;       // Tile calls paint before initialization is complete
-    this.paint1(pColor)
+    if (!this.zconfig) return;       // Tile calls paint before initialization is complete
+    this.shipShape.paint(pColor);
     return;
-  }
-
-  /** repaint with new Zcolor around Player.color */
-  paint1(pColor = this.player?.color, zcolor: AfColor = this.zcolor) {
-    // stack three disks: r2(zcolor) r1(black) r0(pcolor)
-    // zcolor-ring(r2-r1), black-ring(r1-r0), pColor-circle(r0)
-    let r2 = this.radius + 8, r1 = this.radius, r0 = this.radius - 2
-    let g = this.shipShape.graphics.c() // clear
-    if (pColor) {
-      g.f(AF.zcolor[zcolor]).dc(0, 0, r2);
-      g.f(C.BLACK).dc(0, 0, r1)
-      g.f(pColor).dc(0, 0, r0)
-    }
-    this.shipShape.setBounds(-r2, -r2, 2 * r2, 2 * r2)
-  }
-
-  /** old style: paint a ring, leave center ship color visible: */
-  paint2(pColor = this.player?.color, zcolor: AfColor) {
-    this.paint1(pColor, zcolor)
-    this.shipShape.graphics.c().f(C.BLACK).dc(0, 0, this.radius/2) // put a hole in it!
-    this.updateCache("destination-out") // clear center of Ship!
   }
 
   /**
@@ -251,7 +248,7 @@ export class Ship extends Meeple {
   move(dir: EwDir, hex = this.hex.nextHex(dir)) {
     let nconfig = { ... this.zconfig }
     if (hex.occupied) return false;
-    let cost = this.configCost(this.hex, dir, hex, nconfig)
+    let cost = this.configCost(this.hex, dir, hex, nconfig); // updates nconfig after transit
     if (!cost || cost > this.fuel) return false;
     nconfig.fuel -= cost
     this.hex = hex;
@@ -320,6 +317,11 @@ export class Ship extends Meeple {
    */
   moveOnPath() {
     return this.pathFinder.moveOnPath()
+  }
+
+  /** Ship is adjacent to at move 1 Planet */
+  adjacentPlanet() {
+    return H.ewDirs.map(ds => this.hex.nextHex(ds).planet).filter(p => !!p)[0]
   }
 }
 

@@ -45,4 +45,5 @@ export class TP extends TPLib {
 
   static override bgColor: string = 'tan' //'wheat'// C.BROWN
   static borderColor: string = 'peru'//TP.bgColor; //'burlywood'
+  static override meepleY0 = 0;
 }
