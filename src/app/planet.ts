@@ -1,12 +1,13 @@
 import { C } from "@thegraid/common-lib";
+import { NamedContainer } from "@thegraid/easeljs-lib";
 import { MouseEvent, Shape, Text } from "@thegraid/easeljs-module";
-import { CGF, DragContext, EwDir, H, Hex1, MapTile, NamedContainer, rightClickable, TP as TPLib, UtilButtonOptions } from "@thegraid/hexlib";
+import { CGF, DragContext, EwDir, H, Hex1, MapTile, rightClickable, TP as TPLib, UtilButtonOptions } from "@thegraid/hexlib";
 import { HexMap, MktHex, MktHex2 } from "./hex";
 import { InfoText } from "./info-text";
 import { Random } from "./random";
 import { TP } from "./table-params";
 
-export type PlanetLocs = { [key in EwDir]?: MktHex2 };
+export type PlanetLocs = Partial<Record<EwDir, MktHex2>>;  // { [key in EwDir]?: MktHex2 };
 
 export const Items = ['F1', 'F2', 'F3', 'O1', 'O2', 'O3', 'L1', 'L2', 'X1', 'X2'] as const;
 export type Item = typeof Items[number];
@@ -32,10 +33,11 @@ interface IPlanetPC {
   rate: number;
 }
 
+type RefSpec = [max: n, min: n, lim: n, color: string];
 /** production/commodity; quantity changes at rate; quantity determines price. */
 export class PC {
   /** Market definition: [min$, max$, limQuant, color] for each resource. */
-  static readonly refspec: {[key in Item]: [max: n, min: n, lim: n, color: string]} = {
+  static readonly refspec: {[key in Item]: RefSpec} = {
     F1: [30, 10, 20, 'darkgreen'],
     F2: [30, 10, 20, 'yellow'],
     F3: [45, 15, 16, 'springgreen'],
@@ -48,15 +50,15 @@ export class PC {
     X2: [80, 40,  4, 'darkviolet'],     // exotic
   }
   /** canonical reference PCs, clone to add (rate, quant) from PCdef */
-  static readonly reference = Object.keys(PC.refspec)
+  static readonly reference = Object.keys(PC.refspec) //: { [key in Item]: PC }
     .map((key) => {
-      const [max, min, lim, color] = PC.refspec[key];
+      const [max, min, lim, color] = (PC.refspec as Record<string, RefSpec>)[key];
       return new PC(key as Item, max, min, lim, color)
     }) // all PC[]
     .reduce((pv, cv) => {
       pv[cv.item] = cv;
       return pv;
-    }, {} as { [key in Item]?: PC });
+    }, {} as { [key in Item]: PC });
 
   constructor(
     /** identify the Item */
@@ -189,9 +191,8 @@ export class Planet extends MapTile {
    * @returns initial PC[] for a Planet
    */
   pcary(pcdef: PCdef) {
-    const refs = PC.reference
     const items = Object.keys(pcdef) as Item[];
-    return items.map(key => refs[key].clone(pcdef[key]))
+    return items.map(key => PC.reference[key].clone(pcdef[key]))
   }
 
   override isLegalTarget(toHex: Hex1, ctx?: DragContext): boolean {
@@ -279,24 +280,23 @@ export class PlanetPlacer {
 
     // TODO: include planet0 produces Ships for each Player
 
-    const pMidR1 = [undefined, +1] as [number, number];
-    const cMidR1 = [undefined, -1] as [number, number];
+    const pMidR1 = [undefined, +1] as any as [number, number];
+    const cMidR1 = [undefined, -1] as any as [number, number];
     const nonExotic = Items.filter(item => !item.startsWith('X'));
-    const planet0Prod: PCdef = nonExotic.map(key => {
-      const v = {};
+    const planet0Prod = nonExotic.map(key => {
+      const v = {} as PCdef;
       v[key] = pMidR1;
-      return v as PCdef;
+      return v;
     }).reduce((pv, cv) => { return { ...pv, ...cv } }, {})
 
     const setMid = (pcdef: PCdef) => {
       const rv = { } as PCdef;
       Object.entries(pcdef).forEach(([key, [quant, rate]]) => {
         if (quant === undefined) {
-          const ref = PC.refspec[key] as [max: n, min: n, lim: n, color: string]
-          const [max, min, lim] = ref
+          const [, , lim,] = PC.refspec[key as Item] as RefSpec;
           quant = Math.floor(lim / 2)
         }
-        rv[key] = [quant, rate]
+        rv[key as Item] = [quant, rate]
       })
       return rv;
     }
@@ -312,11 +312,12 @@ export class PlanetPlacer {
     }
 
     this.planetByDir.clear();
-    Object.keys(initialPCs).forEach((key: PlanetDir) => {
-      const [pp0, pc0] = initialPCs[key] as [PCdef, PCdef]; // [quant, rate]
+    Object.keys(initialPCs).forEach(key => {
+      const pd = key as PlanetDir
+      const [pp0, pc0] = initialPCs[pd] as [PCdef, PCdef]; // [quant, rate]
       const pp = setMid(pp0), pc = setMid(pc0);
-      const planet = new Planet(key, pp, pc);
-      this.planetByDir.set(key, planet);
+      const planet = new Planet(pd, pp, pc);
+      this.planetByDir.set(pd, planet);
       planet.paint()
     })
   }
@@ -345,14 +346,14 @@ export class PlanetPlacer {
     const cHex = this.hexMap.centerHex, TPval = TP, TPlib=TPLib;
 
     // offset pHex from cHex by random distance, jitter by dop=1
-    const randomHex = (ds: EwDir, doff = Math.min(TP.nHexes - 1, coff + 1)) => {
-      const pHex = cHex.nextHex(ds, doff); // extends on line
+    const randomHex = (ds: EwDir, doff = Math.min(TP.nHexes - 1, coff + 1)): MktHex => {
+      const pHex = cHex.nextHex(ds, doff) as MktHex; // extends on line
       const odir = H.ewDirs[Math.floor(Random.random() * H.ewDirs.length)] // offset some dir
       // do not offset directly towards center
       // assert(nHexes > dbp+1+dop)
       // return offP && (odir != H.dirRev[ds]) ? pHex.nextHex(odir, opd) : pHex;
       const off = !offP || (odir == H.dirRev[ds]) ? 0 : opd;
-      return pHex.nextHex(odir, off) ?? randomHex(ds);
+      return pHex.nextHex(odir, off) ?? randomHex(ds); // eventually randomHex finds a Hex
     }
     this.placePlanet(H.C, cHex);
     H.ewDirs.forEach ((ds, ndx) => {
@@ -362,7 +363,7 @@ export class PlanetPlacer {
   }
 
   placePlanet(id: PlanetDir, hex: MktHex) {
-    const planet = this.planetByDir.get(id);
+    const planet = this.planetByDir.get(id) as Planet;
     hex.rmAfHex()
     hex.planet = planet;
     if (hex instanceof MktHex2) {

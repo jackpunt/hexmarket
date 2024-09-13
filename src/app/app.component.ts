@@ -1,6 +1,7 @@
 import { Component, HostListener, Inject } from '@angular/core';
 import { Title } from '@angular/platform-browser';
 import { KeyBinder } from '@thegraid/easeljs-lib';
+import type { Event } from '@thegraid/easeljs-module';
 
 @Component({
   selector: 'app-root',
@@ -22,7 +23,7 @@ export class AppComponent {
   @HostListener('mouseleave', ['$event'])
   @HostListener('focus', ['$event'])
   @HostListener('blur', ['$event'])
-  dispatchAnEvent(event) {
+  dispatchAnEvent(event: Event) {
     //console.log("dispatch: "+event.type);
     this.keyBinder.dispatchEvent(event);
   }

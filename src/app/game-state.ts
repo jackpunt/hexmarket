@@ -1,6 +1,6 @@
-import { C, CenterText, S } from "@thegraid/easeljs-lib";
+import { C, CenterText, NamedContainer, S } from "@thegraid/easeljs-lib";
 import { Container } from "@thegraid/easeljs-module";
-import { GameState as GameStateLib, NamedContainer, Phase, RectWithDisp, UtilButton } from "@thegraid/hexlib";
+import { GameState as GameStateLib, Phase, RectWithDisp, UtilButton } from "@thegraid/hexlib";
 import type { GamePlay } from "./game-play";
 import { Player } from "./player";
 import { ActionIdent } from "./scenario-parser";
@@ -137,20 +137,20 @@ export class GameState extends GameStateLib {
     return;
   }
 
-  selectedAction: ActionIdent; // set when click on action panel or whatever. read by ActionPhase;
+  selectedAction?: ActionIdent; // set when click on action panel or whatever. read by ActionPhase;
   readonly selectedActions: ActionIdent[] = [];
   get actionsDone() { return this.selectedActions.length};
 
   moveActions =['Move', 'Move-Attack', 'Clock', ]
   tradeActions = ['Trade', 'Attack', 'Clock', ]
-  selPanel: SelectorPanel;
+  selPanel?: SelectorPanel;
   /** invoked from layoutTable2() */
   makeActionSelectors(parent: Container, col = true) {
     const onClick = (button: UtilButton) => {
       button.on(S.click, () => {
         button.paint('deeppink')
-        this.selPanel.activate(false, button)   // deactivate(line(button))
-        const act = button.label_text.replace(/\n/g, '') as ActionIdent;
+        this.selPanel?.activate(false, button)   // deactivate(line(button))
+        const act = button.label_text?.replace(/\n/g, '') as ActionIdent;
         this.selectedAction = act;
         this.selectedActions.push(act)
         this.phase(act);
@@ -175,7 +175,7 @@ export class GameState extends GameStateLib {
         this.selectedActions.length = 0;
         this.saveGame();
         // enable and highlight buttons on ActionSelectors
-        this.selPanel.activate(true); // BeginTurn
+        this.selPanel?.activate(true); // BeginTurn
         this.table.doneButton.activate()
         this.phase('ChooseAction');
       },
@@ -198,13 +198,13 @@ export class GameState extends GameStateLib {
         const action = this.selectedAction; // set by dropFunc() --> state.done()
         if (!ok && !action) {
           this.panel.areYouSure('You have an unused action.', () => {
-            setTimeout(() => this.state.done(true), 50);
+            setTimeout(() => this.done(true), 50);
           }, () => {
             setTimeout(() => this.state.start(), 50);
           });
           return;
         }
-        this.selectedActions.unshift(action); // may unshift(undefined)
+        this.selectedActions.unshift(action as ActionIdent); // may unshift(undefined)
         this.phase(action ?? 'EndTurn');
       }
     },
@@ -231,7 +231,7 @@ export class GameState extends GameStateLib {
       // mouse-disable curPlayer ships, do 'm' for each ship to complete moves for this turn
       done: (shipMoved = false) => {
         // if (shipMoved && unmovedShip) this.phase.start(shipMoved)
-        this.phase(this.state.nextPhase);
+        this.phase(this.state.nextPhase as string);
       },
     },
     'Move-Attack': {

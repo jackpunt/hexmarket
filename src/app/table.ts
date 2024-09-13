@@ -1,6 +1,6 @@
-import { ParamGUI, ParamItem, ScaleableContainer, XY } from "@thegraid/easeljs-lib";
+import { NamedContainer, ParamGUI, ParamItem, ScaleableContainer, XY } from "@thegraid/easeljs-lib";
 import { Container, Stage } from "@thegraid/easeljs-module";
-import { IdHex, NamedContainer, Scenario, Table as TableLib, Tile, XYWH } from "@thegraid/hexlib";
+import { IdHex, Scenario, Table as TableLib, Tile, XYWH } from "@thegraid/hexlib";
 import { GamePlay } from "./game-play";
 import { TP } from "./table-params";
 
@@ -19,7 +19,7 @@ export class Table extends TableLib {
   constructor(stage: Stage) {
     super(stage);
   }
-  override gamePlay: GamePlay;
+  override gamePlay!: GamePlay;
   /** method invokes closure defined in enableHexInspector. */
   override toggleText(vis?: boolean) {
     const v = super.toggleText(vis)
@@ -152,7 +152,7 @@ export class Table extends TableLib {
     // console.log(stime('GamePlay', `.reCacheTiles: TP.cacheTiles=`), TP.cacheTiles, this.scaleCont.scaleX);
     Tile.allTiles.forEach(tile => {
       const rad = tile.radius
-      tile.setBounds(null as any as number, 0, 0, 0)
+      tile.setBoundsNull();
       if (tile.cacheID) {
         tile.uncache();
         const b = tile.getBounds() ?? { x: -rad, y: -rad, width: 2 * rad, height: 2 * rad };

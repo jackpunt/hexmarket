@@ -12,15 +12,16 @@ import { TP } from "./table-params";
 
 /** show " R" for " N" */
 stime.anno = (obj: string | { constructor: { name: string; }; }) => {
-  let stage = obj?.['stage'] || obj?.['table']?.['stage']
+  const objs = (obj as Record<'stage' | 'table', any>)
+  const stage = objs?.['stage'] ?? objs?.['table']?.['stage']
   return !!stage ? (!!stage.canvas ? " C" : " R") : " -" as string
 }
 
 /** initialize & reset & startup the application. */
 export class GameSetup extends GameSetupLib {
-  paramGUIs: ParamGUI[]
-  netGUI: ParamGUI // paramGUIs[2]
-  override gamePlay: GamePlay;
+  paramGUIs!: ParamGUI[]
+  netGUI!: ParamGUI // paramGUIs[2]
+  declare gamePlay: GamePlay;
 
   override initialize(canvasId: string, qParams: Params = this.qParams): void {
     window.addEventListener('contextmenu', (evt: MouseEvent) => evt.preventDefault())

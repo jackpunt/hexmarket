@@ -19,8 +19,8 @@ export interface SetupElt extends SetupEltLib {
 }
 
 export class ScenarioParser extends SPLib {
-  override map: HexMap; // HexMapLib<MktHex>
-  override gamePlay: GamePlay;
+  override map!: HexMap; // HexMapLib<MktHex>
+  override gamePlay!: GamePlay;
   /**
    * 3 cases of SetupElt[0]
    * a. (turn == undefined) initialize a new game, write out planetSpec/afSpec.

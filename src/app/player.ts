@@ -1,6 +1,6 @@
 import { C, stime } from "@thegraid/common-lib"
 import { Container } from "@thegraid/easeljs-module"
-import { GamePlay as GamePlayLib, Hex1 as Hex1Lib, HexMap as HexMapLib, newPlanner, Player as PlayerLib } from "@thegraid/hexlib"
+import { GamePlay as GamePlayLib, Hex1 as Hex1Lib, HexMap as HexMapLib, newPlanner, Player as PlayerLib, type MapCont } from "@thegraid/hexlib"
 import { GamePlay } from "./game-play"
 import { Random } from "./random"
 import { Ship, ShipSpec } from "./ship"
@@ -20,14 +20,16 @@ export class Player extends PlayerLib {
     super.color = c;
   }
 
-  name: string
   get afColor() { return Player.colorScheme[this.index]; } // === player.color as PlayerColor
   readonly ships: Ship[] = []
-  override gamePlay: GamePlay;
+  override gamePlay!: GamePlay;
 
   constructor(index: number, gamePlay: GamePlay) {
     super(index, gamePlay);
-    this.pathCont = gamePlay.hexMap.mapCont[this.pathCname];
+    const cName = this.pathCname, mapCont = gamePlay.hexMap.mapCont;
+    if (mapCont.isContName(cName)) {
+      this.pathCont = gamePlay.hexMap.mapCont.getCont(cName);
+    }
   }
 
   static override allPlayers: Player[];
@@ -61,7 +63,7 @@ export class Player extends PlayerLib {
     console.log(stime(this, `.chooseShipHex: `), hex);
     return hex;
   }
-  pathCont: Container;  // set from mapCont[this.pathCont]
+  pathCont!: Container;  // set from mapCont[this.pathCont]
 
   /**
    * Before start each new game.

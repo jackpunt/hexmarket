@@ -1,5 +1,5 @@
 import { KeyBinder, stime } from "@thegraid/easeljs-lib";
-import { GamePlay as GamePlayLib, GameSetup } from "@thegraid/hexlib";
+import { GamePlay as GamePlayLib, GameSetup, Player as PlayerLib } from "@thegraid/hexlib";
 import { Player } from "./player";
 //import { GameStats, TableStats } from "./stats";
 import { GameState } from "./game-state";
@@ -26,17 +26,18 @@ class Move{}
  *
  */
 export class GamePlay extends GamePlayLib {
-  override gameSetup: GameSetup;
-  override gameState: GameState = new GameState(this);
-  override readonly hexMap: HexMap;
-  override table: Table;
-  override curPlayer: Player;
+  declare gameSetup: GameSetup;
+  declare readonly hexMap: HexMap;
+  declare table: Table;
+  declare curPlayer: Player;
+
+  override readonly gameState: GameState = new GameState(this);
   override get allPlayers() { return Player.allPlayers; };
   planetPlacer = new PlanetPlacer(this.hexMap);
 
   // Args to f are local Player, not PlayerLib
   override forEachPlayer(f: (p: Player, index: number, players: Player[]) => void): void {
-    return super.forEachPlayer(f);
+    return super.forEachPlayer(f as (p: PlayerLib, index: number, player: PlayerLib[]) => void)
   }
 
   forEachPlanet(f: (p: Planet, key: PlanetDir, ps: Map<PlanetDir, Planet>) => void): void {
@@ -164,7 +165,7 @@ export class Board {
   }
   toString() { return `${this.id}#${this.repCount}` }
 
-  setRepCount(history: {board}[]) {
+  setRepCount(history: { board: Board }[]) {   // TODO: { board: type }
     return this.repCount = history.filter(hmove => hmove.board === this).length
   }
   get signature() { return `[${TP.mHexes}x${TP.nHexes}]${this.id}` }

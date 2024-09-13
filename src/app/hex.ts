@@ -31,7 +31,7 @@ export class MktHex extends Hex1Lib {
   get ship() { return this.meep; }
   set ship(ship: Ship) { this.meep = ship; }
 
-  afhex: AfHex;
+  afhex?: AfHex;
 
   addAfHex(affn = Math.floor(Random.random() * AfHex.allAfHex.length)) {
     if (this.district !== undefined) return
@@ -98,12 +98,12 @@ export class MktHex2 extends MktHex2Lib {
 
   override addAfHex(affn = Math.floor(Random.random() * AfHex.allAfHex.length)) {
     super.addAfHex(affn)
-    this.cont.addChild(this.afhex)
+    this.cont.addChild(this.afhex as AfHex); // addChild(undefined) is acceptable
     this.cont.updateCache()
   }
   /** remove AfHex from planet Hex */
   override rmAfHex() {
-    this.cont.removeChild(this.afhex)
+    this.cont.removeChild(this.afhex as AfHex)
     super.rmAfHex()
     this.cont.updateCache()
   }

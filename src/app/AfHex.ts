@@ -61,7 +61,7 @@ class AfMark extends Shape {
     this.drawAfMark(shape, color, fill)
     this.mouseEnabled = false
     this.rotation = H.dirRot[ds]
-    this[S.Aname] = `AfMark:${shape},${color},${fill}`  // for debug, not production
+    ;(this as any)[S.Aname] = `AfMark:${shape},${color},${fill}`  // for debug, not production
   }
 }
 

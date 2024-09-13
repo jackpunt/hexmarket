@@ -1,10 +1,12 @@
 import { C } from "@thegraid/common-lib"
 import { BoolChoice, ChoiceItem, ChoiceStyle, Chooser, DropdownButton, DropdownChoice, DropdownItem, DropdownStyle, EditBox, KeyBinder, ParamItem, ParamLine, TextStyle } from "@thegraid/easeljs-lib"
+import { Player } from "@thegraid/hexlib"
+import type { PlayerColor } from "./player"
 import { Ship } from "./ship"
 
 /** no choice: a DropdownChoice with 1 mutable item that can be set by setValue(...) */
 export class NC extends DropdownChoice {
-  static style(defStyle: DropdownStyle) {
+  static style(defStyle: DropdownStyle = {}) {
     let baseStyle = DropdownButton.mergeStyle(defStyle)
     let pidStyle = { arrowColor: 'transparent', textAlign: 'right' }
     return DropdownButton.mergeStyle(pidStyle, baseStyle)
@@ -50,9 +52,9 @@ export class EBC extends Chooser {
 
 /** like StatsPanel: read-only output field */
 export class PidChoice extends NC {
-  readonly playerShip: Ship = new Ship(`S?`)
+  readonly playerShip: Ship = new Ship(`S?`) // belonging to no Player
   paintPid(pid: number) {
-    let ship = this.playerShip, color = ship.player?.afColor
+    const ship = this.playerShip, color = Player.colorScheme[pid] as PlayerColor;
     ship.paint(color)
     ship.visible = true
     if (!ship.parent) {
