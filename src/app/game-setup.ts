@@ -1,5 +1,6 @@
 import { Params } from "@angular/router";
-import { ParamGUI, stime } from "@thegraid/easeljs-lib";
+import { stime } from "@thegraid/common-lib";
+import { ParamGUI } from "@thegraid/easeljs-lib";
 import { GameSetup as GameSetupLib, MapCont, Scenario } from "@thegraid/hexlib";
 import { AfHex } from "./AfHex";
 import { GamePlay } from "./game-play";

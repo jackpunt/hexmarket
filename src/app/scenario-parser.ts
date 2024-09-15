@@ -1,4 +1,4 @@
-import { RC, stime } from "@thegraid/common-lib";
+import { type RC, stime } from "@thegraid/common-lib";
 import { SetupElt as SetupEltLib, ScenarioParser as SPLib } from "@thegraid/hexlib";
 import { AfColor, AfFill, ATS } from "./AfHex";
 import { GamePlay } from "./game-play";

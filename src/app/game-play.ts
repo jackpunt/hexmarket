@@ -1,4 +1,4 @@
-import { KeyBinder, stime } from "@thegraid/easeljs-lib";
+import { KeyBinder } from "@thegraid/easeljs-lib";
 import { GamePlay as GamePlayLib, GameSetup, Player as PlayerLib } from "@thegraid/hexlib";
 import { Player } from "./player";
 //import { GameStats, TableStats } from "./stats";
@@ -8,6 +8,7 @@ import { Planet, PlanetDir, PlanetPlacer } from "./planet";
 import { Ship, ShipSpec } from "./ship";
 import { Table } from "./table";
 import { PlayerColor, TP } from "./table-params";
+import { stime } from "@thegraid/common-lib";
 
 class HexEvent {}
 class Move{}
@@ -99,12 +100,12 @@ export class GamePlay extends GamePlayLib {
       let p = this.curPlayer, op = this.nextPlayer(p)
       this.pauseGame(op); this.resumeGame(p);
     }
-    KeyBinder.keyBinder.setKey('p', { thisArg: this, func: roboPause })
-    KeyBinder.keyBinder.setKey('r', { thisArg: this, func: roboResume })
-    KeyBinder.keyBinder.setKey('s', { thisArg: this, func: roboStep })
-    KeyBinder.keyBinder.setKey('R', { thisArg: this, func: () => this.runRedo = true })
-    KeyBinder.keyBinder.setKey('q', { thisArg: this, func: () => this.runRedo = false })
-    KeyBinder.keyBinder.setKey(/1-9/, { thisArg: this, func: (e: string) => { TP.maxBreadth = Number.parseInt(e) } })
+    KeyBinder.keyBinder.setKey('p', () => roboPause())
+    KeyBinder.keyBinder.setKey('r', () => roboResume())
+    KeyBinder.keyBinder.setKey('s', () => roboStep())
+    KeyBinder.keyBinder.setKey('R', () => this.runRedo = true)
+    KeyBinder.keyBinder.setKey('q', () => this.runRedo = false)
+    KeyBinder.keyBinder.setKey(/1-9/, (e: string) => { TP.maxBreadth = Number.parseInt(e) })
 
     KeyBinder.keyBinder.setKey('M-z', { thisArg: this, func: this.undoMove })
     KeyBinder.keyBinder.setKey('b', { thisArg: this, func: this.undoMove })
@@ -112,30 +113,30 @@ export class GamePlay extends GamePlayLib {
     // KeyBinder.keyBinder.setKey('S', { thisArg: this, func: this.skipMove })
     // KeyBinder.keyBinder.setKey('M-K', { thisArg: this, func: this.resignMove })// S-M-k
     KeyBinder.keyBinder.setKey('Escape', {thisArg: table, func: table.stopDragging}) // Escape
-    KeyBinder.keyBinder.setKey('C-s', { thisArg: this.gameSetup, func: () => { this.gameSetup.restart({}) } })// C-s START
-    KeyBinder.keyBinder.setKey('C-c', { thisArg: this, func: this.stopPlayer })// C-c Stop Planner
-    KeyBinder.keyBinder.setKey('C', () => this.table.reCacheTiles())// reCacheTiles
+    KeyBinder.keyBinder.setKey('C-s', () => this.gameSetup.restart({}))// C-s START
+    KeyBinder.keyBinder.setKey('C-c', () => this.stopPlayer())         // C-c Stop Planner
+    KeyBinder.keyBinder.setKey('C', () => this.table.reCacheTiles())   // reCacheTiles
     // auto move:
     KeyBinder.keyBinder.setKey('m', () => this.makeMove(true))
-    KeyBinder.keyBinder.setKey('M', { thisArg: this, func: this.makeMoveAgain, argVal: true })
-    KeyBinder.keyBinder.setKey('n', { thisArg: this, func: this.autoMove, argVal: false })
-    KeyBinder.keyBinder.setKey('N', { thisArg: this, func: this.autoMove, argVal: true})
-    KeyBinder.keyBinder.setKey('c', { thisArg: this, func: this.autoPlay, argVal: 0})
-    KeyBinder.keyBinder.setKey('v', { thisArg: this, func: this.autoPlay, argVal: 1})
+    KeyBinder.keyBinder.setKey('M', () => this.makeMoveAgain(true))
+    KeyBinder.keyBinder.setKey('n', () => this.autoMove(false))
+    KeyBinder.keyBinder.setKey('N', () => this.autoMove(true))
+    KeyBinder.keyBinder.setKey('c', () => this.autoPlay(0))
+    KeyBinder.keyBinder.setKey('v', () => this.autoPlay(1))
 
     // click the confirm/cancel buttons:
-    KeyBinder.keyBinder.setKey('c', { thisArg: this, func: this.clickConfirm, argVal: false })
-    KeyBinder.keyBinder.setKey('y', { thisArg: this, func: this.clickConfirm, argVal: true })
-    KeyBinder.keyBinder.setKey('d', { thisArg: this, func: this.clickDone, argVal: true })
+    KeyBinder.keyBinder.setKey('c', () => this.clickConfirm(false));
+    KeyBinder.keyBinder.setKey('y', () => this.clickConfirm(true));
+    KeyBinder.keyBinder.setKey('d', () => this.clickDone());
 
     // diagnostics:
-    KeyBinder.keyBinder.setKey('I', { thisArg: this, func: () => {this.table.enableHexInspector(); }})
-    KeyBinder.keyBinder.setKey('t', { thisArg: this, func: () => {this.table.toggleText(undefined); }})
+    KeyBinder.keyBinder.setKey('I', () => this.table.enableHexInspector())
+    KeyBinder.keyBinder.setKey('t', () => this.table.toggleText())
 
-    KeyBinder.keyBinder.setKey('M-r', { thisArg: this, func: () => { this.gameSetup.netState = "ref" } })
-    KeyBinder.keyBinder.setKey('M-J', { thisArg: this, func: () => { this.gameSetup.netState = "new" } })
-    KeyBinder.keyBinder.setKey('M-j', { thisArg: this, func: () => { this.gameSetup.netState = "join" } })
-    KeyBinder.keyBinder.setKey('M-d', { thisArg: this, func: () => { this.gameSetup.netState = "no" } })
+    KeyBinder.keyBinder.setKey('M-r', () => { this.gameSetup.netState = "ref" })
+    KeyBinder.keyBinder.setKey('M-J', () => { this.gameSetup.netState = "new" })
+    KeyBinder.keyBinder.setKey('M-j', () => { this.gameSetup.netState = "join" })
+    KeyBinder.keyBinder.setKey('M-d', () => { this.gameSetup.netState = "no" })
     // table.undoShape.on(S.click, () => this.undoMove(), this)
     // table.redoShape.on(S.click, () => this.redoMove(), this)
     // table.skipShape.on(S.click, () => this.skipMove(), this)

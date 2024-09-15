@@ -1,5 +1,7 @@
-import { NamedContainer, ParamGUI, ParamItem, ScaleableContainer, XY } from "@thegraid/easeljs-lib";
-import { Container, Stage } from "@thegraid/easeljs-module";
+import type { XY } from "@thegraid/common-lib";
+import type { ParamItem, ScaleableContainer } from "@thegraid/easeljs-lib";
+import { NamedContainer, ParamGUI } from "@thegraid/easeljs-lib";
+import type { Container, Stage } from "@thegraid/easeljs-module";
 import { IdHex, Scenario, Table as TableLib, Tile, XYWH } from "@thegraid/hexlib";
 import { GamePlay } from "./game-play";
 import { TP } from "./table-params";

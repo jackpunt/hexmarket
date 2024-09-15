@@ -1,6 +1,6 @@
 import { Component, Input, OnInit } from '@angular/core';
 import { ActivatedRoute, Params } from '@angular/router';
-import { stime } from '@thegraid/easeljs-lib';
+import { stime } from '@thegraid/common-lib';
 //import { } from 'wicg-file-system-access';
 import { Title } from '@angular/platform-browser';
 import { AppComponent } from '../app.component';
@@ -51,16 +51,18 @@ export class StageComponent implements OnInit {
     const gs = new GameSetup(this.mapCanvasId, this.qParams);    // load images; new GamePlay(qParams);
     this.titleService.setTitle(`${this.app.title} ${gs.pageLabel}`)
   }
+
   // see: stream-writer.setButton
-  // static enableOpenFilePicker(method: 'showOpenFilePicker' | 'showSaveFilePicker' | 'showDirectoryPicker',
-  //   options: OpenFilePickerOptions & { multiple?: boolean } & SaveFilePickerOptions & DirectoryPickerOptions,
-  //   cb: (fileHandleAry: any) => void) {
-  //   const picker = window[method]       // showSaveFilePicker showDirectoryPicker
-  //   const fsOpenButton = document.getElementById("fsOpenFileButton")
-  //   fsOpenButton.onclick = async () => {
-  //     picker(options).then((value: any) => cb(value), (rej: any) => {
-  //       console.warn(`showOpenFilePicker failed: `, rej)
-  //     });
-  //   }
-  // }
+  /** Set the HTML (fsOpenFileButton) button to do a wicg-file-system-access action */
+  static enableOpenFilePicker(method: 'showOpenFilePicker' | 'showSaveFilePicker' | 'showDirectoryPicker',
+    options: OpenFilePickerOptions & { multiple?: boolean } & SaveFilePickerOptions & DirectoryPickerOptions,
+    cb: (fileHandleAry: any) => void) {
+    const picker = window[method]       // showSaveFilePicker showDirectoryPicker
+    const fsOpenButton = document.getElementById("fsOpenFileButton")
+    if (fsOpenButton) fsOpenButton.onclick = async () => {
+      picker(options).then((value: any) => cb(value), (rej: any) => {
+        console.warn(`showOpenFilePicker failed: `, rej)
+      });
+    }
+  }
 }

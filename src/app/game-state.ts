@@ -1,4 +1,5 @@
-import { C, CenterText, NamedContainer, S } from "@thegraid/easeljs-lib";
+import { C, S } from "@thegraid/common-lib";
+import { CenterText, NamedContainer } from "@thegraid/easeljs-lib";
 import { Container } from "@thegraid/easeljs-module";
 import { GameState as GameStateLib, Phase, RectWithDisp, UtilButton } from "@thegraid/hexlib";
 import type { GamePlay } from "./game-play";
@@ -256,7 +257,7 @@ export class GameState extends GameStateLib {
         const ships = ships0
           .filter(s => s.adjacentPlanet())
         ships.map(s => s.faceUp(true))
-
+        ships.map(s => s.showTradePanel())
         // this.gamePlay.advanceClock(-1); // for demo/text
         // this.done();
         this.doneButton('Trade Done')

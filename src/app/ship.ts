@@ -1,12 +1,13 @@
-import { C, F, RC, stime } from "@thegraid/common-lib";
-import { CenterText, Chooser, DropdownChoice } from "@thegraid/easeljs-lib";
-import { Container, Graphics, MouseEvent, Shape } from "@thegraid/easeljs-module";
-import { DragContext, EwDir, H, Hex1, HexDir, IHex2, Meeple, MeepleShape, PaintableShape, RectWithDisp, type CGF } from "@thegraid/hexlib";
-import { AF, AfColor, AfFill, ATS, ZColor, type AfHex } from "./AfHex";
+import { C, F, RC, S, stime } from "@thegraid/common-lib";
+import { CenterText, EditBox, NamedContainer, stopPropagation, textWidth, type TextStyle } from "@thegraid/easeljs-lib";
+import { Container, Graphics, MouseEvent, Shape, Text } from "@thegraid/easeljs-module";
+import { DragContext, EwDir, H, Hex1, HexDir, IHex2, Meeple, MeepleShape, PaintableShape, RectWithDisp, UtilButton, type CGF, type UtilButtonOptions } from "@thegraid/hexlib";
+import { AF, AfColor, AfFill, ATS, type AfHex } from "./AfHex";
 import { MktHex2 as Hex2, MktHex, MktHex2 } from "./hex";
 import { InfoText } from "./info-text";
-import { Item } from "./planet";
+import { Item, type PC, type Planet } from "./planet";
 import { Player, PlayerColor } from "./player";
+import { asTableCell, TableCont, TableRow, type RowBuilder } from "./table-cell";
 import { TP } from "./table-params";
 
 export type Cargo = { [key in Item]?: number };
@@ -208,6 +209,21 @@ export class Ship extends Meeple {
       })
       return infoLine;
     })
+  }
+
+  tradePanel?: TradePanel;
+  showTradePanel(): any {
+    if (!this.tradePanel) {
+      this.tradePanel = new TradePanel(this)
+      this.tradePanel.on(S.pressup, stopPropagation)
+      this.tradePanel.on(S.pressmove, stopPropagation)
+    }
+    const planet = this.adjacentPlanet()
+    if (!planet) {
+      this.faceUp(false);
+      return;
+    }
+    this.tradePanel.showPanel(planet)
   }
 
   /**
@@ -675,9 +691,112 @@ class Step<T extends MktHex> {
   }
 }
 
-class TradePanel extends Container {
-  constructor(ship: Ship) {
-    super()
-    // const disp = new DropdownChoice()
+class TradePanel extends RectWithDisp {
+  declare disp: NamedContainer;
+  constructor(public ship: Ship, x = 0, y = 0) {
+    // super(`trade-${ship.Aname}`, x, y)
+    super(new NamedContainer(`tradeDisp`), 'lightblue', 5)
+  }
+  sellTable!: TableCont;
+  buyTable!: TableCont;
+
+  // item for each Cargo (to Sell)
+  // item for each planet.prod
+  showPanel(planet: Planet) {
+    if (planet) {
+      this.disp.removeAllChildren();
+      this.disp.addChild(this.sellTable = this.makeSellTable(planet));
+      this.disp.addChild(this.buyTable = this.makeBuyTable(planet));
+      {
+        const { x, y, width, height } = this.disp.getBounds()
+        this.disp.setBounds(x, y, width, height)
+      }
+      // TODO: add any buttons to this
+      this.setBounds(undefined, 0, 0, 0)
+      this.paint(undefined, true)
+      this.ship.addChild(this);
+    } else {
+      this.ship.removeChild(this)
+    }
+  }
+  makeButton(text: string, fs: number, color: string) {
+    const opts: UtilButtonOptions = { border: 0, fontSize: fs, visible: true, active: true };
+    const label = new Text(text, F.fontSpec(fs))
+    const button = new UtilButton(label, color, opts);
+    // button.rectShape.setRectRad({ x: -fs / 2, y: -fs / 2, w: fs, h: fs })
+    // button.setBounds(undefined, 0, 0, 0)
+    // button.paint(undefined, true)
+    return button
+  }
+
+  makeTradeRow(item: Item, maxQuant: number, planet: Planet, sell = true) {
+    const color = sell ? 'green' : 'darkviolet';
+    const cells = new TableRow();
+    const fs = TP.hexRad / 3, fspec = F.fontSpec(fs);
+    const nText = new Text(item, fspec, color); nText.textAlign = 'center';
+    const name = asTableCell(nText)
+    const sp = asTableCell(new Text(' ', fspec, color))
+    const minus = asTableCell(this.makeButton(' - ', fs, color));
+    const dText = `${maxQuant}`.padStart(3, ' ');
+    const qText = new EditBox2(dText, { fontSize: fs, textColor: color });
+    qText.border = .1; qText.dy = 0;
+    qText.setBounds(undefined, 0, 0, 0); //calcBounds with border {-1, -1, 22, 22}
+    qText.paint(undefined, true);
+    const quant = asTableCell(qText)
+    const plus = asTableCell(this.makeButton(' + ', fs, color));
+    const pricef = () => planet.price(item, Number.parseInt(qText.innerText))
+    const pText = new Text(` $${pricef()}`, fspec, color); pText.textAlign = 'right'
+    const price = asTableCell(pText); // , (n: number)=>{}
+    cells.push(name, sp, minus, quant, plus, price)
+    return cells
+  }
+  // Each Choice: 'name: - [______] + $price' (name, -button, EditBox, +buttons, $number)
+  /** cargo this Ship is selling, with price planet will pay. */
+  makeSellTable(planet: Planet, x = 0, y = 0) {
+    const rowBuilder: RowBuilder = (cargoEntry: [Item, number]) => {
+      const [item, quant] = cargoEntry;
+      return this.makeTradeRow(item, quant, planet, true);
+    }
+    const tc = new TableCont(rowBuilder, x, y)
+    tc.tableize(Object.entries(this.ship.cargo)); // tc.addChild(...tableRows)
+    return tc;
+  }
+  // Each Choice: 'name: - [______] + $price' (name, -button, EditBox, +buttons, $number)
+  makeBuyTable(planet: Planet, dx = 0, dy = 2) {
+    const rowBuilder: RowBuilder = (prod: PC) => {
+      return this.makeTradeRow(prod.item, Math.min(1, prod.quant), planet, false);
+    }
+    const tc = new TableCont(rowBuilder, this.sellTable.x + dx, this.sellTable.height + dy)
+    tc.tableize(Object.values(planet.prodPCs))
+    return tc;
+
+  }
+}
+class EditBox2 extends EditBox {
+  constructor(text?: string, style?: TextStyle) {
+    super(text, style)
+    this.removeAllEventListeners(); // the other S.click listener
+    this.on(S.click, (ev) => {
+      this.setFocus(true);
+      stopPropagation(ev as MouseEvent);
+    });
+    // this.on(S.pressmove, stopPropagation);
+    // this.on(S.pressup, stopPropagation);
+  }
+  override repaint(text = this.buf.join('')) {
+    // first: assume no line-wrap
+    this.disp.text = text    // TODO: show cursor moved...
+    let lines = text.split('\n'), bol = 0, pt = this.point
+    // scan to find line containing cursor (pt)
+    lines.forEach((line, n) => {
+      // if cursor on this line, show it in the correct place: assume textAlign='left'
+      if (pt >= bol && pt <= bol + line.length) {
+        let pre = line.slice(0, pt-bol)
+        this.cmark.x = textWidth(pre, this.fontSize, this.fontName) + this.disp.x;
+        this.cmark.y = n * this.fontSize // or measuredLineHeight()?
+      }
+      bol += (line.length + 1)
+    })
+    this.stage?.update()
   }
 }
