@@ -7,7 +7,7 @@ import { MktHex2 as Hex2, MktHex, MktHex2 } from "./hex";
 import { InfoText } from "./info-text";
 import { Item, type PC, type Planet } from "./planet";
 import { Player, PlayerColor } from "./player";
-import { asTableCell, TableCont, TableRow, type RowBuilder } from "./table-cell";
+import { asTableCell, TableCont, TableRow, type RowBuilder, type TableCell } from "./table-cell";
 import { TP } from "./table-params";
 
 export type Cargo = { [key in Item]?: number };
@@ -722,10 +722,11 @@ class TradePanel extends RectWithDisp {
   makeButton(text: string, fs: number, color: string) {
     const opts: UtilButtonOptions = { border: 0, fontSize: fs, visible: true, active: true };
     const label = new Text(text, F.fontSpec(fs))
-    const button = new UtilButton(label, color, opts);
-    // button.rectShape.setRectRad({ x: -fs / 2, y: -fs / 2, w: fs, h: fs })
-    // button.setBounds(undefined, 0, 0, 0)
-    // button.paint(undefined, true)
+    const button = new UtilButton(label, color, opts) as UtilButton & TableCell;
+    button.setWidth = (w: number) => {
+      const { x, y, width, height } = button.getBounds()
+      button.setBounds(x, y, w, height);
+    }
     return button
   }
 
@@ -734,20 +735,19 @@ class TradePanel extends RectWithDisp {
     const cells = new TableRow();
     const fs = TP.hexRad / 3, fspec = F.fontSpec(fs);
     const nText = new Text(item, fspec, color); nText.textAlign = 'center';
-    const name = asTableCell(nText)
+    const name = asTableCell(nText);
     const sp = asTableCell(new Text(' ', fspec, color))
     const minus = asTableCell(this.makeButton(' - ', fs, color));
-    const dText = `${maxQuant}`.padStart(3, ' ');
-    const qText = new EditBox2(dText, { fontSize: fs, textColor: color });
+    const bgColor = 'rgba(250,250,250,.9)'
+    const qText = new EditCell(`${maxQuant}`.padStart(3, ' '), { fontSize: fs, textColor: color, bgColor });
     qText.border = .1; qText.dy = 0;
     qText.setBounds(undefined, 0, 0, 0); //calcBounds with border {-1, -1, 22, 22}
     qText.paint(undefined, true);
-    const quant = asTableCell(qText)
     const plus = asTableCell(this.makeButton(' + ', fs, color));
     const pricef = () => planet.price(item, Number.parseInt(qText.innerText))
     const pText = new Text(` $${pricef()}`, fspec, color); pText.textAlign = 'right'
     const price = asTableCell(pText); // , (n: number)=>{}
-    cells.push(name, sp, minus, quant, plus, price)
+    cells.push(name, sp, minus, qText, plus, price)
     return cells
   }
   // Each Choice: 'name: - [______] + $price' (name, -button, EditBox, +buttons, $number)
@@ -772,7 +772,8 @@ class TradePanel extends RectWithDisp {
 
   }
 }
-class EditBox2 extends EditBox {
+
+class EditCell extends EditBox implements TableCell {
   constructor(text?: string, style?: TextStyle) {
     super(text, style)
     this.removeAllEventListeners(); // the other S.click listener
@@ -780,23 +781,15 @@ class EditBox2 extends EditBox {
       this.setFocus(true);
       stopPropagation(ev as MouseEvent);
     });
-    // this.on(S.pressmove, stopPropagation);
-    // this.on(S.pressup, stopPropagation);
   }
-  override repaint(text = this.buf.join('')) {
-    // first: assume no line-wrap
-    this.disp.text = text    // TODO: show cursor moved...
-    let lines = text.split('\n'), bol = 0, pt = this.point
-    // scan to find line containing cursor (pt)
-    lines.forEach((line, n) => {
-      // if cursor on this line, show it in the correct place: assume textAlign='left'
-      if (pt >= bol && pt <= bol + line.length) {
-        let pre = line.slice(0, pt-bol)
-        this.cmark.x = textWidth(pre, this.fontSize, this.fontName) + this.disp.x;
-        this.cmark.y = n * this.fontSize // or measuredLineHeight()?
-      }
-      bol += (line.length + 1)
-    })
-    this.stage?.update()
+
+  /** when placed as a TableCell: */
+  setWidth(w: number) {
+    const { x, y, width, height: h } = this.getBounds()
+    this.x -= x;
+    this.rectShape.setRectRad({ x, y, w, h })
+    this.setBounds(undefined, 0, 0, 0)
   }
+
+  // TODO: define keys for numbers, limit length of text
 }

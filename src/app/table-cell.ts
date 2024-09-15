@@ -12,7 +12,9 @@ export function asTableCell(dObj: DisplayObject, setWidth?: (n: number) => void)
     dObj.setBounds(x, y, w, height);
   }
   const text = (w: number) => { // text.align = 'left'
+    const txt = dObj as Text, align = txt.textAlign;
     const { x, y, width, height } = dObj.getBounds()
+    dObj.x = dObj.x + (align === 'center' ? w / 2 : align === 'left' ? 0 : -x)
     dObj.setBounds(x, y, w, height);
   }
   const shape = (w: number) => { // text.align = 'left'
@@ -24,7 +26,7 @@ export function asTableCell(dObj: DisplayObject, setWidth?: (n: number) => void)
     dObj.setBounds(x, y, w, height);
   }
   const tc = (dObj as any as TableCell)
-  tc.setWidth = (setWidth ?? disp);
+  tc.setWidth = (setWidth ?? (dObj instanceof Text) ? text : disp);
   return tc;
 }
 
@@ -75,7 +77,7 @@ export class TableCont extends NamedContainer {
       let w = 0;
       tableRow.forEach((tc, col) => {
         const { x, y, width, height } = tc.getBounds()
-        tc.x = w - x;
+        tc.x = w;
         const colWidth = this.colWidths[col]
         if (tc instanceof Text && tc.textAlign == 'right' ) {
           tc.x += colWidth
