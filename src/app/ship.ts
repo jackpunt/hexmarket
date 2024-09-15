@@ -1,5 +1,5 @@
 import { C, F, RC, S, stime } from "@thegraid/common-lib";
-import { CenterText, EditBox, NamedContainer, stopPropagation, textWidth, type TextStyle } from "@thegraid/easeljs-lib";
+import { CenterText, EditBox, NamedContainer, stopPropagation, type TextStyle } from "@thegraid/easeljs-lib";
 import { Container, Graphics, MouseEvent, Shape, Text } from "@thegraid/easeljs-module";
 import { DragContext, EwDir, H, Hex1, HexDir, IHex2, Meeple, MeepleShape, PaintableShape, RectWithDisp, UtilButton, type CGF, type UtilButtonOptions } from "@thegraid/hexlib";
 import { AF, AfColor, AfFill, ATS, type AfHex } from "./AfHex";
@@ -719,15 +719,18 @@ class TradePanel extends RectWithDisp {
       this.ship.removeChild(this)
     }
   }
+  // To coerce ALL UtilButton to include TableCell:
+  // UtilButton.prototype.asTableCellAnd<UtilButton>(setWidth)
+  /** make a UtilButton.asTableCellAnd<UtilButton>() */
   makeButton(text: string, fs: number, color: string) {
     const opts: UtilButtonOptions = { border: 0, fontSize: fs, visible: true, active: true };
     const label = new Text(text, F.fontSpec(fs))
-    const button = new UtilButton(label, color, opts) as UtilButton & TableCell;
-    button.setWidth = (w: number) => {
+    const button = new UtilButton(label, color, opts)// as UtilButton & TableCell;
+    const setWidth = (w: number) => {
       const { x, y, width, height } = button.getBounds()
-      button.setBounds(x, y, w, height);
+      button.setBounds(x, y, w, height); // 'center' formula
     }
-    return button
+    return button.asTableCellAnd<UtilButton>(setWidth)
   }
 
   makeTradeRow(item: Item, maxQuant: number, planet: Planet, sell = true) {
@@ -735,18 +738,18 @@ class TradePanel extends RectWithDisp {
     const cells = new TableRow();
     const fs = TP.hexRad / 3, fspec = F.fontSpec(fs);
     const nText = new Text(item, fspec, color); nText.textAlign = 'center';
-    const name = asTableCell(nText);
-    const sp = asTableCell(new Text(' ', fspec, color))
-    const minus = asTableCell(this.makeButton(' - ', fs, color));
+    const name = nText.asTableCell();
+    const sp = new Text(' ', fspec, color).asTableCell()
+    const minus = this.makeButton(' - ', fs, color);
     const bgColor = 'rgba(250,250,250,.9)'
     const qText = new EditCell(`${maxQuant}`.padStart(3, ' '), { fontSize: fs, textColor: color, bgColor });
     qText.border = .1; qText.dy = 0;
     qText.setBounds(undefined, 0, 0, 0); //calcBounds with border {-1, -1, 22, 22}
     qText.paint(undefined, true);
-    const plus = asTableCell(this.makeButton(' + ', fs, color));
+    const plus = this.makeButton(' + ', fs, color);
     const pricef = () => planet.price(item, Number.parseInt(qText.innerText))
     const pText = new Text(` $${pricef()}`, fspec, color); pText.textAlign = 'right'
-    const price = asTableCell(pText); // , (n: number)=>{}
+    const price = asTableCell(pText);
     cells.push(name, sp, minus, qText, plus, price)
     return cells
   }

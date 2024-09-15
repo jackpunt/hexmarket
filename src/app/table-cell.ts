@@ -1,9 +1,26 @@
 import { NamedContainer } from "@thegraid/easeljs-lib";
 import { DisplayObject, Text } from "@thegraid/easeljs-module";
 
+declare module "@thegraid/easeljs-module" {
+  interface DisplayObject {
+    asTableCell(setWidth?: (n: number) => void): TableCell;
+    asTableCellAnd<T extends DisplayObject>(setWidth?: (n: number) => void): TableCell & T;
+  }
+}
+DisplayObject.prototype.asTableCell = function (setWidth: (n: number) => void) {
+  return asTableCell(this, setWidth)
+};
+DisplayObject.prototype.asTableCellAnd = function<T extends DisplayObject> (setWidth: (n: number) => void) {
+  return asTableCellAnd<T>(this as T, setWidth)
+};
 export interface TableCell extends DisplayObject {
   setWidth(w: number): void;
 }
+
+export function asTableCellAnd<T extends DisplayObject>(dObj: T, setWidth?: (n: number) => void) {
+  return asTableCell(dObj, setWidth) as TableCell & T;
+}
+
 // DisplayObject: [Shape, Container, Text, Bitmap, Sprite]
 // EditBox, RectWithText
 export function asTableCell(dObj: DisplayObject, setWidth?: (n: number) => void) {
@@ -12,10 +29,12 @@ export function asTableCell(dObj: DisplayObject, setWidth?: (n: number) => void)
     dObj.setBounds(x, y, w, height);
   }
   const text = (w: number) => { // text.align = 'left'
-    const txt = dObj as Text, align = txt.textAlign;
     const { x, y, width, height } = dObj.getBounds()
-    dObj.x = dObj.x + (align === 'center' ? w / 2 : align === 'left' ? 0 : -x)
-    dObj.setBounds(x, y, w, height);
+    const align = (dObj as Text).textAlign;
+    const [nx, dx] = ((align === 'center') ? [-w / 2, w / 2] : ((align === 'left') ? [x, 0] : [-w, w]))
+    dObj.x += dx;
+    dObj.setBounds(nx, y, w, height);
+    return;
   }
   const shape = (w: number) => { // text.align = 'left'
     const { x, y, width, height } = dObj.getBounds()
@@ -26,7 +45,7 @@ export function asTableCell(dObj: DisplayObject, setWidth?: (n: number) => void)
     dObj.setBounds(x, y, w, height);
   }
   const tc = (dObj as any as TableCell)
-  tc.setWidth = (setWidth ?? (dObj instanceof Text) ? text : disp);
+  tc.setWidth = setWidth ?? ((dObj instanceof Text) ? text : disp);
   return tc;
 }
 
@@ -79,14 +98,7 @@ export class TableCont extends NamedContainer {
         const { x, y, width, height } = tc.getBounds()
         tc.x = w;
         const colWidth = this.colWidths[col]
-        if (tc instanceof Text && tc.textAlign == 'right' ) {
-          tc.x += colWidth
-        } else if (tc instanceof Text && tc.textAlign == 'center') {
-          tc.x += colWidth / 2
-        } else {
-          tc.setWidth(colWidth)
-        }
-
+        tc.setWidth(colWidth)
         w += colWidth;
       })
     })
