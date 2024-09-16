@@ -92,12 +92,15 @@ export class TableCont extends NamedContainer {
     sourceData.forEach((cellData) => {
       this.addRow(cellData)
     })
+    this.alignCols(this.colWidths)
+  }
+  alignCols(colWidths = this.colWidths) {
     this.tableRows.forEach((tableRow) => {
       let w = 0;
       tableRow.forEach((tc, col) => {
         const { x, y, width, height } = tc.getBounds()
         tc.x = w;
-        const colWidth = this.colWidths[col]
+        const colWidth = colWidths[col]
         tc.setWidth(colWidth)
         w += colWidth;
       })
@@ -113,7 +116,6 @@ export class TableCont extends NamedContainer {
     let w = 0, h = 0; // total width & max height of this row
     tableRow.forEach((tc, col) => {
       rowCont.addChild(tc);
-      // tc.x = w;
       const { width, height } = tc.getBounds()
       w += width;
       h = Math.max(h, height);

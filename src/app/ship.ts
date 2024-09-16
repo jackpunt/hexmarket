@@ -1,11 +1,11 @@
 import { C, F, RC, S, stime } from "@thegraid/common-lib";
-import { CenterText, EditBox, NamedContainer, stopPropagation, type TextStyle } from "@thegraid/easeljs-lib";
+import { CenterText, EditBox, NamedContainer, stopPropagation, TextInRect, type TextStyle } from "@thegraid/easeljs-lib";
 import { Container, Graphics, MouseEvent, Shape, Text } from "@thegraid/easeljs-module";
 import { DragContext, EwDir, H, Hex1, HexDir, IHex2, Meeple, MeepleShape, PaintableShape, RectWithDisp, UtilButton, type CGF, type UtilButtonOptions } from "@thegraid/hexlib";
 import { AF, AfColor, AfFill, ATS, type AfHex } from "./AfHex";
 import { MktHex2 as Hex2, MktHex, MktHex2 } from "./hex";
 import { InfoText } from "./info-text";
-import { Item, type PC, type Planet } from "./planet";
+import { Item, PC, type Planet } from "./planet";
 import { Player, PlayerColor } from "./player";
 import { asTableCell, TableCont, TableRow, type RowBuilder, type TableCell } from "./table-cell";
 import { TP } from "./table-params";
@@ -196,8 +196,8 @@ export class Ship extends Meeple {
     this.setBounds(b.x, b.y, b.width, b.height); // record for debugger
     this.cache(b.x, b.y, b.width, b.height, TP.cacheTiles);
   }
-
-  infoText = new InfoText('Fuel: -1', 'rgba(250,250,250,.8)', { fontSize: TP.hexRad * .3 });
+  infoColor = 'rgba(250,250,250,.8)';
+  infoText = new InfoText('Fuel: -1', this.infoColor, { fontSize: TP.hexRad * .3 });
 
   showShipInfo(vis = !this.infoText.visible) {
     this.infoText.updateText(vis, () => {
@@ -699,7 +699,7 @@ class TradePanel extends RectWithDisp {
   declare disp: NamedContainer;
   constructor(public ship: Ship, x = 0, y = 0) {
     // super(`trade-${ship.Aname}`, x, y)
-    super(new NamedContainer(`tradeDisp`), 'lightblue', 5)
+    super(new NamedContainer(`tradeDisp`), 'rgb(180,180,180)', 5)
   }
   sellTable!: TableCont;
   buyTable!: TableCont;
@@ -709,8 +709,12 @@ class TradePanel extends RectWithDisp {
   showPanel(planet: Planet) {
     if (planet) {
       this.disp.removeAllChildren();
-      this.disp.addChild(this.sellTable = this.makeSellTable(planet));
-      this.disp.addChild(this.buyTable = this.makeBuyTable(planet, undefined, undefined, this.sellTable.colWidths));
+      this.buyTable = this.makeBuyTable(planet)
+      const x = this.buyTable.x, y = this.buyTable.height + 2;
+      this.sellTable = this.makeSellTable(planet, x, y, this.buyTable.colWidths)
+      this.buyTable.alignCols(this.sellTable.colWidths);
+      this.disp.addChild(this.buyTable);
+      this.disp.addChild(this.sellTable);
       this.disp.setBounds(undefined as any as number, 0, 0, 0);
       {
         const { x, y, width, height } = this.disp.getBounds()
@@ -739,12 +743,19 @@ class TradePanel extends RectWithDisp {
     return button.asTableCellAnd<UtilButton>(setWidth)
   }
 
+  /** make one row of a TradePanel; a TableRow: TableCell[] */
   makeTradeRow(item: Item, maxQuant: number, planet: Planet, sell = true) {
-    const color = sell ? 'green' : 'darkviolet';
+    const color = sell ? C.GREEN : C.PURPLE;
     const cells = new TableRow();
     const fs = TP.hexRad / 3, fspec = F.fontSpec(fs);
-    const nText = new Text(item, fspec, color); nText.textAlign = 'center';
-    const name = nText.asTableCell();
+    const itemColor = PC.reference[item].color, fsi = fs * .707;
+    const nText = new CenterText(item, F.fontSpec(fsi), C.BLACK);
+    // nText.textAlign = 'center'; nText.textBaseline = 'top';
+    const nCell = new TextInRect(nText, itemColor, { border: .41, corner: 1.0 })
+    const name = nCell.asTableCell((w)=>{
+      nCell.x = w / 2; nCell.y = fsi * .707;
+      nCell.setBounds(-w / 2, -w / 2, w, w)
+    });
     const sp = new Text(' ', fspec, color).asTableCell()
     const minus = this.makeButton(' - ', fs, color);
     const bgColor = 'rgba(250,250,250,.9)'
@@ -753,7 +764,7 @@ class TradePanel extends RectWithDisp {
     qText.setBounds(undefined, 0, 0, 0); //calcBounds with border {-1, -1, 22, 22}
     qText.paint(undefined, true);
     const plus = this.makeButton(' + ', fs, color);
-    const pricef = () => planet.price(item, Number.parseInt(qText.innerText))
+    const pricef = () => planet.price(item, Number.parseInt(qText.innerText), !sell)
     const pText = new Text(` $${pricef()}`, fspec, color); pText.textAlign = 'right'
     const price = asTableCell(pText);
     cells.push(name, sp, minus, qText, plus, price)
@@ -761,22 +772,23 @@ class TradePanel extends RectWithDisp {
   }
   // Each Choice: 'name: - [______] + $price' (name, -button, EditBox, +buttons, $number)
   /** cargo this Ship is selling, with price planet will pay. */
-  makeSellTable(planet: Planet, x = 0, y = 0) {
+  makeSellTable(planet: Planet, x = 0, y = 0, colw: number[] = []) {
     const rowBuilder: RowBuilder = (cargoEntry: [Item, number]) => {
       const [item, quant] = cargoEntry;
       return this.makeTradeRow(item, quant, planet, true);
     }
-    const tc = new TableCont(rowBuilder, x, y)
+    const tc = new TableCont(rowBuilder, x, y);
+    tc.colWidths = colw;
     const sellable = Object.entries(this.ship.cargo).filter(([item, quant]) => planet.consPCs.find(pc => pc.item === item))
     tc.tableize(sellable); // tc.addChild(...tableRows)
     return tc;
   }
   // Each Choice: 'name: - [______] + $price' (name, -button, EditBox, +buttons, $number)
-  makeBuyTable(planet: Planet, dx = 0, dy = 2, colw: number[] = []) {
+  makeBuyTable(planet: Planet, x = 0, y = 0, colw: number[] = []) {
     const rowBuilder: RowBuilder = (prod: PC) => {
       return this.makeTradeRow(prod.item, Math.min(1, prod.quant), planet, false);
     }
-    const tc = new TableCont(rowBuilder, this.sellTable.x + dx, this.sellTable.height + dy)
+    const tc = new TableCont(rowBuilder, x, y)
     tc.colWidths = colw; // sync with sellTable if provided
     tc.tableize(Object.values(planet.prodPCs))
     return tc;
@@ -787,11 +799,7 @@ class TradePanel extends RectWithDisp {
 class EditCell extends EditBox implements TableCell {
   constructor(text?: string, style?: TextStyle) {
     super(text, style)
-    this.removeAllEventListeners(); // the other S.click listener
-    this.on(S.click, (ev) => {
-      this.setFocus(true);
-      stopPropagation(ev as MouseEvent);
-    });
+    this.onFocus(false);          // TODO: cmark.paint() to fade or blink cmark
   }
 
   /** when placed as a TableCell: */

@@ -250,7 +250,7 @@ export class Planet extends MapTile {
   }
   /** price to sell Item to, or buy Item from this Planet */
   price(item: Item, quant: number, sell = true) {
-    return sell ? this.sell(item, quant) : this.buy(item, quant);
+    return sell ? this.sell_price(item, quant) : this.buy_price(item, quant);
   }
 
   /** item -> Planet, coins -> Ship */
