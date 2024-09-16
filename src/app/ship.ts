@@ -212,18 +212,22 @@ export class Ship extends Meeple {
   }
 
   tradePanel?: TradePanel;
-  showTradePanel(): any {
+  showTradePanel(vis = true): any {
+    if (!vis) {
+      this.tradePanel && (this.tradePanel.visible = false);
+      return this;
+    }
     if (!this.tradePanel) {
       this.tradePanel = new TradePanel(this)
       this.tradePanel.on(S.pressup, stopPropagation)
       this.tradePanel.on(S.pressmove, stopPropagation)
     }
     const planet = this.adjacentPlanet()
-    if (!planet) {
-      this.faceUp(false);
-      return;
+    this.faceUp(!!planet)
+    if (planet) {
+      this.tradePanel.showPanel(planet)
     }
-    this.tradePanel.showPanel(planet)
+    return this;
   }
 
   /**
@@ -706,13 +710,15 @@ class TradePanel extends RectWithDisp {
     if (planet) {
       this.disp.removeAllChildren();
       this.disp.addChild(this.sellTable = this.makeSellTable(planet));
-      this.disp.addChild(this.buyTable = this.makeBuyTable(planet));
+      this.disp.addChild(this.buyTable = this.makeBuyTable(planet, undefined, undefined, this.sellTable.colWidths));
+      this.disp.setBounds(undefined as any as number, 0, 0, 0);
       {
         const { x, y, width, height } = this.disp.getBounds()
         this.disp.setBounds(x, y, width, height)
       }
       // TODO: add any buttons to this
       this.setBounds(undefined, 0, 0, 0)
+      this.visible = true;
       this.paint(undefined, true)
       this.ship.addChild(this);
     } else {
@@ -761,15 +767,17 @@ class TradePanel extends RectWithDisp {
       return this.makeTradeRow(item, quant, planet, true);
     }
     const tc = new TableCont(rowBuilder, x, y)
-    tc.tableize(Object.entries(this.ship.cargo)); // tc.addChild(...tableRows)
+    const sellable = Object.entries(this.ship.cargo).filter(([item, quant]) => planet.consPCs.find(pc => pc.item === item))
+    tc.tableize(sellable); // tc.addChild(...tableRows)
     return tc;
   }
   // Each Choice: 'name: - [______] + $price' (name, -button, EditBox, +buttons, $number)
-  makeBuyTable(planet: Planet, dx = 0, dy = 2) {
+  makeBuyTable(planet: Planet, dx = 0, dy = 2, colw: number[] = []) {
     const rowBuilder: RowBuilder = (prod: PC) => {
       return this.makeTradeRow(prod.item, Math.min(1, prod.quant), planet, false);
     }
     const tc = new TableCont(rowBuilder, this.sellTable.x + dx, this.sellTable.height + dy)
+    tc.colWidths = colw; // sync with sellTable if provided
     tc.tableize(Object.values(planet.prodPCs))
     return tc;
 

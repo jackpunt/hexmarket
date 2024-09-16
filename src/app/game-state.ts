@@ -1,7 +1,7 @@
 import { C, S } from "@thegraid/common-lib";
-import { CenterText, NamedContainer } from "@thegraid/easeljs-lib";
+import { CenterText, NamedContainer, RectWithDisp, UtilButton } from "@thegraid/easeljs-lib";
 import { Container } from "@thegraid/easeljs-module";
-import { GameState as GameStateLib, Phase, RectWithDisp, UtilButton } from "@thegraid/hexlib";
+import { GameState as GameStateLib, Phase } from "@thegraid/hexlib";
 import type { GamePlay } from "./game-play";
 import { Player } from "./player";
 import { ActionIdent } from "./scenario-parser";
@@ -137,6 +137,8 @@ export class GameState extends GameStateLib {
   override parseState(gameState: any[]): void {
     return;
   }
+  /** true if currently in the named state */
+  isPhase(name: string) { return this.state === this.states[name]; }
 
   selectedAction?: ActionIdent; // set when click on action panel or whatever. read by ActionPhase;
   readonly selectedActions: ActionIdent[] = [];
@@ -154,7 +156,11 @@ export class GameState extends GameStateLib {
         const act = button.label_text?.replace(/\n/g, '') as ActionIdent;
         this.selectedAction = act;
         this.selectedActions.push(act)
-        this.phase(act);
+        if (this.isPhase('ChooseAction')) {
+          this.phase(act);
+        } else {
+          this.done();     // this.state.done() OR areYouSure() -> cancel
+        }
       })
     };
     this.selPanel = new SelectorPanel([
@@ -251,20 +257,11 @@ export class GameState extends GameStateLib {
       // and a 'Trade' (commit) button
       // continue to select Ship(s) until "Trade Done"
       start: () => {
-        const ships0 = this.curPlayer.ships
-          .map(s => (s.faceUp(false), s))
-        this.table.hexMap.update();
-        const ships = ships0
-          .filter(s => s.adjacentPlanet())
-        ships.map(s => s.faceUp(true))
-        ships.map(s => s.showTradePanel())
-        // this.gamePlay.advanceClock(-1); // for demo/text
-        // this.done();
+        this.curPlayer.ships.forEach(s => s.showTradePanel(true))
         this.doneButton('Trade Done')
       },
       done: () => {
-        const ships0 = this.curPlayer.ships
-          .map(s => (s.faceUp(true), s))
+        this.curPlayer.ships.forEach(s => s.showTradePanel(false))
         this.phase('EndAction')
       }
     },
