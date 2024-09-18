@@ -1,7 +1,7 @@
 import { C } from "@thegraid/common-lib";
-import { NamedContainer } from "@thegraid/easeljs-lib";
+import { CGF, NamedContainer, type TextInRectOptions } from "@thegraid/easeljs-lib";
 import { MouseEvent, Shape, Text } from "@thegraid/easeljs-module";
-import { CGF, DragContext, EwDir, H, Hex1, MapTile, rightClickable, TP as TPLib, UtilButtonOptions } from "@thegraid/hexlib";
+import { DragContext, EwDir, H, Hex1, MapTile, rightClickable, TP as TPLib, UtilButtonOptions } from "@thegraid/hexlib";
 import { HexMap, MktHex, MktHex2 } from "./hex";
 import { InfoText } from "./info-text";
 import { Random } from "./random";
@@ -98,8 +98,8 @@ export class PC {
 }
 /** InfoText with PC[] for prod or cons. */
 class PCInfo extends InfoText {
-  constructor(pcary: PC[], label: Text | string, color?: string, options?: UtilButtonOptions, cgf?: CGF) {
-    super(label, color, options, cgf)
+  constructor(pcary: PC[], label: Text | string, options?: UtilButtonOptions & TextInRectOptions, cgf?: CGF) {
+    super(label, options, cgf)
     this.pcary = pcary;
   }
   pcary: PC[]
@@ -133,8 +133,8 @@ export class Planet extends MapTile {
   public readonly prodPCs: PC[] = [];
   public readonly consPCs: PC[] = [];
 
-  prodText = new PCInfo(this.prodPCs, `prod`, undefined, { fontSize: TP.hexRad * .3, textColor: C.GREEN, active: true, visible: false });
-  consText = new PCInfo(this.consPCs, `cons`, undefined, { fontSize: TP.hexRad * .3, textColor: C.PURPLE, active: true, visible: false });
+  prodText = new PCInfo(this.prodPCs, `prod`, { fontSize: TP.hexRad * .3, textColor: C.GREEN, active: true, visible: false });
+  consText = new PCInfo(this.consPCs, `cons`, { fontSize: TP.hexRad * .3, textColor: C.PURPLE, active: true, visible: false });
   infoCont = new NamedContainer(`${this.Aname}info`)
 
   addInfoText(cont = this.infoCont, ...pciary: PCInfo[]) {

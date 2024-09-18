@@ -26,7 +26,7 @@
     "@thegraid/easeljs-lib": "file:../../ts/createjs-lib/thegraid-easeljs-lib-1.4.3.tgz",
     "@thegraid/easeljs-module": "^1.4.0",
     "@thegraid/ezpromise": "^1.0.10",
-    "@thegraid/hexlib": "file:../../ts/hexlib/thegraid-hexlib-1.2.8.tgz",
+    "@thegraid/hexlib": "file:../../ts/hexlib/thegraid-hexlib-1.2.9.tgz",
     "@types/wicg-file-system-access": "^2020.9.8",
     "rxjs": "~7.5.0",
     "tslib": "^2.3.0",

@@ -1,13 +1,13 @@
-import { C, F, RC, S, stime } from "@thegraid/common-lib";
-import { CenterText, EditBox, NamedContainer, stopPropagation, TextInRect, type TextStyle } from "@thegraid/easeljs-lib";
-import { Container, Graphics, MouseEvent, Shape, Text } from "@thegraid/easeljs-module";
-import { DragContext, EwDir, H, Hex1, HexDir, IHex2, Meeple, MeepleShape, PaintableShape, RectWithDisp, UtilButton, type CGF, type UtilButtonOptions } from "@thegraid/hexlib";
+import { C, F, RC, S, stime, type XYWH } from "@thegraid/common-lib";
+import { CenterText, EditBox, NamedContainer, RectShape, RectWithDisp, stopPropagation, TextInRect, textWidth, type CGF, type PaintableShape, type TextInRectOptions, type TextStyle } from "@thegraid/easeljs-lib";
+import { Container, Graphics, MouseEvent, Rectangle, Shape, Text } from "@thegraid/easeljs-module";
+import { DragContext, EwDir, H, Hex1, HexDir, IHex2, Meeple, MeepleShape, UtilButton, type UtilButtonOptions } from "@thegraid/hexlib";
 import { AF, AfColor, AfFill, ATS, type AfHex } from "./AfHex";
 import { MktHex2 as Hex2, MktHex, MktHex2 } from "./hex";
 import { InfoText } from "./info-text";
 import { Item, PC, type Planet } from "./planet";
 import { Player, PlayerColor } from "./player";
-import { asTableCell, TableCont, TableRow, type RowBuilder, type TableCell } from "./table-cell";
+import { TableCont, TableRow, type RowBuilder, type TableCell } from "./table-cell";
 import { TP } from "./table-params";
 
 export type Cargo = { [key in Item]?: number };
@@ -197,7 +197,7 @@ export class Ship extends Meeple {
     this.cache(b.x, b.y, b.width, b.height, TP.cacheTiles);
   }
   infoColor = 'rgba(250,250,250,.8)';
-  infoText = new InfoText('Fuel: -1', this.infoColor, { fontSize: TP.hexRad * .3 });
+  infoText = new InfoText('Fuel: -1', { bgColor: this.infoColor, fontSize: TP.hexRad * .3 });
 
   showShipInfo(vis = !this.infoText.visible) {
     this.infoText.updateText(vis, () => {
@@ -729,45 +729,76 @@ class TradePanel extends RectWithDisp {
       this.ship.removeChild(this)
     }
   }
-  // To coerce ALL UtilButton to include TableCell:
-  // UtilButton.prototype.asTableCellAnd<UtilButton>(setWidth)
+  // To coerce ALL UtilButton to support TableCell:
+  // UtilButton.prototype.asTableCellAnd<UtilButton>(setInCell)
   /** make a UtilButton.asTableCellAnd<UtilButton>() */
-  makeButton(text: string, fs: number, color: string) {
-    const opts: UtilButtonOptions = { border: 0, fontSize: fs, visible: true, active: true };
-    const label = new Text(text, F.fontSpec(fs))
-    const button = new UtilButton(label, color, opts)// as UtilButton & TableCell;
-    const setWidth = (w: number) => {
+  makeButton(label: string, fs: number, bgColor: string) {
+    const opts: UtilButtonOptions = { bgColor, border: 0, fontSize: fs, visible: true, active: true };
+    const button = new UtilButton(label, opts)// as UtilButton & TableCell;
+    // align = 'center', basel = 'center'
+    const setInCell = ({ x: x0, y: y0, w, h }: XYWH) => {
+      if (false) {
+      // pad or trim the rectShape to fit Cell
+      // true, but generally w == width && h == height; b/c: same content in each row
+      const { x, y, width, height } = button.getBounds();
+      const [dx0, dx1, dy0, dy1] = button.borders;
+      button.dx = (w - width) / 2;
+      button.dy = (h - height) / 2;
+      button.setBounds(undefined, 0, 0, 0)
+      }
       const { x, y, width, height } = button.getBounds()
-      button.setBounds(x, y, w, height); // 'center' formula
+      button.x = x0 + w / 2;
+      button.y = y0 + height - (h / 2);
+      button.setBounds(x, y, w, h); // 'center' formula
     }
-    return button.asTableCellAnd<UtilButton>(setWidth)
+    return button.asTableCellAnd<UtilButton>(setInCell)
   }
 
-  /** make one row of a TradePanel; a TableRow: TableCell[] */
+  /** rowBuilder: make one row of a TradePanel; a TableRow: TableCell[] */
   makeTradeRow(item: Item, maxQuant: number, planet: Planet, sell = true) {
     const color = sell ? C.GREEN : C.PURPLE;
     const cells = new TableRow();
     const fs = TP.hexRad / 3, fspec = F.fontSpec(fs);
     const itemColor = PC.reference[item].color, fsi = fs * .707;
+    // item Icon: CenterText in Rect(corners)
     const nText = new CenterText(item, F.fontSpec(fsi), C.BLACK);
-    // nText.textAlign = 'center'; nText.textBaseline = 'top';
-    const nCell = new TextInRect(nText, itemColor, { border: .41, corner: 1.0 })
-    const name = nCell.asTableCell((w)=>{
-      nCell.x = w / 2; nCell.y = fsi * .707;
-      nCell.setBounds(-w / 2, -w / 2, w, w)
+    const nCell = new TextInRect(nText, { bgColor: itemColor, border: .41, corner: 1.0 })
+    const name = nCell.asTableCellAnd<TextInRect>(({ x: x0, y: y0, w, h }) => {
+      const {x, y, w: width, h: height} = nCell.calcBounds(); // y00 = 0
+      const ascent = y + 0, descent = y + height; // [-11.5, 14.3] (y + height) + y = 14 -11 = 4
+      nCell.x = x0 + w / 2;
+      nCell.y = y0 - y + (height - h) / 2;
+      // nCell.y = y0 + 10.15;
+      // nCell.disp.y = .1 * fsi; // use this oppty to tweak text position in circle.
+      nCell.setBounds(-w / 2, -height / 2, w, height)
     });
-    const sp = new Text(' ', fspec, color).asTableCell()
+    // line
+    const transp = 'rgba(0,0,0,0)', transb = 'rgba(0,0,0,.1)'
+    const line = new RectShape({x: -100, y: -1., w: 140, h: 2.1, s: 0}, transb, '').asTableCell((b: XYWH)=>{
+      line.x = b.x; line.y = b.y;
+      line.setBounds(0,0,10,0);
+    })
+    line.getBounds = () => new Rectangle(-100,0,10,0 );
+    // space
+    const sp = new Text('I', fspec, color).asTableCell()
+    // minus:
     const minus = this.makeButton(' - ', fs, color);
+    // qText: show/edit quantity to Trade:
     const bgColor = 'rgba(250,250,250,.9)'
-    const qText = new EditCell(`${maxQuant}`.padStart(3, ' '), { fontSize: fs, textColor: color, bgColor });
-    qText.border = .1; qText.dy = 0;
-    qText.setBounds(undefined, 0, 0, 0); //calcBounds with border {-1, -1, 22, 22}
-    qText.paint(undefined, true);
+    const qText0 = `${maxQuant}`
+    const qText = new EditNumber(qText0, { fontSize: fs, textColor: color, bgColor });
+    qText.minWidth = qText.maxLen = 3; //Math.random() > .5 ? 4 : 3;
+    qText.border = .1; qText.dy = 0;     // no vertical 'border'
+    qText.repaint();                     // position cursor
+    qText.setBounds(undefined, 0, 0, 0); // calcBounds with border {-1, -1, 22, 22}
+    qText.paint(undefined, true);        // paint bgRect
+    // plus:
     const plus = this.makeButton(' + ', fs, color);
+    // price:
     const pricef = () => planet.price(item, Number.parseInt(qText.innerText), !sell)
     const pText = new Text(` $${pricef()}`, fspec, color); pText.textAlign = 'right'
-    const price = asTableCell(pText);
-    cells.push(name, sp, minus, qText, plus, price)
+    const price = pText.asTableCell();
+    cells.push(name, sp, minus, qText, plus, line, price)
     return cells
   }
   // Each Choice: 'name: - [______] + $price' (name, -button, EditBox, +buttons, $number)
@@ -790,23 +821,75 @@ class TradePanel extends RectWithDisp {
     }
     const tc = new TableCont(rowBuilder, x, y)
     tc.colWidths = colw; // sync with sellTable if provided
-    tc.tableize(Object.values(planet.prodPCs))
+    const buyable = Object.values(planet.prodPCs)
+    tc.tableize(buyable)
+    const r0 = tc.children[0]; r0.parent.addChild(r0);
     return tc;
 
   }
 }
 
-class EditCell extends EditBox implements TableCell {
-  constructor(text?: string, style?: TextStyle) {
+/** specifically: an Editor for short numeric strings */
+export class EditNumber extends EditBox implements TableCell {
+  constructor(text?: string, style: TextStyle & TextInRectOptions = {}) {
     super(text, style)
-    this.onFocus(false);          // TODO: cmark.paint() to fade or blink cmark
+    this.point = this.buf.length - 1;
+    this.cmark.visible = false;
+  }
+  override onFocus(f: boolean): void {
+    super.onFocus(f);    // TODO: cmark.paint() to fade or blink cmark
+  }
+  _minWidth = 50;
+  get minWidth() { return this._minWidth }
+  set minWidth(n) {
+    const [dx0, dx1] = this.borders
+    const tw = textWidth('8'.repeat(n), this.fontSize, this.fontName)
+    this._minWidth = dx0 + tw + dx1;
   }
 
+  maxLen = 2;
+  // repaint as right-justified line:
+  override repaint(text0?: string) {
+    // at least maxLen chars:
+    while (this.buf.length < this.maxLen) {
+      this.buf.unshift(' ')
+      this.point += 1;
+    }
+    // at most maxLen chars
+    const kil = Math.max(0, this.buf.length - this.maxLen);
+    this.buf.splice(0, kil); // remove or insert from front.
+    this.point -= kil;
+    // compute x-offset to right justify:
+    const text = this.buf.join('');
+    const [dx0, dx1] = this.borders, tw = textWidth(text, this.fontSize, this.fontName);
+    const dispx = this.disp.x, w0 = dx0 + tw + dx1
+    this.setBounds(undefined, 0, 0, 0);
+    const { x, y, width, height } = this.getBounds();
+    this.disp.x = x + width - (tw + dx1);
+    super.repaint(text)
+    // this.disp.x = dispx;
+    return this;
+  }
+
+  // override setBounds(x: number | undefined | null, y: number, width: number, height: number): void {
+  //   super.setBounds()
+  // }
+  override calcBounds(): XYWH {
+    const { x, y, w, h } = super.calcBounds()
+    return { x, y, w: Math.max(w, this.minWidth), h }
+  }
+
+  // alignCols: tc.x = w; setInCell(colWidth[n])
   /** when placed as a TableCell: */
-  setWidth(w: number) {
-    const { x, y, width, height: h } = this.getBounds()
-    this.x -= x;
-    this.rectShape.setRectRad({ x, y, w, h })
+  setInCell({ x: x0, y: y0, w, h }: XYWH) {
+    // align ~= 'left', basel = 'top'
+    const [dx0, dx1, dy0, dy1] = this.borders;
+    this.x = x0 + dx0; this.y = y0 + dy0;
+    // try expand rectShape to given cell<w,h>
+    this.textWidth
+    const { x, y, w: ww, h: hh } = this.calcBounds(); // expect x === 0
+    this.dx = (w - ww) / 2;
+    this.rectShape.setRectRad({ x, y, w: Math.max(w, this.minWidth), h })
     this.setBounds(undefined, 0, 0, 0)
   }
 

@@ -1,13 +1,13 @@
-import { TextInRect } from "@thegraid/easeljs-lib";
+import { type CGF, TextInRect, type TextInRectOptions } from "@thegraid/easeljs-lib";
 import { Text } from "@thegraid/easeljs-module";
-import { CGF, UtilButton, UtilButtonOptions } from "@thegraid/hexlib";
+import { UtilButtonOptions } from "@thegraid/hexlib";
 
 /**
  * UtilButton with translucent background
  */
 export class InfoText extends TextInRect {
-  constructor(label: Text | string, color = 'rgba(250,250,250,.8)', options?: UtilButtonOptions, cgf?: CGF) {
-    super(label, color, options, cgf)
+  constructor(label: Text | string, options?: UtilButtonOptions & TextInRectOptions, cgf?: CGF) {
+    super(label, { bgColor: 'rgba(250,250,250,.8)', ...options }, cgf)
     this.name = 'InfoText'
     this.visible = false;
     this.paint(undefined, true)

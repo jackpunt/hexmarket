@@ -1,39 +1,48 @@
+import { M, type XYWH } from "@thegraid/common-lib";
 import { NamedContainer } from "@thegraid/easeljs-lib";
 import { DisplayObject, Text } from "@thegraid/easeljs-module";
+import { EditNumber } from "./ship";
 
 declare module "@thegraid/easeljs-module" {
   interface DisplayObject {
-    asTableCell(setWidth?: (n: number) => void): TableCell;
-    asTableCellAnd<T extends DisplayObject>(setWidth?: (n: number) => void): TableCell & T;
+    asTableCell(setInCell?: (xywh: XYWH) => void): TableCell;
+    asTableCellAnd<T extends DisplayObject>(setInCell?: (xywh: XYWH) => void): TableCell & T;
   }
 }
-DisplayObject.prototype.asTableCell = function (setWidth: (n: number) => void) {
-  return asTableCell(this, setWidth)
+DisplayObject.prototype.asTableCell = function (setInCell: (xywh: XYWH) => void) {
+  return asTableCell(this, setInCell)
 };
-DisplayObject.prototype.asTableCellAnd = function<T extends DisplayObject> (setWidth: (n: number) => void) {
-  return asTableCellAnd<T>(this as T, setWidth)
+DisplayObject.prototype.asTableCellAnd = function<T extends DisplayObject> (setInCell: (xywh: XYWH) => void) {
+  return asTableCellAnd<T>(this as T, setInCell)
 };
 export interface TableCell extends DisplayObject {
-  setWidth(w: number): void;
+  setInCell(xywh: XYWH): void;
 }
 
-export function asTableCellAnd<T extends DisplayObject>(dObj: T, setWidth?: (n: number) => void) {
-  return asTableCell(dObj, setWidth) as TableCell & T;
+export function asTableCellAnd<T extends DisplayObject>(dObj: T, setInCell?: (xywh: XYWH) => void) {
+  return asTableCell(dObj, setInCell) as TableCell & T;
 }
 
 // DisplayObject: [Shape, Container, Text, Bitmap, Sprite]
 // EditBox, RectWithText
-export function asTableCell(dObj: DisplayObject, setWidth?: (n: number) => void) {
-  const disp = (w: number) => {
+export function asTableCell(dObj: DisplayObject, setInCell?: (xywh: XYWH) => void) {
+  // if dObj is like Rectangle, extending WH from upper left XY
+  // this is approx correct, altho it does not actually extend the WH of the Rectangle.
+  const disp = ({ x: x0, y: y0, w, h }: XYWH) => {
     const { x, y, width, height } = dObj.getBounds()
-    dObj.setBounds(x, y, w, height);
+    dObj.x = x0;
+    dObj.y = y0;
+    dObj.setBounds(x, y, w, h);
   }
-  const text = (w: number) => { // text.align = 'left'
-    const { x, y, width, height } = dObj.getBounds()
-    const align = (dObj as Text).textAlign;
-    const [nx, dx] = ((align === 'center') ? [-w / 2, w / 2] : ((align === 'left') ? [x, 0] : [-w, w]))
-    dObj.x += dx;
-    dObj.setBounds(nx, y, w, height);
+  const text = ({ x: x0, y: y0, w, h }: XYWH) => { // text.align = 'left'
+    const { x, y, width, height } = dObj.getBounds(), text = (dObj as Text);
+    const align = text.textAlign, basel = text.textBaseline;
+    const [nx, dx] = ((align === 'center') ? [-w / 2, w / 2] : ((align === 'left') ? [x, 0] : [x, w])) /* right */
+    // 'middle', 'top', 'bottom'
+    const [ny, dy] = ((basel === 'middle') ? [-h / 2, h / 2] : ((basel === 'top') ? [y, 0] : [y, h])) /* bottom */
+    dObj.x = x0 + dx;
+    dObj.y = y0 + dy;
+    dObj.setBounds(nx, ny, w, h);
     return;
   }
   const shape = (w: number) => { // text.align = 'left'
@@ -45,7 +54,7 @@ export function asTableCell(dObj: DisplayObject, setWidth?: (n: number) => void)
     dObj.setBounds(x, y, w, height);
   }
   const tc = (dObj as any as TableCell)
-  tc.setWidth = setWidth ?? ((dObj instanceof Text) ? text : disp);
+  tc.setInCell = setInCell ?? ((dObj instanceof Text) ? text : disp);
   return tc;
 }
 
@@ -90,19 +99,32 @@ export class TableCont extends NamedContainer {
   /** create table from array of CellData items */
   tableize(sourceData: CellData[]) {
     sourceData.forEach((cellData) => {
-      this.addRow(cellData)
+      this.addRow(cellData); // TableCell[], colWidths[], tc.x = 0;
     })
     this.alignCols(this.colWidths)
+    // check alignment: TODO: remove this
+    let x0 = 0, y0 = 0;
+    const dels = this.tableRows[0]?.map((cell, ndx) => {
+      const { x, y, width, height } = cell.getBounds()
+      const xa = cell.x + x; // the 'apparent' left edge, esp of EditNumber
+      const ya = cell.y + y; // the 'apparent' top edge, esp of EditNumber
+      const xDel = xa - x0;
+      const yDel = ya - y0;
+      const cw = this.colWidths[ndx];
+      x0 += cw;
+      return [xDel, yDel, cell.y, y].map(v => M.decimalRound(v, 3))
+    })
+    console.log(`tableize:`, dels, this.colWidths, this.tableRows[0])
   }
+  /** set each cell to the left-top corner of its column */
   alignCols(colWidths = this.colWidths) {
     this.tableRows.forEach((tableRow) => {
-      let w = 0;
+      let x0 = 0, y0 = 0, hr = tableRow.height;
       tableRow.forEach((tc, col) => {
-        const { x, y, width, height } = tc.getBounds()
-        tc.x = w;
+        if (tc instanceof EditNumber) tc.parent?.addChild(tc); // bring to top: debug
         const colWidth = colWidths[col]
-        tc.setWidth(colWidth)
-        w += colWidth;
+        tc.setInCell({ x: x0, y: y0, w: colWidth, h: hr })
+        x0 += colWidth;
       })
     })
     return this;

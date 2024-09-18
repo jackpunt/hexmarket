@@ -49,7 +49,7 @@ class ButtonLine extends RectWithDisp {
           button.stage?.update();
         }
       }
-      const button = new UtilButton(text, 'grey', opts);
+      const button = new UtilButton(text, { bgColor: 'grey', ...opts });
       // Note: highlight = undefined;
       this.buttons.push(button);
 

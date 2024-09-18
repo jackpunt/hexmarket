@@ -1,9 +1,9 @@
 import { C, stime } from "@thegraid/common-lib"
 import { Container } from "@thegraid/easeljs-module"
-import { GamePlay as GamePlayLib, Hex1 as Hex1Lib, HexMap as HexMapLib, newPlanner, Player as PlayerLib, type MapCont } from "@thegraid/hexlib"
+import { GamePlay as GamePlayLib, Hex1 as Hex1Lib, HexMap as HexMapLib, newPlanner, Player as PlayerLib } from "@thegraid/hexlib"
 import { GamePlay } from "./game-play"
 import { Random } from "./random"
-import { Ship, ShipSpec } from "./ship"
+import { EditNumber, Ship, ShipSpec } from "./ship"
 import { TP } from "./table-params"
 
 const playerColors = ['red', 'lightblue', 'green', 'violet', 'gold'] as const;
@@ -140,5 +140,20 @@ export class Player extends PlayerLib {
   /** Space-key: select this ship as the dragObj */
   shipToMove() {
     return this.ships.find(ship => !ship.hasPathMove)
+  }
+  // Test/demo EditNumber
+  override makePlayerBits(): void {
+    super.makePlayerBits()
+    const qText = new EditNumber('888', { bgColor: C.WHITE})
+    qText.minWidth = qText.maxLen = 3;
+    qText.border = .3; qText.dy = 0
+    qText.repaint();                     // position cursor
+    qText.setBounds(undefined, 0, 0, 0); // calcBounds with border {-1, -1, 22, 22}
+    qText.paint(undefined, true);        // paint bgRect
+
+    const [dx0] = qText.borders
+    // qText.x = -dx0
+    qText.setInCell({ x: 0, y: 0, w: 200, h: 0 }); // TODO: testing
+    this.panel.addChild(qText)
   }
 }
