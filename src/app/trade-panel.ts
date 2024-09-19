@@ -73,15 +73,19 @@ export class TradePanel extends RectWithDisp {
     // qText: show/edit quantity to Trade:
     const bgColor = 'rgba(250,250,250,.9)';
     const qText0 = `${maxQuant}`, maxLen = Math.random() > .5 ? 4 : 3;
-    const qText = new EditNumber('444', { fontSize: fs, bgColor, dx: .1, maxLen });
+    const qText = new EditNumber('', { fontSize: fs, bgColor, dx: .1, maxLen });
     qText.setText(qText0, { fontName: qText.fontName, fontSize: qText.fontSize });
     // const qText = new EditNumber(qText0, { fontSize: fs, bgColor, dx: .1, maxLen });
     // qText.repaint()                     // position cursor
     return qText;
   }
 
-  /** rowBuilder: make one row of a TradePanel; a TableRow: TableCell[] */
-  makeTradeRow(item: Item, maxQuant: number, planet: Planet, sell = true) {
+  /** rowBuilder: make one row of a TradePanel; a TableRow: TableCell[]
+   * @param item the type of product to buy/sell from/to planet
+   * @param quant number of items to buy/sell
+   * @param planet calculate prices from planet
+   */
+  makeTradeRow(item: Item, quant: number, planet: Planet, sell = true) {
     const color = sell ? C.GREEN : C.PURPLE;
     const cells = new TableRow();
     const fs = TP.hexRad / 3, fspec = F.fontSpec(fs);
@@ -105,7 +109,7 @@ export class TradePanel extends RectWithDisp {
     // minus:
     const minus = this.makeButton(' - ', fs, color);
     // qText: show/edit quantity to Trade:
-    const qText = this.makeQuantEdit(maxQuant, fs);
+    const qText = this.makeQuantEdit(quant, fs);
     // plus:
     const plus = this.makeButton(' + ', fs, color);
     // price:

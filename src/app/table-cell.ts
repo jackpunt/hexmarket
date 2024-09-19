@@ -1,7 +1,7 @@
 import { M, type XYWH } from "@thegraid/common-lib";
 import { NamedContainer } from "@thegraid/easeljs-lib";
 import { DisplayObject, Text } from "@thegraid/easeljs-module";
-import { EditNumber } from "./ship";
+import { EditNumber } from "./edit-number";
 
 declare module "@thegraid/easeljs-module" {
   interface DisplayObject {
@@ -114,7 +114,7 @@ export class TableCont extends NamedContainer {
       x0 += cw;
       return [xDel, yDel, cell.y, y].map(v => M.decimalRound(v, 3))
     })
-    console.log(`tableize:`, dels, this.colWidths, this.tableRows[0])
+    console.log(`tableize:`, dels, this.colWidths, this.tableRows[0], this.tableRows)
   }
   /** set each cell to the left-top corner of its column */
   alignCols(colWidths = this.colWidths) {

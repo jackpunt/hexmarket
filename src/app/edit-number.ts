@@ -27,7 +27,7 @@ export class EditNumber extends EditBox implements TableCell {
     this._minWidth = dx0 + tw + dx1;
   }
 
-  override alignCmark(text = this.disp.text, pt = this.point): void {
+  override_alignCmark(text = this.disp.text, pt = this.point): void {
     let lines = text.split('\n'), bol = 0;
     // scan to find line containing cursor (pt)
     lines.forEach((line, n) => {
@@ -48,13 +48,19 @@ export class EditNumber extends EditBox implements TableCell {
     const kil = Math.max(0, this.buf.length - this.maxLen);
     this.buf.splice(0, kil); // remove or insert from front.
     this.point -= kil;
-    this.bordersToWH({});
+    this.disp.text = this.buf.join('')
+    if (this.fillCell)
+      this.setInCell({x: this.x, y: this.y, w: this.cellWide, h: this.cellHigh}, false)
     return super.repaint(text);
   }
 
-  fillCell = false;
-  bordersToWH({ w = this.textWidth, h = this.fontSize }: Partial<XYWH>) {
+  fillCell = true;
+  cellWide = 0;
+  cellHigh = 0;
+  bordersToWH({ w = this.cellWide, h = this.fontSize }: Partial<XYWH>) {
     if (!this.fillCell) return;
+    this.cellWide = w;
+    this.cellHigh = h;
     const tw = this.textWidth, lh = this.fontSize; // or getMeasuredLineHeight()
     this.dx = (w - tw) / 2 / lh;
     this.dy = (h - lh) / 2 / lh;
@@ -64,27 +70,30 @@ export class EditNumber extends EditBox implements TableCell {
   /** override for 'right' alignment */
   override calcBounds(): XYWH {
     const { x, y, w, h } = super.calcBounds();  // bounds around current .disp Text
-    return { x, y, w: Math.max(w, this.minWidth), h }; // enlarge for minWidth
+    return { x, y, w: Math.max(w, this.minWidth ?? 1), h: Math.max(h, this.fontSize) }; // enlarge for minWidth
   }
 
   // alignCols: tc.x = w; setInCell(colWidth[n])
   /** when placed as a TableCell: */
-  setInCell({ x: x0, y: y0, w, h }: XYWH) {
+  setInCell({ x: x0, y: y0, w, h }: XYWH, repaint = true) {
     // debug: shrink cell size:
     const s = 0; x0 += s; y0 += s; w -= 2 * s; h -= 2 * s;
     // maybe expand rectShape to given cell<w,h>
     this.bordersToWH({ w, h });
 
-    this.rectShape.setRectRad({ x: x0, y: y0, w, h });
-    this.setBounds(undefined, 0, 0, 0);
-
-    // RectWithDisp: align ~= 'left', basel = 'top'
-    const { x, y, width, height } = this.disp.getBounds();
-    const [dx0, dx1, dy0, dy1] = this.borders;
+    // this: RectWithDisp: align ~= 'left', basel = 'top'
+    // const { x, y, width, height } = this.getBounds() // rectShape may not fillCell
+    const { x, y, width, height } = this.rectShape.getBounds()
     this.x = x0; this.y = y0;
-    this.disp.x = width + dx0;
+    // disp: Text: textAlign = 'right', textBaseline = 'top'
+    const [dx0, dx1, dy0, dy1] = this.borders;
+    this.disp.x = (width) - dx1;
     this.disp.y = dy0;
-    this.repaint();
+
+    this.rectShape.setRectRad({ x: x0, y: y0 });
+    // this.rectShape.paint(undefined, true);
+    this.setBounds(undefined, 0, 0, 0);
+    repaint && this.repaint();
   }
 
 }
