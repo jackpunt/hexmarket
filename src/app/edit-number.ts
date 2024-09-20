@@ -1,7 +1,6 @@
-import type { XYWH } from "@thegraid/common-lib";
-import { EditBox, type TextStyle, type TextInRectOptions, textWidth, type NamedObject } from "@thegraid/easeljs-lib";
+import { type XYWH } from "@thegraid/common-lib";
+import { EditBox, textWidth, type TextInRectOptions, type TextStyle } from "@thegraid/easeljs-lib";
 import type { TableCell } from "./table-cell";
-import { Graphics } from "@thegraid/easeljs-module";
 
 /** specifically: an Editor for short numeric strings */
 export class EditNumber extends EditBox implements TableCell {
@@ -18,6 +17,10 @@ export class EditNumber extends EditBox implements TableCell {
     this.setBounds(undefined, 0, 0, 0); // bounds with (dx, dy) & minWidth
     this.paint(undefined, true); // paint bgColor
   }
+  get value() {
+    return Number.parseInt(this.label_text ?? '0')
+  }
+
   get align() { return this.disp.textAlign }
   override onFocus(f: boolean): void {
     super.onFocus(f); // TODO: cmark.paint() to fade or blink cmark
