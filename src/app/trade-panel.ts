@@ -30,10 +30,6 @@ export class TradePanel extends RectWithDisp {
       this.disp.addChild(this.buyTable);
       this.disp.addChild(this.sellTable);
       this.disp.setBounds(undefined as any as number, 0, 0, 0);
-      {
-        const { x, y, width, height } = this.disp.getBounds();
-        this.disp.setBounds(x, y, width, height);
-      }
       // TODO: add any buttons to this
       this.setBounds(undefined, 0, 0, 0);
       this.visible = true;
@@ -73,10 +69,10 @@ export class TradePanel extends RectWithDisp {
     // qText: show/edit quantity to Trade:
     const bgColor = 'rgba(250,250,250,.9)';
     const qText0 = `${maxQuant}`, maxLen = Math.random() > .5 ? 4 : 3;
-    const qText = new EditNumber('', { fontSize: fs, bgColor, dx: .1, maxLen });
-    qText.setText(qText0, { fontName: qText.fontName, fontSize: qText.fontSize });
-    // const qText = new EditNumber(qText0, { fontSize: fs, bgColor, dx: .1, maxLen });
-    // qText.repaint()                     // position cursor
+    // const qText = new EditNumber('', { fontSize: fs, bgColor, dx: .1, maxLen });
+    // qText.setText(qText0, { fontName: qText.fontName, fontSize: qText.fontSize });
+    const qText = new EditNumber(qText0, { fontSize: fs, bgColor, dx: .1, maxLen });
+    qText.repaint()                     // position cursor
     return qText;
   }
 
@@ -84,6 +80,7 @@ export class TradePanel extends RectWithDisp {
    * @param item the type of product to buy/sell from/to planet
    * @param quant number of items to buy/sell
    * @param planet calculate prices from planet
+   * @returns TableRow
    */
   makeTradeRow(item: Item, quant: number, planet: Planet, sell = true) {
     const color = sell ? C.GREEN : C.PURPLE;
@@ -137,7 +134,7 @@ export class TradePanel extends RectWithDisp {
       return this.makeTradeRow(item, quant, planet, true);
     };
     const tc = new TableCont(rowBuilder, x, y);
-    tc.colWidths = colw;
+    tc.colWidths = colw; // sync with buyTable if provided
     const sellable = Object.entries(this.ship.cargo).filter(([item, quant]) => planet.consPCs.find(pc => pc.item === item));
     tc.tableize(sellable); // tc.addChild(...tableRows)
     return tc;
@@ -151,7 +148,7 @@ export class TradePanel extends RectWithDisp {
     tc.colWidths = colw; // sync with sellTable if provided
     const buyable = Object.values(planet.prodPCs);
     tc.tableize(buyable);
-    const r0 = tc.children[0]; r0.parent.addChild(r0);
+    // const r0 = tc.children[0]; r0.parent.addChild(r0);// row0 on top for analysis
     return tc;
 
   }

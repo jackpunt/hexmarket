@@ -1,6 +1,7 @@
 import type { XYWH } from "@thegraid/common-lib";
-import { EditBox, type TextStyle, type TextInRectOptions, textWidth } from "@thegraid/easeljs-lib";
+import { EditBox, type TextStyle, type TextInRectOptions, textWidth, type NamedObject } from "@thegraid/easeljs-lib";
 import type { TableCell } from "./table-cell";
+import { Graphics } from "@thegraid/easeljs-module";
 
 /** specifically: an Editor for short numeric strings */
 export class EditNumber extends EditBox implements TableCell {
@@ -8,14 +9,16 @@ export class EditNumber extends EditBox implements TableCell {
     super(text, options);
     this.disp.textAlign = 'right'; // baseLine = 'center'
     const { dx, dy, maxLen, minWidth } = { dx: 0, dy: 0, maxLen: 4, ...options };
-    this.dx = dx; this.dy = dy;
+    this.dx = dx; this.dy = dy;    // initial dx1 as if center aligned margin
     this.maxLen = maxLen;
-    this.minWidth = minWidth ?? maxLen;
+    this.minWidth = minWidth ?? maxLen; // write: number of chars
+    this.setInCell({ x: 0, y: 0, w: this.minWidth, h: this.fontSize * (1 + dy * 2)})
     this.point = this.buf.length - 1;
     this.cmark.visible = false;
     this.setBounds(undefined, 0, 0, 0); // bounds with (dx, dy) & minWidth
     this.paint(undefined, true); // paint bgColor
   }
+  get align() { return this.disp.textAlign }
   override onFocus(f: boolean): void {
     super.onFocus(f); // TODO: cmark.paint() to fade or blink cmark
   }
@@ -27,20 +30,6 @@ export class EditNumber extends EditBox implements TableCell {
     this._minWidth = dx0 + tw + dx1;
   }
 
-  override_alignCmark(text = this.disp.text, pt = this.point): void {
-    let lines = text.split('\n'), bol = 0;
-    // scan to find line containing cursor (pt)
-    lines.forEach((line, n) => {
-      // if cursor on this line, show it in the correct place: assume textAlign='left'
-      if (pt >= bol && pt <= bol + line.length) {
-        const seg = line.slice(pt);
-        this.cmark.x = this.disp.x - textWidth(seg, this.fontSize, this.fontName);
-        this.cmark.y = n * this.fontSize; // or measuredLineHeight()?
-      }
-      bol += (line.length + 1);
-    });
-  }
-
   maxLen = 2;
   // repaint as right-justified line:
   override repaint(text?: string) {
@@ -49,8 +38,9 @@ export class EditNumber extends EditBox implements TableCell {
     this.buf.splice(0, kil); // remove or insert from front.
     this.point -= kil;
     this.disp.text = this.buf.join('')
-    if (this.fillCell)
-      this.setInCell({x: this.x, y: this.y, w: this.cellWide, h: this.cellHigh}, false)
+    if (this.fillCell) {
+      this.setInCell({ x: this.x, y: this.y, w: this.cellWide, h: this.cellHigh }, false)
+    }
     return super.repaint(text);
   }
 
@@ -61,39 +51,54 @@ export class EditNumber extends EditBox implements TableCell {
     if (!this.fillCell) return;
     this.cellWide = w;
     this.cellHigh = h;
+    // hold dx1 constant (right justified margin)
+    // adjust dx0 to fill cell with rectShape.
+    // rectShape.[x,y] = [0,0]
     const tw = this.textWidth, lh = this.fontSize; // or getMeasuredLineHeight()
-    this.dx = (w - tw) / 2 / lh;
-    this.dy = (h - lh) / 2 / lh;
+    const [dx0, dx1, dy0, dy1] = this.borders;
+    this.dx0 = (w - tw - dx1) / lh;     // align-right margin
+    this.dy = (h - lh) / 2 / lh;        // align-middle margins
+    this.cmark.y = dy0;
+    this.rectShape.setRectRad({ w, h }); //{ w: dx0 + tw + dx1, h: dy0 + lh + dy1 }
     this.rectShape.paint(undefined, true);
   }
 
-  /** override for 'right' alignment */
+  /** override for minWidth and to correct for textAlign == 'right' */
   override calcBounds(): XYWH {
-    const { x, y, w, h } = super.calcBounds();  // bounds around current .disp Text
-    return { x, y, w: Math.max(w, this.minWidth ?? 1), h: Math.max(h, this.fontSize) }; // enlarge for minWidth
+    const [dx0, dx1, dy0, dy1] = this.borders;
+    const align = this.align == 'left'; // vs 'right'; vertical is always 'middle'
+    const { x: xx, y, width: ww, height: hh } = this.disp.getBounds() ?? { x: 0, y: 0, width: 0, height: 0 };
+    if (Math.abs(align ? xx : (xx + ww)) > .01) debugger;
+    const dmx = Math.max(0, this.minWidth - (dx0 + ww + dx1))
+    const x = align ? xx : xx - dmx, w = ww + dmx, h = Math.max(hh, this.fontSize);
+    if (Math.abs(align ? x : (x + w)) > .01) debugger;
+    // disp.bounds is wrt its own origin, translate to this.origin
+    const { x: x0, y: y0 } = this.disp;
+    const b = { x: x0 + x - dx0, y: y0 + y - dy0, w: w + dx0 + dx1, h: h + dy0 + dy1 };
+    return b;
   }
+  // TODO: simplify the whole thing: use maxLen --> editLen
+  // and keep that 'fixed' (also: 'w' is wider than '4'; so fix keybinder to be numeric)
+  // reject any key that breaks Number.parseInt(text)
 
   // alignCols: tc.x = w; setInCell(colWidth[n])
-  /** when placed as a TableCell: */
+  /** when placed as a TableCell; or when tracking continuous resize? */
   setInCell({ x: x0, y: y0, w, h }: XYWH, repaint = true) {
-    // debug: shrink cell size:
-    const s = 0; x0 += s; y0 += s; w -= 2 * s; h -= 2 * s;
+    w = Math.max(w, this.minWidth)
     // maybe expand rectShape to given cell<w,h>
     this.bordersToWH({ w, h });
 
-    // this: RectWithDisp: align ~= 'left', basel = 'top'
-    // const { x, y, width, height } = this.getBounds() // rectShape may not fillCell
-    const { x, y, width, height } = this.rectShape.getBounds()
+    // set upper-left corner: align ~= 'left', basel = 'top'
     this.x = x0; this.y = y0;
-    // disp: Text: textAlign = 'right', textBaseline = 'top'
+    // adjust disp for new width, dx0, dx1, dy0
     const [dx0, dx1, dy0, dy1] = this.borders;
-    this.disp.x = (width) - dx1;
+    this.disp.x = (this.disp.textAlign === 'left') ? dx0 : (w - dx1);
     this.disp.y = dy0;
 
-    this.rectShape.setRectRad({ x: x0, y: y0 });
-    // this.rectShape.paint(undefined, true);
+    // calcBounds() and setRectRad()
     this.setBounds(undefined, 0, 0, 0);
-    repaint && this.repaint();
+    this.rectShape.paint(undefined, true);
+    repaint && this.repaint(); // no repaint when called from repaint!
   }
 
 }

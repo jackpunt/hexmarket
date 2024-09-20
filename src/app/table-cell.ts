@@ -65,7 +65,11 @@ export class TableRow extends Array<TableCell> {
   width = 0;
   /** width of each cell in row */
   get widths() { return this.map(tc => tc.getBounds().width) }
-  get newWidth() { return this.widths.reduce((pw, cw) => pw + cw, 0) }
+  get heights() { return this.map(tc => tc.getBounds().height) }
+  /** total width of cells in this TableRow */
+  get sumWidth() { return this.widths.reduce((pw, cw) => pw + cw, 0) }
+  /** max height of cells in this TableRow */
+  get maxHeight() { return this.heights.reduce((ph, ch) => Math.max(ph, ch), 0) }
 }
 /** typically: Array<any> OR Record<string, any> */
 type CellData = any;
@@ -102,8 +106,9 @@ export class TableCont extends NamedContainer {
       this.addRow(cellData); // TableCell[], colWidths[], tc.x = 0;
     })
     this.alignCols(this.colWidths)
-    // check alignment: TODO: remove this
+    // check alignment: TODO: remove this. dels: [xDel, b.width, yDel, cell.y, b.y]
     let x0 = 0, y0 = 0;
+    const label = [ 'line', 'name', 'sp', 'minus', 'qText', 'plus', 'price',]
     const dels = this.tableRows[0]?.map((cell, ndx) => {
       const { x, y, width, height } = cell.getBounds()
       const xa = cell.x + x; // the 'apparent' left edge, esp of EditNumber
@@ -112,7 +117,9 @@ export class TableCont extends NamedContainer {
       const yDel = ya - y0;
       const cw = this.colWidths[ndx];
       x0 += cw;
-      return [xDel, yDel, cell.y, y].map(v => M.decimalRound(v, 3))
+      const rv: any[] = [xDel, width, yDel, cell.y, y].map(v => M.decimalRound(v, 3))
+      rv.push(label[ndx])
+      return rv
     })
     console.log(`tableize:`, dels, this.colWidths, this.tableRows[0], this.tableRows)
   }
@@ -135,6 +142,7 @@ export class TableCont extends NamedContainer {
     const n = this.tableRows.length;
     const rowCont = new NamedContainer(`row${n}`, 0, this.height)
     const tableRow = this.rowBuilder(cellData);
+    // compute w=sumWidth, h=maxHeight, max(colWidth)
     let w = 0, h = 0; // total width & max height of this row
     tableRow.forEach((tc, col) => {
       rowCont.addChild(tc);
@@ -143,8 +151,8 @@ export class TableCont extends NamedContainer {
       h = Math.max(h, height);
       this.colWidths[col] = Math.max(this.colWidths[col] ?? 0, width);
     })
-    tableRow.height = h;
-    tableRow.width = w;
+    tableRow.height = h;   // = tableRow.maxHeight
+    tableRow.width = w;    // = tableRow.sumWidth
     this.tableRows.push(tableRow)
     this.addChild(rowCont)
     return tableRow

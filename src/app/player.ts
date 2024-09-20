@@ -1,5 +1,5 @@
 import { C, stime } from "@thegraid/common-lib"
-import { KeyBinder } from "@thegraid/easeljs-lib"
+import { KeyBinder, NamedContainer } from "@thegraid/easeljs-lib"
 import { Container } from "@thegraid/easeljs-module"
 import { GamePlay as GamePlayLib, Hex1 as Hex1Lib, HexMap as HexMapLib, newPlanner, Player as PlayerLib } from "@thegraid/hexlib"
 import { EditNumber } from "./edit-number"
@@ -152,40 +152,41 @@ export class Player extends PlayerLib {
   }
 
   tShip = new Ship(`Test-${this.Aname}`, this, 3, { F1: 3, F2: 2, O1: 5 } as Cargo);
-  tCont = new Container()
+  tCont = new NamedContainer('tCont'); // in role of TableCont/rowCont
   showTradePanel(parent = this.tCont) {
-    this.panel.addChild(this.tCont)
+    this.panel.addChild(parent)
     parent.removeAllChildren();
+
+    // testEdit on right-mid-panel:
+    const { wide, high } = this.panel.metrics
+    const test = this.testEdit(wide, high / 2); // new(); setInCell()
+    parent.addChild(test)
 
     const tPanel = new TradePanel(this.tShip);
 
-    const { wide, high } = this.panel.metrics
-    const test = this.testEdit(wide, high / 2); //
-    test.setInCell({ x: wide, y: high / 2, w: 60, h: 70 })
-    parent.addChild(test)
-
-    const qText = tPanel.makeQuantEdit(1)
-    qText.setInCell({ x: wide, y: 0, w: 100, h: 30 }); //
+    // qText on right-upper-corner:
+    const qText = tPanel.makeQuantEdit(8), wc = 10, hr = 32;
     parent.addChild(qText)
+    qText.setInCell({ x: wide, y: 0, w: wc, h: hr }); // as if alignCols([wc, hr])
 
+    // full tradePanel at top-right:
     const cPlanet = this.gamePlay.planetPlacer.planetByDir.get('C') as Planet;
-    tPanel.makeTradeRow;
-
-    tPanel.showPanel(cPlanet)
-    parent.addChild(tPanel)
+    tPanel.makeTradeRow;   // for reference
+    tPanel.showPanel(cPlanet); // makeBuyTable->makeTradeRow[s]; alignCols,
+    parent.addChild(tPanel);   // change parent from this.tShip --> tPanel
     parent.stage?.update()
   }
 
   testEdit(x = 0, y = 0) {
-    // const qText = new EditNumber('888', { bgColor: C.WHITE, maxLen: 3, dx: .1 })
-    const qText = new EditNumber('', { bgColor: C.WHITE, maxLen: 3, dx: .1 })
-    qText.setText('888')
-    qText.repaint();                     // position cursor
+    const qText = new EditNumber('888', { bgColor: C.WHITE, maxLen: 3, dx: .1 })
+    // qText.x = x; qText.y = y; qText.dy = .5;
+    // qText.setBounds(undefined, 0, 0, 0); // calcBounds(); setRectRad()
+    // qText.rectShape.paint(undefined, true)
+    // qText.cellWide = 100;
+    // qText.cellHigh = 70;
 
-    const [dx0] = qText.borders
-    // qText.x = -dx0
-    qText.setInCell({ x, y, w: 60, h: 70 }); // TODO: testing
-    // qText.repaint();
+    // qText.setText('444')
+    qText.setInCell({ x, y, w: 40, h: 70 });
     return qText; // any display objec to put in player.panel...
   }
 }
