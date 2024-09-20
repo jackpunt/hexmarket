@@ -60,16 +60,18 @@ export function asTableCell(dObj: DisplayObject, setInCell?: (xywh: XYWH) => voi
 
 export class TableRow extends Array<TableCell> {
   /** max of height of cells in row */
-  height = 0;
+  _height?: number;
   /** sum of width of cells in row */
-  width = 0;
+  _width?: number;
   /** width of each cell in row */
   get widths() { return this.map(tc => tc.getBounds().width) }
   get heights() { return this.map(tc => tc.getBounds().height) }
   /** total width of cells in this TableRow */
-  get sumWidth() { return this.widths.reduce((pw, cw) => pw + cw, 0) }
+  get width() { return this._width ?? this.widths.reduce((pw, cw) => pw + cw, 0) }
   /** max height of cells in this TableRow */
-  get maxHeight() { return this.heights.reduce((ph, ch) => Math.max(ph, ch), 0) }
+  get height() { return this._height ?? this.heights.reduce((ph, ch) => Math.max(ph, ch), 0) }
+  set width(w: number) { this._width = w }
+  set height(h: number) { this._height = h }
 }
 /** typically: Array<any> OR Record<string, any> */
 type CellData = any;
@@ -107,6 +109,10 @@ export class TableCont extends NamedContainer {
     })
     this.alignCols(this.colWidths)
     // check alignment: TODO: remove this. dels: [xDel, b.width, yDel, cell.y, b.y]
+    this.checkAlignment();
+  }
+
+  checkAlignment() {
     let x0 = 0, y0 = 0;
     const label = [ 'line', 'name', 'sp', 'minus', 'qText', 'plus', 'price',]
     const dels = this.tableRows[0]?.map((cell, ndx) => {
@@ -123,6 +129,7 @@ export class TableCont extends NamedContainer {
     })
     console.log(`tableize:`, dels, this.colWidths, this.tableRows[0], this.tableRows)
   }
+
   /** set each cell to the left-top corner of its column */
   alignCols(colWidths = this.colWidths) {
     this.tableRows.forEach((tableRow) => {
@@ -155,6 +162,7 @@ export class TableCont extends NamedContainer {
     tableRow.width = w;    // = tableRow.sumWidth
     this.tableRows.push(tableRow)
     this.addChild(rowCont)
+    rowCont.y += n * 1;    // space between rows
     return tableRow
   }
 }

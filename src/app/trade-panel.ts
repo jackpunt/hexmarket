@@ -48,14 +48,17 @@ export class TradePanel extends RectWithDisp {
 
     // align = 'center', basel = 'center'
     const setInCell = ({ x: x0, y: y0, w, h }: XYWH) => {
-      if (false) {
+      if (true) {
         // pad or trim the rectShape to fit Cell
         // true, but generally w == width && h == height; b/c: same content in each row
-        const { x, y, width, height } = button.getBounds();
-        const [dx0, dx1, dy0, dy1] = button.borders;
-        button.dx = (w - width) / 2;
-        button.dy = (h - height) / 2;
+        const lh = button.disp.getMeasuredLineHeight(), tweak = .05
+        const { x, y, width, height } = button.disp.getBounds();
+        // const [dx0, dx1, dy0, dy1] = button.borders;
+        button.dx = (w - width) / 2 / lh;
+        button.dy = (h - height) / 2 / lh;
+        button.dy0 += tweak; button.dy1 -= tweak;
         button.setBounds(undefined, 0, 0, 0);
+        button.rectShape.paint(undefined, true);
       }
       // ['center', 'center'] formula, inspired by name-Icon
       const { x, y, width, height } = button.getBounds();
@@ -97,18 +100,21 @@ export class TradePanel extends RectWithDisp {
       return incValue;
     }
     // item Icon: CenterText in Rect(corners)
-    const nText = new CenterText(item, F.fontSpec(fsi), C.BLACK);
-    const nCell = new TextInRect(nText, { bgColor: itemColor, border: .3, corner: 1.0 });
-    const name = nCell.asTableCellAnd<TextInRect>(({ x: x0, y: y0, w, h }) => {
-      const { x, y, w: width, h: height } = nCell.calcBounds(); // y00 = 0
-
+    const iText = new CenterText(item, F.fontSpec(fsi), C.BLACK);
+    const iCell = new TextInRect(iText, { bgColor: itemColor, border: .3, corner: 1.0 });
+    const iCellSetInCell: (xywh: XYWH) => void = ({ x: x0, y: y0, w, h }) => {
+      { // no descenders: tweak the position of circle behind text
+        const tweak = .07; iCell.dy0 += tweak; iCell.dy1 -= tweak;
+        iCell.setBounds(undefined, 0, 0, 0);
+        iCell.rectShape.paint(undefined, true);
+      }
+      const { x, y, w: width, h: height } = iCell.calcBounds(); // y00 = 0
       // from ['center', 'top'] to ['center', 'center']
-      nCell.x = x0 + w / 2;
-      nCell.y = y0 - y + (height - h) / 2;
-      // no descenders: use this oppty to tweak text position in circle.
-      nCell.y += (nCell.disp.y = .1 * fsi) / 2;
-      nCell.setBounds(-w / 2, -height / 2, w, height);
-    });
+      iCell.x = x0 + w / 2;
+      iCell.y = y0 - y + (height - h) / 2;
+      iCell.setBounds(-w / 2, -height / 2, w, height);
+    }
+    const icon = iCell.asTableCellAnd<TextInRect>(iCellSetInCell);
     // qText: show/edit quantity to Trade:
     const qText = this.makeQuantEdit(initVal, fs);
     // space
@@ -126,7 +132,7 @@ export class TradePanel extends RectWithDisp {
     const plus = this.makeButton(' + ', fs, bgColor);
     plus.on(S.click, clickToInc(qText, pText, 1))
 
-    cells.push(name, sp, minus, qText, plus, price);
+    cells.push(icon, sp, minus, qText, plus, price);
     // Debug line from (0,0) -> (0,130)
     {
       const w = 145, transb = 'rgba(0,0,0,.1)';
