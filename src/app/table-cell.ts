@@ -72,6 +72,7 @@ export class TableRow extends Array<TableCell> {
   get height() { return this._height ?? this.heights.reduce((ph, ch) => Math.max(ph, ch), 0) }
   set width(w: number) { this._width = w }
   set height(h: number) { this._height = h }
+  get bottom() { return this.height + (this[0].parent?.y ?? 0) }
 }
 /** typically: Array<any> OR Record<string, any> */
 type CellData = any;
@@ -82,21 +83,21 @@ type CellData = any;
  * @param cellData arguments to construct next TableCell
  * @returns tableRows (with additional TableCell) or undefined when done.
  */
-export type RowBuilder = (cellData: CellData) => TableRow;
+export type RowBuilder<TR extends TableRow> = (cellData: CellData) => TR;
 
 /** contains an Array of TableRow.
  *
  * With the max column width of each col across all rows
  */
-export class TableCont extends NamedContainer {
+export class TableCont<TR extends TableRow> extends NamedContainer {
   // A disp for a RectWithDisp; addChild(...TableRow[])
   // this class manages the y offset, and row creation/membership
   /** Array of TableRow */
-  tableRows: TableRow[] = [];
+  tableRows: TR[] = [];
   /** max width of each column across all rows of this TableCont */
   colWidths: number[] = [];
 
-  constructor(public rowBuilder: RowBuilder, x = 0, y = 0) {
+  constructor(public rowBuilder: RowBuilder<TR>, x = 0, y = 0) {
     super('table', x, y);
   }
   get width() { return this.tableRows.reduce((pw, tr) => Math.max(pw, tr.width), 0)}
@@ -112,10 +113,11 @@ export class TableCont extends NamedContainer {
     this.checkAlignment();
   }
 
-  checkAlignment() {
+  checkAlignment() { // for debug analysis
     let x0 = 0, y0 = 0;
-    const label = [ 'line', 'name', 'sp', 'minus', 'qText', 'plus', 'price',]
-    const dels = this.tableRows[0]?.map((cell, ndx) => {
+    const label = [ 'line', 'name', 'sp', 'minus', 'qText', 'plus', 'pText',]
+    const dels: any[] = []; // (TradeRow).map(...) tries to construct a TradeRow
+    this.tableRows[0]?.forEach((cell, ndx) => {
       const { x, y, width, height } = cell.getBounds()
       const xa = cell.x + x; // the 'apparent' left edge, esp of EditNumber
       const ya = cell.y + y; // the 'apparent' top edge, esp of EditNumber
@@ -125,7 +127,7 @@ export class TableCont extends NamedContainer {
       x0 += cw;
       const rv: any[] = [xDel, width, yDel, cell.y, y].map(v => M.decimalRound(v, 3))
       rv.push(label[ndx])
-      return rv
+      dels.push(rv); //       return rv; // when using .map(...)
     })
     console.log(`tableize:`, dels, this.colWidths, this.tableRows[0], this.tableRows)
   }
@@ -143,7 +145,7 @@ export class TableCont extends NamedContainer {
     })
     return this;
   }
-
+  rowConts: NamedContainer[] = []; // access the RowCont children
   /** put TableCells into a RowCont and stack in this TableCont */
   addRow(cellData: CellData) {
     const n = this.tableRows.length;
@@ -161,7 +163,7 @@ export class TableCont extends NamedContainer {
     tableRow.height = h;   // = tableRow.maxHeight
     tableRow.width = w;    // = tableRow.sumWidth
     this.tableRows.push(tableRow)
-    this.addChild(rowCont)
+    this.addChild(rowCont); this.rowConts.push(rowCont);
     rowCont.y += n * 1;    // space between rows
     return tableRow
   }

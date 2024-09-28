@@ -35,8 +35,6 @@ export class TP extends TPLib {
   static override mHexes = 1   // number hexes on side of Meta-Hex
   /** Order [number of Hexs on side] of District [# rings of Hexes in each metaHex] */
   static override nHexes = 7    // number of Hexes on side of District
-  static nDistricts = 1
-  static nVictory = 3  // number of Colony to win
 
   // timeout: see also 'autoEvent'
   static stepDwell:  number = 150
@@ -46,4 +44,6 @@ export class TP extends TPLib {
   static override bgColor: string = 'tan' //'wheat'// C.BROWN
   static borderColor: string = 'peru'//TP.bgColor; //'burlywood'
   static override meepleY0 = 0;
+
+  static initialCoins = 100;
 }

@@ -221,7 +221,13 @@ export class Planet extends MapTile {
 
   getPC(item: Item, pcary: PC[]) { return pcary.find(pc => pc.item === item) }
 
-  /** price for Planet to buy consumable (quant) */
+  /**
+   * Price for this planet to buy quantity of consumable from Ship.
+   * @param item Item to buy
+   * @param quant number to buy
+   * @param commit [false] if true, decrement the remaining/available quantityl
+   * @returns to price to be paint to this planet.
+   */
   buy_price(item: Item, quant: number, commit = false) {
     let cons = this.getPC(item, this.consPCs), cost = 0;
     if (!cons) return cost // not consumed by this Planet
@@ -235,7 +241,14 @@ export class Planet extends MapTile {
     }
     return cost
   }
-  /** price for Planet to sell production (quant) */
+
+  /**
+   * Price for Planet to sell quantity of production to a Ship/Player.
+   * @param item
+   * @param quant
+   * @param commit
+   * @returns
+   */
   sell_price(item: Item, quant: number, commit = false) {
     let prod = this.getPC(item, this.prodPCs), cost = 0
     if (!prod) return cost // not for sale

@@ -2,6 +2,10 @@ import { type XYWH } from "@thegraid/common-lib";
 import { EditBox, textWidth, type TextInRectOptions, type TextStyle } from "@thegraid/easeljs-lib";
 import type { TableCell } from "./table-cell";
 
+export type EditNumberOptions = {
+  dx?: number; dy?: number; maxLen?: number; minWidth?: number;
+};
+
 /** specifically: an Editor for short numeric strings */
 export class EditNumber extends EditBox implements TableCell {
   constructor(text?: string, options: TextStyle & TextInRectOptions & EditNumberOptions = {}) {
@@ -11,7 +15,7 @@ export class EditNumber extends EditBox implements TableCell {
     this.dx = dx; this.dy = dy;    // initial dx1 as if center aligned margin
     this.maxLen = maxLen;
     this.minWidth = minWidth ?? maxLen; // write: number of chars
-    this.setInCell({ x: 0, y: 0, w: this.minWidth, h: this.fontSize * (1 + dy * 2)})
+    this.setInCell({ x: 0, y: 0, w: this.minWidth, h: this.fontSize * (1 + dy * 2)});
     this.point = this.buf.length - 1;
     this.cmark.visible = false;
     this.setBounds(undefined, 0, 0, 0); // bounds with (dx, dy) & minWidth
@@ -81,7 +85,7 @@ export class EditNumber extends EditBox implements TableCell {
     return b;
   }
   // TODO: simplify the whole thing: use maxLen --> editLen
-  // and keep that 'fixed' (also: 'w' is wider than '4'; so fix keybinder to be numeric)
+  // and keep that 'constant' (also: 'w' is wider than '4'; so fix keybinder to be numeric)
   // reject any key that breaks Number.parseInt(text)
 
   // alignCols: tc.x = w; setInCell(colWidth[n])
@@ -105,7 +109,3 @@ export class EditNumber extends EditBox implements TableCell {
   }
 
 }
-export type EditNumberOptions = {
-  dx?: number; dy?: number; maxLen?: number; minWidth?: number;
-};
-

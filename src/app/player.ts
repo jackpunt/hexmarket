@@ -1,7 +1,7 @@
 import { C, stime } from "@thegraid/common-lib"
 import { KeyBinder, NamedContainer } from "@thegraid/easeljs-lib"
 import { Container } from "@thegraid/easeljs-module"
-import { GamePlay as GamePlayLib, Hex1 as Hex1Lib, HexMap as HexMapLib, newPlanner, Player as PlayerLib } from "@thegraid/hexlib"
+import { GamePlay as GamePlayLib, Hex1 as Hex1Lib, HexMap as HexMapLib, newPlanner, NumCounterBox, Player as PlayerLib } from "@thegraid/hexlib"
 import { EditNumber } from "./edit-number"
 import { GamePlay } from "./game-play"
 import type { Planet } from "./planet"
@@ -148,11 +148,21 @@ export class Player extends PlayerLib {
   // Test/demo EditNumber
   override makePlayerBits(): void {
     super.makePlayerBits()
+    // TODO:
+    // make TileSource for each plane size
+    // make places for acquired cards (hand & in-play policies/events)
+    // display current fuel/money supply.
+    // Pro-tem hack for Coins counter/display:
+    const k = TP.hexRad / 2;
+    const cc = this.coinCounter = new NumCounterBox('coins', TP.initialCoins);
+    this.panel.addChild(cc); cc.x = this.panel.metrics.wide - k; cc.y = k
+    // For testing/debug, quick instance of a TradePanel:
     KeyBinder.keyBinder.setKey('q', () => this.gamePlay.curPlayer.showTradePanel())
   }
 
   tShip = new Ship(`Test-${this.Aname}`, this, 3, { F1: 3, F2: 2, O1: 5 } as Cargo);
   tCont = new NamedContainer('tCont'); // in role of TableCont/rowCont
+  // when we were debugging EditNumber:
   showTradePanel(parent = this.tCont) {
     this.panel.addChild(parent)
     parent.removeAllChildren();
@@ -165,14 +175,13 @@ export class Player extends PlayerLib {
     const tPanel = new TradePanel(this.tShip);
 
     // qText on right-upper-corner:
-    const qText = tPanel.makeQuantEdit(8), wc = 10, hr = 32;
+    const qText = new EditNumber(`8`, { dx: .1, maxLen: 2 }), wc = 10, hr = 32;
     parent.addChild(qText)
     qText.setInCell({ x: wide, y: 0, w: wc, h: hr }); // as if alignCols([wc, hr])
 
     // full tradePanel at top-right:
     const cPlanet = this.gamePlay.planetPlacer.planetByDir.get('C') as Planet;
-    tPanel.makeTradeRow;   // for reference
-    tPanel.showPanel(cPlanet); // makeBuyTable->makeTradeRow[s]; alignCols,
+    tPanel.showPanel(cPlanet); // makeBuyTable-> new TradeRow[s]; alignCols,
     parent.addChild(tPanel);   // change parent from this.tShip --> tPanel
     parent.stage?.update()
   }
