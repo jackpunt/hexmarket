@@ -40,9 +40,7 @@ class TradeRow extends TableRow {
     const itemColor = PC.reference[item].color, fsi = fs * .7;
     const clickToInc = (editNum: EditNumber, pText: Text, incr = 1, lowLimit = 0, highLimit = qMax) => {
       const incValue = () => {
-        const v0 = Math.max(lowLimit, Math.min(highLimit, editNum.value + incr));
-        const value = Number.isNaN(v0) ? 0 : v0;
-        pText.text = `$${this.costf(value)}`
+        const value = Math.max(lowLimit, Math.min(highLimit, editNum.value + incr));
         editNum.setText(`${value}`); // editNum dispatches S.splice
       }
       return incValue;
@@ -80,6 +78,7 @@ class TradeRow extends TableRow {
     const plus = this.plus = this.makeButton(' + ', fs, bgColor);
     plus.on(S.click, clickToInc(qText, pText, 1))
     qText.on(S.splice, () => {
+      pText.text = `$${this.costf(qText.value)}`
       Dispatcher.dispatcher.dispatchEvent(new ValueEvent('updateTotal', sell ? 'sell' : 'buy'))
     })
 

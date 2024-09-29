@@ -29,8 +29,14 @@ export class EditNumber extends EditBox implements TableCell {
     this.setBounds(undefined, 0, 0, 0); // bounds with (dx, dy) & minWidth
     this.paint(undefined, true); // paint bgColor
   }
+
+  get valueOrNaN() {
+    return Number.parseFloat(this.disp.text ?? '0');
+  }
+
   get value() {
-    return Number.parseFloat(this.label_text ?? '0');
+    const value = this.valueOrNaN;
+    return Number.isNaN(value) ? 0 : value;
   }
 
   /** constrain to integer or decimal numbers.  */
