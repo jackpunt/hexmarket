@@ -62,13 +62,14 @@ export class EditNumber extends EditBox implements TableCell {
   override repaint(text?: string) {
     // if more than bufLen chars: kill from left
     const kil = Math.max(0, this.buf.length - this.bufLen);
-    this.buf.splice(0, kil); // remove or insert from front.
-    this.point -= kil;
-    this.disp.text = this.buf.join('')
+    if (kil > 0) {
+      this.point -= kil;
+      this.splice(0, kil); // remove or insert from front. (dispatch 'splice')
+    }
     if (this.fillCell) {
       this.setInCell({ x: this.x, y: this.y, w: this.cellWide, h: this.cellHigh }, false)
     }
-    return super.repaint(text);
+    return super.repaint();
   }
 
   fillCell = true;

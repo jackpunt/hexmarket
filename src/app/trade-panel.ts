@@ -1,5 +1,5 @@
 import { C, F, S, type XYWH } from "@thegraid/common-lib";
-import { CenterText, NamedContainer, RectShape, RectWithDisp, TextInRect } from "@thegraid/easeljs-lib";
+import { CenterText, Dispatcher, NamedContainer, RectShape, RectWithDisp, TextInRect, ValueEvent } from "@thegraid/easeljs-lib";
 import { Text } from "@thegraid/easeljs-module";
 import { UtilButton, UtilButtonOptions } from "@thegraid/hexlib";
 import { EditNumber } from "./edit-number";
@@ -14,7 +14,7 @@ class TradeRow extends TableRow {
   }
   set quant(q) { this.qText.setText(`${q}`) };
   costf(value = this.quant) {
-    return this.planet.price(this.item, value, this.sell)
+    return this.planet.price(this.item, value, this.sell);
   }
   icon;
   sp;
@@ -43,7 +43,7 @@ class TradeRow extends TableRow {
         const v0 = Math.max(lowLimit, Math.min(highLimit, editNum.value + incr));
         const value = Number.isNaN(v0) ? 0 : v0;
         pText.text = `$${this.costf(value)}`
-        editNum.setText(`${value}`);
+        editNum.setText(`${value}`); // editNum dispatches S.splice
       }
       return incValue;
     }
@@ -79,6 +79,9 @@ class TradeRow extends TableRow {
     // plus:
     const plus = this.plus = this.makeButton(' + ', fs, bgColor);
     plus.on(S.click, clickToInc(qText, pText, 1))
+    qText.on(S.splice, () => {
+      Dispatcher.dispatcher.dispatchEvent(new ValueEvent('updateTotal', sell ? 'sell' : 'buy'))
+    })
 
     cells.push(icon, sp, minus, qText, plus, pText);
     // A debug line from (0,0) -> (0,130) to show location of each tableRow:
@@ -94,7 +97,7 @@ class TradeRow extends TableRow {
     // qText: show/edit quantity to Trade:
     const bgColor = 'rgba(250,250,250,.9)';
     const qText0 = `${maxQuant}`;
-    const qText = new EditNumber(qText0, { integer: false, fontSize: fs, bgColor, dx: .1, bufLen: 2 });
+    const qText = new EditNumber(qText0, { integer: true, fontSize: fs, bgColor, dx: .1, bufLen: 2 });
     qText.repaint()                     // position cursor
     return qText;
   }
@@ -191,10 +194,15 @@ export class TradePanel extends RectWithDisp {
     tc.tableize(buyable);
     // const r0 = tc.children[0]; r0.parent.addChild(r0);// row0 on top for analysis
     const buyButton = this.addBuyButton(tc);
-    this.tText = this.showTotalCost(tc, buyButton.y);
+    const totalText = this.showTotalCost(tc, buyButton.y);
+    Dispatcher.dispatcher.namedOn('buyTotal', 'updateTotal', (evt: ValueEvent) => {
+      if (evt.value == 'sell') {
+        totalText.text = `$${this.totalCost(tc)}`
+      }
+      return true;
+    })
     return tc;
   }
-  tText!: Text
 
   addBuyButton(tc: TableCont<TradeRow>) {
     const lastRow = tc.tableRows[tc.tableRows.length - 1]
@@ -223,6 +231,7 @@ export class TradePanel extends RectWithDisp {
     tc.addChild(button)
     return button;
   }
+
   // TODO: tweak so tradeRow.clickToInc() will update the TradePanel.tText
   showTotalCost(tc: TableCont<TradeRow>, y = 0) {
     const lastRow = tc.tableRows[tc.tableRows.length - 1]
