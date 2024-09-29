@@ -14,7 +14,7 @@ class TradeRow extends TableRow {
   }
   set quant(q) { this.qText.setText(`${q}`) };
   costf(value = this.quant) {
-    return this.planet.price(this.item, value, !this.sell)
+    return this.planet.price(this.item, value, this.sell)
   }
   icon;
   sp;
@@ -26,11 +26,13 @@ class TradeRow extends TableRow {
   /** rowBuilder: make one row of a TradePanel; a TableRow: TableCell[]
    * @param planet calculate prices from planet
    * @param item the type of product to buy/sell from/to planet
-   * @param quant number of items to buy/sell
+   * @param qMax max value for number (of items to buy/sell)
+   * @param initVal [qMax] initial value
+   * @param sell [true] true if planet is selling, false if planet is buying.
    * @returns TableRow
    */
   constructor(public planet: Planet, public item: Item, qMax: number, initVal = qMax, public sell = true) {
-    const bgColor = sell ? C.GREEN : C.PURPLE;
+    const bgColor = sell ? C.PURPLE : C.GREEN;
     super();  // an empty Array
     const cells = this;
     this.item = item;
@@ -38,7 +40,8 @@ class TradeRow extends TableRow {
     const itemColor = PC.reference[item].color, fsi = fs * .7;
     const clickToInc = (editNum: EditNumber, pText: Text, incr = 1, lowLimit = 0, highLimit = qMax) => {
       const incValue = () => {
-        const value = Math.max(lowLimit, Math.min(highLimit, editNum.value + incr));
+        const v0 = Math.max(lowLimit, Math.min(highLimit, editNum.value + incr));
+        const value = Number.isNaN(v0) ? 0 : v0;
         pText.text = `$${this.costf(value)}`
         editNum.setText(`${value}`);
       }
@@ -91,7 +94,7 @@ class TradeRow extends TableRow {
     // qText: show/edit quantity to Trade:
     const bgColor = 'rgba(250,250,250,.9)';
     const qText0 = `${maxQuant}`;
-    const qText = new EditNumber(qText0, { fontSize: fs, bgColor, dx: .1, maxLen: 2 });
+    const qText = new EditNumber(qText0, { integer: false, fontSize: fs, bgColor, dx: .1, bufLen: 2 });
     qText.repaint()                     // position cursor
     return qText;
   }
@@ -164,11 +167,10 @@ export class TradePanel extends RectWithDisp {
   }
 
   // Each Choice: 'icon: - [______] + $price' (icon, -button, EditBox, +buttons, $number)
-  /** cargo this Ship is selling, with price planet will pay. */
+  /** cargo this Ship is selling, with price planet will pay to buy. */
   makeSellTable(planet: Planet, x = 0, y = 0, colw: number[] = []) {
-    const rowBuilder: RowBuilder<TradeRow> = (cargoEntry: [Item, number]) => {
-      const [item, quant] = cargoEntry;
-      return new TradeRow(planet, item, quant, quant, true);
+    const rowBuilder: RowBuilder<TradeRow> = (cargo: PC) => {
+      return new TradeRow(planet, cargo.item, cargo.quant, cargo.quant, false);
     };
     const tc = new TableCont(rowBuilder, x, y);
     tc.colWidths = colw; // sync with buyTable if provided
@@ -178,9 +180,10 @@ export class TradePanel extends RectWithDisp {
   }
 
   // Each Choice: 'icon: - [______] + $price' (icon, -button, EditBox, +buttons, $number)
+  /** production that planet will sell, with price at which ship can buy */
   makeBuyTable(planet: Planet, x = 0, y = 0, colw: number[] = []) {
     const rowBuilder: RowBuilder<TradeRow> = (prod: PC) => {
-      return new TradeRow(planet, prod.item, prod.quant, Math.min(1, prod.quant), false);
+      return new TradeRow(planet, prod.item, prod.quant, Math.min(1, prod.quant), true);
     };
     const tc = new TableCont(rowBuilder, x, y);
     tc.colWidths = colw; // sync with sellTable if provided
@@ -202,12 +205,13 @@ export class TradePanel extends RectWithDisp {
     const buyItems = () => {
       tc.tableRows.forEach(trow => {
         const { item, quant } = trow;
-        const cost = planet.sell_price(item, quant, true); // commit sale
+        const cost = planet.sell_price(item, quant, false); // commit purchase
         this.ship.player.coins -= cost;
         const cargo = this.ship.cargo, q = cargo[item] ?? 0;
-        cargo[item] = q - quant;
+        cargo[item] = q + quant;  // TODO: constrain max cargo
         trow.pText.text = `${trow.costf(trow.quant = 0)}`
       })
+      tc.stage?.update();
     };
 
     const buyOpts = { bgColor: 'pink', visible: true, active: true, border: .1, fontSize } as UtilButtonOptions;

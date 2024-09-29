@@ -261,7 +261,14 @@ export class Planet extends MapTile {
     }
     return cost;
   }
-  /** price to sell Item to, or buy Item from this Planet */
+
+  /**
+   * Total price for planet to sell or buy Items.
+   * @param item Item to trade
+   * @param quant number of Items to trade
+   * @param sell [true] price planet will sell, false: price planet will buy.
+   * @returns
+   */
   price(item: Item, quant: number, sell = true) {
     return sell ? this.sell_price(item, quant) : this.buy_price(item, quant);
   }

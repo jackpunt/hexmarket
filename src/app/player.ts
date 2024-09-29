@@ -172,14 +172,14 @@ export class Player extends PlayerLib {
     const test = this.testEdit(wide, high / 2); // new(); setInCell()
     parent.addChild(test)
 
-    const tPanel = new TradePanel(this.tShip);
 
     // qText on right-upper-corner:
-    const qText = new EditNumber(`8`, { dx: .1, maxLen: 2 }), wc = 10, hr = 32;
+    const qText = new EditNumber(`8`, { dx: .1, bufLen: 2 }), wc = 10, hr = 32;
     parent.addChild(qText)
     qText.setInCell({ x: wide, y: 0, w: wc, h: hr }); // as if alignCols([wc, hr])
 
     // full tradePanel at top-right:
+    const tPanel = new TradePanel(this.tShip);
     const cPlanet = this.gamePlay.planetPlacer.planetByDir.get('C') as Planet;
     tPanel.showPanel(cPlanet); // makeBuyTable-> new TradeRow[s]; alignCols,
     parent.addChild(tPanel);   // change parent from this.tShip --> tPanel
@@ -187,7 +187,7 @@ export class Player extends PlayerLib {
   }
 
   testEdit(x = 0, y = 0) {
-    const qText = new EditNumber('888', { bgColor: C.WHITE, maxLen: 3, dx: .1 })
+    const qText = new EditNumber('888', { bgColor: C.WHITE, bufLen: 3, dx: .1 })
     // qText.x = x; qText.y = y; qText.dy = .5;
     // qText.setBounds(undefined, 0, 0, 0); // calcBounds(); setRectRad()
     // qText.rectShape.paint(undefined, true)
