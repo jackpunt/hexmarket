@@ -50,7 +50,7 @@ export class GamePlay extends GamePlayLib {
     // make and place one Ship for player
     const hex = player.chooseShipHex();
     const rc = { row: hex.row, col: hex.col };
-    const cargo = TP.load;    // load some cargo for testing { F1: 5 }
+    const cargo = { ...TP.initialCargo[player.index] }; // load some cargo for testing { F1: 5 }
     const spec = { z0: Ship.z0[Ship.defaultShipSize], rc, cargo } as ShipSpec;
     return [spec];
   }

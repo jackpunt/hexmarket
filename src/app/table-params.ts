@@ -1,5 +1,6 @@
-import {TP as TPLib, playerColorRecord} from "@thegraid/hexlib"
-export { otherColor, PlayerColor, playerColor0, playerColor1, PlayerColorRecord, playerColorRecord, playerColorRecordF, playerColors } from "@thegraid/hexlib";
+import { TP as TPLib, playerColorRecord } from "@thegraid/hexlib";
+import type { Cargo } from "./ship";
+export { PlayerColor, PlayerColorRecord, otherColor, playerColor0, playerColor1, playerColorRecord, playerColorRecordF, playerColors } from "@thegraid/hexlib";
 
 declare type Params = Record<string, any>;
 
@@ -23,7 +24,7 @@ export class TP extends TPLib {
   static schemeNames = ['Red_Blue']
 
   /** initial Ship load for testing */
-  static load = { F1: 5, F2: 3, O1: 2, O2: 3 };
+  static initialCargo = [{ F1: 5, F2: 3, O1: 2, O2: 3 }, { F2: 5, F3: 3, O2: 2, O3: 3 }] as Cargo[];
 
   /** offset planets  */
   static offP = true;

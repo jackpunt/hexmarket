@@ -4,6 +4,7 @@ import { NamedContainer, ParamGUI } from "@thegraid/easeljs-lib";
 import type { Container, Stage } from "@thegraid/easeljs-module";
 import { IdHex, Scenario, Table as TableLib, Tile } from "@thegraid/hexlib";
 import { GamePlay } from "./game-play";
+import type { Item } from "./planet";
 import { TP } from "./table-params";
 
 
@@ -56,9 +57,9 @@ export class Table extends TableLib {
 
   override bindKeysToScale(scaleC: ScaleableContainer, ...views: XY[]): void {
     this.viewA.x = 442;
-    const viewZ = { x: 240, y: -25, ssk: 'Z', isk: 'z', scale: .65 }
+    const viewZ = { x: 240, y: -25, ssk: 'Z', isk: 'z', scale: 1.65 } // testing: 240->420, .65->1.65
     const viewX = { x: 240, y: -25, ssk: 'X', isk: 'x', scale: .8 }
-    super.bindKeysToScale(scaleC, viewZ, this.viewA, viewX)
+    super.bindKeysToScale(scaleC, viewX, this.viewA, viewZ); // KeyBinder.keyBinder.setKey('z')
   }
 
   override makeGUIs(scale = TP.hexRad / 60, cx = -80, cy = 170, dy = 20) {
@@ -94,14 +95,17 @@ export class Table extends TableLib {
     gui.makeParamSpec("dbp", [3, 4, 5, 6], { fontColor: "red" })
     gui.makeParamSpec("dop", [0, 1, 2, 3], { fontColor: "red" })
     gui.makeParamSpec("offP", [true, false], { fontColor: "red" })
-    gui.makeParamSpec("load", [0, 5, 10, 15, 20], { fontColor: "green", name: 'F1' })
 
     gui.spec("dbp").onChange = setStateValue; TP.dbp;
     gui.spec("dop").onChange = setStateValue; TP.dop;
     gui.spec("offP").onChange = setStateValue; TP.offP;
-    gui.spec('load').onChange = (item: ParamItem) => {
-      gui.setValue(item); TP.load
-      this.gamePlay.allPlayers.forEach(p => p.ships[0].cargo = {...p.ships[0].cargo, F1: item.value }); // ParamItem, not (PC) Item
+
+    gui.makeParamSpec("F2", [0, 5, 10, 15, 20], { fontColor: "green" })
+    gui.spec('F2').onChange = (item: ParamItem) => {
+      const itemName = item.fieldName as Item; // Cargo-Item name
+      if (!this.gamePlay.gameSetup.restartable) return;
+      gui.setValue(item); // TP.F2 = value
+      this.gamePlay.allPlayers.forEach(p => p.ships[0].cargo[itemName] = item.value); // ParamItem.value, not (PC) Item
     }
 
     parent.addChild(gui)

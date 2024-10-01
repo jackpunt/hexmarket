@@ -1,5 +1,5 @@
-import { C } from "@thegraid/common-lib";
-import { CGF, NamedContainer, type TextInRectOptions } from "@thegraid/easeljs-lib";
+import { C, F, type XYWH } from "@thegraid/common-lib";
+import { CenterText, CGF, NamedContainer, TextInRect, type TextInRectOptions } from "@thegraid/easeljs-lib";
 import { MouseEvent, Shape, Text } from "@thegraid/easeljs-module";
 import { DragContext, EwDir, H, Hex1, MapTile, rightClickable, TP as TPLib, UtilButtonOptions } from "@thegraid/hexlib";
 import { HexMap, MktHex, MktHex2 } from "./hex";
@@ -19,6 +19,27 @@ type n = number;
 export type PlanetElt = { id: PlanetDir, row: n, col: n, prod: PCdef, cons: PCdef };
 export type PlanetDir = (typeof H.C) | EwDir;
 
+/** item Icon: CenterText in Rect (w/corners) */
+export function iconForItem(item: Item, fs = TP.hexRad / 3) {
+  const pcref = PC.reference, ref = PC.reference[item]
+  const itemColor = PC.reference[item].color, fsi = fs * .7;
+  const iText = new CenterText(item, F.fontSpec(fsi), C.BLACK);
+  const iCell = new TextInRect(iText, { bgColor: itemColor, border: .3, corner: 1.0 });
+  const iCellSetInCell: (xywh: XYWH) => void = ({ x: x0, y: y0, w: w0, h: h0 }) => {
+    { // no descenders: tweak the position of circle behind text
+      const tweak = .07; iCell.dy0 += tweak; iCell.dy1 -= tweak;
+      iCell.setBounds(undefined, 0, 0, 0);
+      iCell.rectShape.paint(undefined, true);
+    }
+    const { x, y, w, h } = iCell.calcBounds(); // y00 = 0
+    // from ['center', 'top'] to ['center', 'center']
+    iCell.x = x0 + w0 / 2;
+    iCell.y = y0 - y + (h - h0) / 2;
+    iCell.setBounds(-w0 / 2, -h / 2, w0, h);
+  }
+  return iCell.asTableCellAnd<TextInRect>(iCellSetInCell);
+}
+
 // type PublicInterface<T> = { [K in keyof T]: T[K] };
 // type IPC0 = PublicInterface<PC>
 /** describe the market for a resource. */
@@ -34,7 +55,10 @@ interface IPlanetPC {
 }
 
 type RefSpec = [max: n, min: n, lim: n, color: string];
-/** production/commodity; quantity changes at rate; quantity determines price. */
+/** production/commodity; quantity changes at rate; quantity determines price.
+ *
+ * { item: Item, max: number, min: number, lim: number, color: string }
+ */
 export class PC {
   /** Market definition: [min$, max$, limQuant, color] for each resource. */
   static readonly refspec: {[key in Item]: RefSpec} = {
@@ -49,12 +73,13 @@ export class PC {
     X1: [50, 30,  4, 'blue'],  // exotic (consumed in center)
     X2: [80, 40,  4, 'darkviolet'],     // exotic
   }
+  static refSpecPC(item: Item) {
+    const [max, min, lim, color] = PC.refspec[item];
+    return new PC(item, max, min, lim, color)
+  }
   /** canonical reference PCs, clone to add (rate, quant) from PCdef */
   static readonly reference = Object.keys(PC.refspec) //: { [key in Item]: PC }
-    .map((key) => {
-      const [max, min, lim, color] = (PC.refspec as Record<string, RefSpec>)[key];
-      return new PC(key as Item, max, min, lim, color)
-    }) // all PC[]
+    .map((key) => PC.refSpecPC(key as Item)) // all PC[]
     .reduce((pv, cv) => {
       pv[cv.item] = cv;
       return pv;
@@ -98,11 +123,10 @@ export class PC {
 }
 /** InfoText with PC[] for prod or cons. */
 class PCInfo extends InfoText {
-  constructor(pcary: PC[], label: Text | string, options?: UtilButtonOptions & TextInRectOptions, cgf?: CGF) {
+  constructor(public pcary: PC[], label: Text | string, options?: UtilButtonOptions & TextInRectOptions, cgf?: CGF) {
     super(label, options, cgf)
     this.pcary = pcary;
   }
-  pcary: PC[]
 }
 
 export class Planet extends MapTile {
@@ -140,12 +164,12 @@ export class Planet extends MapTile {
   addInfoText(cont = this.infoCont, ...pciary: PCInfo[]) {
     let y = 0;
     cont.addChild(...pciary);
-    pciary.forEach(pci => {
-      pci.visible = true;
-      pci.rectShape.setBounds(undefined, 0, 0, 0)
-      pci.setBounds(undefined, 0, 0, 0)
-      const { y: y0, height: h } = pci.getBounds()
-      pci.y = y - y0;
+    pciary.forEach(pcInfo => {
+      pcInfo.visible = true;
+      pcInfo.rectShape.setBounds(undefined, 0, 0, 0)
+      pcInfo.setBounds(undefined, 0, 0, 0)
+      const { y: y0, height: h } = pcInfo.getBounds()
+      pcInfo.y = y - y0;
       y += h
     })
   }
@@ -183,6 +207,17 @@ export class Planet extends MapTile {
     this.prodPCs.length = this.consPCs.length = 0;
     this.pcary(prod).forEach(pc => this.prodPCs.push(pc))
     this.pcary(cons).forEach(pc => this.consPCs.push(pc))
+    // hack so C will buy anything for $0
+    if (this.Aname === 'C') {
+      const items = Object.keys(PC.reference) as Item[];
+      items.forEach(item => {
+        if (!cons[item]) {
+          let [max, min, lim, color] = PC.refspec[item], kk: PC;
+          this.consPCs.push(new PC(item, 0, 0, 0, color, 0, 0))
+        }
+      })
+    }
+
   }
 
   /**
@@ -225,7 +260,7 @@ export class Planet extends MapTile {
    * Price for this planet to buy quantity of consumable from Ship.
    * @param item Item to buy
    * @param quant number to buy
-   * @param commit [false] if true, decrement the remaining/available quantityl
+   * @param commit [false] if true, increase planet's cons.quant
    * @returns to price to be paint to this planet.
    */
   buy_price(item: Item, quant: number, commit = false) {
@@ -246,7 +281,7 @@ export class Planet extends MapTile {
    * Price for Planet to sell quantity of production to a Ship/Player.
    * @param item
    * @param quant
-   * @param commit
+   * @param commit [false] if true, decrease planet's prod.quant
    * @returns
    */
   sell_price(item: Item, quant: number, commit = false) {
@@ -267,10 +302,11 @@ export class Planet extends MapTile {
    * @param item Item to trade
    * @param quant number of Items to trade
    * @param sell [true] price planet will sell, false: price planet will buy.
+   * @param commit [undef = false] if true incr/decr planet's quantity.
    * @returns
    */
-  price(item: Item, quant: number, sell = true) {
-    return sell ? this.sell_price(item, quant) : this.buy_price(item, quant);
+  price(item: Item, quant: number, sell = true, commit?: boolean) {
+    return sell ? this.sell_price(item, quant, commit) : this.buy_price(item, quant, commit);
   }
 
   /** item -> Planet, coins -> Ship */
@@ -325,6 +361,7 @@ export class PlanetPlacer {
       return rv;
     }
 
+    /** [quant, rate] for [prod: PlanetPC, cons: PlanetPC] for each PlanetDir */
     const initialPCs: { [key in PlanetDir]: [p: PlanetPC, c: PlanetPC] } = {
        C: [planet0Prod, { X1: [0, 0], X2: [0, 0] }],
       NE: [{ F1: pMidR1, F2: pMidR1 }, { O1: cMidR1, O3: cMidR1 }],
@@ -336,14 +373,14 @@ export class PlanetPlacer {
     }
 
     this.planetByDir.clear();
-    Object.keys(initialPCs).forEach(key => {
+    for (let key in initialPCs) {
       const pd = key as PlanetDir
       const [pp0, pc0] = initialPCs[pd] as [PCdef, PCdef]; // [quant, rate]
       const pp = setMid(pp0), pc = setMid(pc0);
       const planet = new Planet(pd, pp, pc);
       this.planetByDir.set(pd, planet);
       planet.paint()
-    })
+    }
   }
   /**
    * Planets are identified by the canonical EwDir of their placement.

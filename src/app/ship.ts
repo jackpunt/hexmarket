@@ -1,12 +1,13 @@
 import { C, F, RC, S, stime } from "@thegraid/common-lib";
-import { CenterText, stopPropagation, type CGF, type PaintableShape } from "@thegraid/easeljs-lib";
+import { CenterText, stopPropagation, TextInRect, type CGF, type PaintableShape } from "@thegraid/easeljs-lib";
 import { Container, Graphics, MouseEvent, Shape } from "@thegraid/easeljs-module";
 import { DragContext, EwDir, H, Hex1, HexDir, IHex2, Meeple, MeepleShape } from "@thegraid/hexlib";
 import { AF, AfColor, AfFill, ATS, type AfHex } from "./AfHex";
 import { MktHex2 as Hex2, MktHex, MktHex2 } from "./hex";
 import { InfoText } from "./info-text";
-import { Item } from "./planet";
+import { iconForItem, Item } from "./planet";
 import { Player, PlayerColor } from "./player";
+import type { TableCell } from "./table-cell";
 import { TP } from "./table-params";
 import { TradePanel } from "./trade-panel";
 
@@ -200,12 +201,26 @@ export class Ship extends Meeple {
   infoText = new InfoText('Fuel: -1', { bgColor: this.infoColor, fontSize: TP.hexRad * .3 });
 
   showShipInfo(vis = !this.infoText.visible) {
+    const fs = this.infoText.fontSize
     this.infoText.updateText(vis, () => {
+      const icons = [] as Array<TableCell & TextInRect>
       let infoLine = `Fuel: ${this.fuel}`;
       infoLine = `${infoLine}\nzLoad: ${this.transitCost}`
-      Object.keys(this.cargo).forEach(key => {
-        const cargoLine = `${key}: ${(this.cargo as Record<string, number>)[key]}`;
+      Object.entries(this.cargo).sort((a, b) => a[0] < b[0] ? -1 : 1).filter(a => a[1] > 0).forEach(([key, value]) => {
+        const cargoLine = `${key}: ${value}`;
         infoLine = `${infoLine}\n${cargoLine}`;
+        const icon = iconForItem(key as Item, fs * .86); icons.push(icon);
+      })
+      // Hack to overlay icon on text:
+      this.infoText.removeChildType(TextInRect)
+      const text = this.infoText.disp
+      text.text = infoLine; //text.textAlign = 'left';
+      const { x, y } = text.getBounds();
+      const h = text.getMeasuredLineHeight();
+      icons.forEach((icon, n) => {
+        const { width: w, height } = icon.getBounds();
+        icon.setInCell({ x, y: y - 3 + (n + 2) * h, w, h: h-2 })
+        this.infoText.addChild(icon);
       })
       return infoLine;
     })
@@ -423,6 +438,7 @@ class PathFinder {
     while (step0 = open.shift()) {
       const step: Step<T> = step0;        // a defined Step
       if (hex1 !== this.targetHex) break; // ABORT Search (targetHex has changed)
+      let minCost = Number.POSITIVE_INFINITY; // TODO proctively compute/alert on maxLoad
       // cycle turns until Step(s) reach targetHex
       // loop here so we can continue vs return; move each dir from prev step:
       for (let dir of H.ewDirs) {
@@ -430,6 +446,7 @@ class PathFinder {
         if (!nHex || nHex.occupied) continue // off map or occupied
         let cost = ship.configCost(step.hex, dir, nHex, nConfig)
         if (cost === undefined) continue; // no afHex, no transit possible
+        minCost = Math.min(minCost, cost);
         let turn = step.turn
         if (cost > nConfig.fuel) {   // Oops: we need to refuel before this Step!
           turn += 1
@@ -455,6 +472,7 @@ class PathFinder {
           open.push(nStep); // save path, check back later
         }
       }
+      if (minCost > ship.maxFuel) console.log(stime(this, `.findPathsWithMetric: minCost(${minCost}) > maxFuel(${ship.maxFuel})`))
       closed.push(step)
       open.sort((a, b) => a.metricb - b.metricb)
     }

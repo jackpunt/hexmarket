@@ -19,8 +19,8 @@ class ButtonLine extends RectWithDisp {
    * @param col [true] set false to arrange buttons as rows
    */
   constructor(name: string, actions: string[], bf: (b: UtilButton) => void, fSize = TP.hexRad / 2, col = true) {
-    const color = C.lightgrey, colort = 'rgba(0,0,0,0)';
-    super(new NamedContainer(name), color, 5, 0)
+    const bgColor = C.lightgrey;
+    super(new NamedContainer(name), { bgColor: '', border: 5 })
     // make a stack of UtilButton:
     this.addButtons(this.disp as Container, actions, fSize, bf, col)
     this.paint(undefined, true)

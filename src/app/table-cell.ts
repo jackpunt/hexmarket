@@ -129,7 +129,7 @@ export class TableCont<TR extends TableRow> extends NamedContainer {
       rv.push(label[ndx])
       dels.push(rv); //       return rv; // when using .map(...)
     })
-    console.log(`tableize:`, dels, this.colWidths, this.tableRows[0], this.tableRows)
+    // console.log(`tableize:`, dels, this.colWidths, this.tableRows[0], this.tableRows)
   }
 
   /** set each cell to the left-top corner of its column */

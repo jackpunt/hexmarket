@@ -158,15 +158,16 @@ export class Player extends PlayerLib {
     this.panel.addChild(cc); cc.x = this.panel.metrics.wide - k; cc.y = k
     // For testing/debug, quick instance of a TradePanel:
     KeyBinder.keyBinder.setKey('q', () => this.gamePlay.curPlayer.showTradePanel())
+    KeyBinder.keyBinder.setKey('Q', () => this.gamePlay.curPlayer.showTradePanel(false))
   }
 
-  tShip = new Ship(`Test-${this.Aname}`, this, 3, { F1: 3, F2: 2, O1: 5 } as Cargo);
+  tShip = new Ship(`Test-${this.Aname}`, this, 3, TP.initialCargo[this.index] as Cargo);
   tCont = new NamedContainer('tCont'); // in role of TableCont/rowCont
   // when we were debugging EditNumber:
-  showTradePanel(parent = this.tCont) {
+  showTradePanel(vis = true, parent = this.tCont) {
     this.panel.addChild(parent)
     parent.removeAllChildren();
-
+    if (!vis) { parent.stage.update(); return; }
     // testEdit on right-mid-panel:
     const { wide, high } = this.panel.metrics
     const test = this.testEdit(wide, high / 2); // new(); setInCell()
@@ -179,9 +180,9 @@ export class Player extends PlayerLib {
     qText.setInCell({ x: wide, y: 0, w: wc, h: hr }); // as if alignCols([wc, hr])
 
     // full tradePanel at top-right:
-    const tPanel = new TradePanel(this.tShip);
-    const cPlanet = this.gamePlay.planetPlacer.planetByDir.get('C') as Planet;
-    tPanel.showPanel(cPlanet); // makeBuyTable-> new TradeRow[s]; alignCols,
+    const tPanel = new TradePanel(this.tShip), p = 'C' ?? 'NE';
+    const planet = this.gamePlay.planetPlacer.planetByDir.get(p) as Planet;
+    tPanel.showPanel(planet);
     parent.addChild(tPanel);   // change parent from this.tShip --> tPanel
     parent.stage?.update()
   }

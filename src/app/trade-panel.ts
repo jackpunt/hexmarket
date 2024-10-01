@@ -1,9 +1,9 @@
 import { C, F, S, type XYWH } from "@thegraid/common-lib";
-import { CenterText, Dispatcher, NamedContainer, RectShape, RectWithDisp, TextInRect, ValueEvent } from "@thegraid/easeljs-lib";
+import { Dispatcher, NamedContainer, RectShape, RectWithDisp, ValueEvent } from "@thegraid/easeljs-lib";
 import { Text } from "@thegraid/easeljs-module";
 import { UtilButton, UtilButtonOptions } from "@thegraid/hexlib";
 import { EditNumber } from "./edit-number";
-import { Item, PC, Planet } from "./planet";
+import { iconForItem, Item, PC, Planet } from "./planet";
 import { Ship } from "./ship";
 import { TableCont, TableRow, type RowBuilder } from "./table-cell";
 import { TP } from "./table-params";
@@ -37,7 +37,6 @@ class TradeRow extends TableRow {
     const cells = this;
     this.item = item;
     const fs = TP.hexRad / 3, fspec = F.fontSpec(fs); const refi = PC.reference[item];
-    const itemColor = PC.reference[item].color, fsi = fs * .7;
     const clickToInc = (editNum: EditNumber, pText: Text, incr = 1, lowLimit = 0, highLimit = qMax) => {
       const incValue = () => {
         const value = Math.max(lowLimit, Math.min(highLimit, editNum.value + incr));
@@ -45,22 +44,7 @@ class TradeRow extends TableRow {
       }
       return incValue;
     }
-    // item Icon: CenterText in Rect(corners)
-    const iText = new CenterText(item, F.fontSpec(fsi), C.BLACK);
-    const iCell = new TextInRect(iText, { bgColor: itemColor, border: .3, corner: 1.0 });
-    const iCellSetInCell: (xywh: XYWH) => void = ({ x: x0, y: y0, w, h }) => {
-      { // no descenders: tweak the position of circle behind text
-        const tweak = .07; iCell.dy0 += tweak; iCell.dy1 -= tweak;
-        iCell.setBounds(undefined, 0, 0, 0);
-        iCell.rectShape.paint(undefined, true);
-      }
-      const { x, y, w: width, h: height } = iCell.calcBounds(); // y00 = 0
-      // from ['center', 'top'] to ['center', 'center']
-      iCell.x = x0 + w / 2;
-      iCell.y = y0 - y + (height - h) / 2;
-      iCell.setBounds(-w / 2, -height / 2, w, height);
-    }
-    const icon = this.icon = iCell.asTableCellAnd<TextInRect>(iCellSetInCell);
+    const icon = this.icon = iconForItem(item, fs);
     // qText: show/edit quantity to Trade:
     const qText = this.qText = this.makeQuantEdit(initVal, fs);
     // space
@@ -138,10 +122,11 @@ class TradeRow extends TableRow {
 }
 
 export class TradePanel extends RectWithDisp {
+  /** tradeDisp: holding buyTable & sellTable */
   declare disp: NamedContainer;
   constructor(public ship: Ship, x = 0, y = 0) {
     // super(`trade-${ship.Aname}`, x, y)
-    super(new NamedContainer(`tradeDisp`), 'rgb(180,180,180)', 5);
+    super(new NamedContainer(`tradeDisp`), { bgColor: 'rgb(180,180,180)', border: 5 });
   }
   sellTable!: TableCont<TradeRow>;
   buyTable!: TableCont<TradeRow>;
@@ -152,14 +137,16 @@ export class TradePanel extends RectWithDisp {
     if (planet) {
       this.disp.removeAllChildren();
       this.buyTable = this.makeBuyTable(planet);
-      const x = this.buyTable.x, y = this.buyTable.height + 2;
-      this.sellTable = this.makeSellTable(planet, x, y, this.buyTable.colWidths);
+      const x0 = this.buyTable.x, y0 = this.buyTable.y;
+      const bh = this.buyTable.getBounds().height + 2;
+      this.sellTable = this.makeSellTable(planet, x0, y0 + bh, this.buyTable.colWidths);
       this.buyTable.alignCols(this.sellTable.colWidths);
       this.disp.addChild(this.buyTable);
       this.disp.addChild(this.sellTable);
-      this.disp.setBounds(undefined as any as number, 0, 0, 0);
-      // TODO: add any buttons to this
       this.setBounds(undefined, 0, 0, 0);
+      const info = this.ship.infoText
+      const { x, y, width, height } = info.getBounds()
+      this.x += (x + width + this.dx1); this.y = y + this.dy0;
       this.visible = true;
       this.paint(undefined, true);
       this.ship.addChild(this);
@@ -171,13 +158,15 @@ export class TradePanel extends RectWithDisp {
   // Each Choice: 'icon: - [______] + $price' (icon, -button, EditBox, +buttons, $number)
   /** cargo this Ship is selling, with price planet will pay to buy. */
   makeSellTable(planet: Planet, x = 0, y = 0, colw: number[] = []) {
-    const rowBuilder: RowBuilder<TradeRow> = (cargo: PC) => {
-      return new TradeRow(planet, cargo.item, cargo.quant, cargo.quant, false);
+    const rowBuilder: RowBuilder<TradeRow> = ([item, quant]: [Item, number]) => {
+      return new TradeRow(planet, item, quant, quant, false);
     };
     const tc = new TableCont(rowBuilder, x, y);
     tc.colWidths = colw; // sync with buyTable if provided
-    const sellable = Object.entries(this.ship.cargo).filter(([item, quant]) => planet.consPCs.find(pc => pc.item === item));
+    const sellable = Object.entries(this.ship.cargo)
+      .filter(([item, quant]) => planet.consPCs.find(pc => pc.item === item))
     tc.tableize(sellable); // tc.addChild(...tableRows)
+    if (sellable.length > 0) this.addCommitButton(tc, false);
     return tc;
   }
 
@@ -191,47 +180,47 @@ export class TradePanel extends RectWithDisp {
     tc.colWidths = colw; // sync with sellTable if provided
     const buyable = Object.values(planet.prodPCs);
     tc.tableize(buyable);
-    // const r0 = tc.children[0]; r0.parent.addChild(r0);// row0 on top for analysis
-    const buyButton = this.addBuyButton(tc);
-    const totalText = this.showTotalCost(tc, buyButton.y);
-    Dispatcher.dispatcher.namedOn('buyTotal', 'updateTotal', (evt: ValueEvent) => {
-      if (evt.value == 'sell') {
-        totalText.text = `$${this.totalCost(tc)}`
-      }
-      return true;
-    })
+    if (buyable.length > 0) this.addCommitButton(tc, true);
     return tc;
   }
 
-  addBuyButton(tc: TableCont<TradeRow>) {
+  // player-buy == planet-sell
+  addCommitButton(tc: TableCont<TradeRow>, sell = true) {
     const lastRow = tc.tableRows[tc.tableRows.length - 1]
     const rowWidth = lastRow.width;
     const planet = lastRow.planet;
     const fontSize = F.fontSize(lastRow.pText.font);
     /** commit the purchase */
-    const buyItems = () => {
+    const tradeItems = () => {
       tc.tableRows.forEach(trow => {
         const { item, quant } = trow;
-        const cost = planet.sell_price(item, quant, false); // commit purchase
-        this.ship.player.coins -= cost;
+        const cost = planet.price(item, quant, sell, true); // commit purchase
+        this.ship.player.coins += (sell ? -cost : cost);
         const cargo = this.ship.cargo, q = cargo[item] ?? 0;
-        cargo[item] = q + quant;  // TODO: constrain max cargo
+        cargo[item] = q + (sell ? quant : -quant);  // TODO: constrain max cargo
         trow.pText.text = `${trow.costf(trow.quant = 0)}`
       })
       tc.stage?.update();
     };
 
-    const buyOpts = { bgColor: 'pink', visible: true, active: true, border: .1, fontSize } as UtilButtonOptions;
-    const button = new UtilButton('Buy', buyOpts); // center, middle
-    button.on(S.click, (evt) => buyItems())
+    const buyOpts = { bgColor: sell ? 'pink' : 'lightgreen', visible: true, active: true, border: .1, fontSize } as UtilButtonOptions;
+    const button = new UtilButton(sell ? 'Buy' : 'Sell', buyOpts); // center, middle
+    button.on(S.click, (evt) => tradeItems())
     const { width, height } = button.getBounds()
     button.y = height / 2 + lastRow.bottom;
     button.x = (rowWidth - width) / 2;
     tc.addChild(button)
+
+    const totalText = this.showTotalCost(tc, button.y);
+    Dispatcher.dispatcher.namedOn('updateTotal', 'updateTotal', (evt: ValueEvent) => {
+      totalText.text = `$${this.totalCost(tc)}`
+      return true;
+    })
     return button;
   }
 
   // TODO: tweak so tradeRow.clickToInc() will update the TradePanel.tText
+  /** put a total cost string on bottom row, to the right side */
   showTotalCost(tc: TableCont<TradeRow>, y = 0) {
     const lastRow = tc.tableRows[tc.tableRows.length - 1]
     const pText = lastRow.pText;
