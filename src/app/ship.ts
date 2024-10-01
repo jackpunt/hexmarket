@@ -104,7 +104,7 @@ export class Ship extends Meeple {
   get cargo() { return this._cargo }
   set cargo(c: Cargo) {
     this._cargo = c;
-    this.showShipInfo(); // update if visible
+    this.showShipInfo(this.infoText.visible); // update if visible
   }
   /** total quantity [amount|weight] of Cargo on this ship. */
   get curload() {
