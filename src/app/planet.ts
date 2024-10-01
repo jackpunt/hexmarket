@@ -235,12 +235,13 @@ export class Planet extends MapTile {
   }
 
   override paint() {
-    let r3 = TP.hexRad - 9, r2 = r3 - 2, r0 = r2 / 3, r1 = (r2 + r0) / 2
-    let g = this.gShape.graphics.c(), pi2 = Math.PI * 2
+    const r3 = TP.hexRad - 9, r2 = r3 - 2, r0 = r2 / 3, r1 = (r2 + r0) / 2
+    const g = this.gShape.graphics.c(), pi2 = Math.PI * 2
 
     // ring with colored sector for each PC:
-    let paintRing = (pca: PC[], r = 20, alt = 'lightgrey') => {
-      let angle = pca.length == 0 ? pi2 : pi2 / pca.length;
+    const paintRing = (pca0: PC[], r = 20, alt = 'lightgrey') => {
+      const pca = pca0.filter(pc => pc.lim > 0)
+      const angle = pca.length === 0 ? pi2 : pi2 / pca.length;
       g.f(alt).dc(0, 0, r);  // fill(alt) in case pca is empty
       pca.forEach((pc, i) => {
         g.f(pc.color).mt(0, 0)
