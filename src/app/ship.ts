@@ -87,7 +87,7 @@ export class Ship extends Meeple {
   /** intrinsic cost for each Step (0 or 1); start of turn pays 1 for null 'shape' */
   static step1 = 1;
   /** scale for transitCost. */
-  static maxZ = 1;       // for now: {shape + color + color}
+  static maxZ = 2;       // for now: {shape + color + color}
   static fuelPerStep = 0;
 
   override get radius() { return this.z0 * TP.hexRad / 6 };
@@ -178,12 +178,18 @@ export class Ship extends Meeple {
     this.showShipInfo(); // toggle visibility
   }
 
+  /** newTurn: refuel, lose zshape */
+  refuel(config = this.zconfig) {
+    const refuel = this.maxFuel - config.fuel;
+    config.fuel += refuel;
+    config.zshape = undefined;
+    return refuel;
+  }
+
   /** see also: Meeple.faceUp() */
   newTurn() {
     this.faceUp();   // set startHex
-    const refuel = this.maxFuel - this.fuel;
-    this.player.coins -= refuel;
-    this.zconfig.fuel += refuel;
+    this.player.coins -= this.refuel();
     if (this.targetHex) this.pathFinder.showPaths(this.targetHex as Hex2)
     return;
   }
@@ -396,7 +402,7 @@ class PathFinder {
     if (targetHex.occupied) return []    // includes: this.hex === targetHex
     const hex0 = this.fromHex as any as T, tc = this.ship.transitCost;
     let minMetric = hex0.radialDist(targetHex) * tc;
-    const maxMetric = 3 * minMetric
+    const maxMetric = 5 * minMetric
     let paths: Step<T>[]
     do {
       // minMetric to prune bad paths; try raising it if no good paths:
@@ -430,7 +436,7 @@ class PathFinder {
       console.log(stime(this, `.findPathsWithMetric:`), { ship: ship.Aname, mins, Hex0, Hex1, hex0, hex1 })
     }
     // BFS, doing rings (H.ewDirs) around the starting hex.
-    let fuel = ship.fuel;  // this.moved ? ship.fuel : ship.maxFuel
+    const fuel = ship.fuel;  // this.moved ? ship.fuel : ship.maxFuel
     const config0 = { ... ship.zconfig, fuel }
     let step0: Step<T> | undefined = new Step<T>(0, hex0 as T, undefined, undefined, config0, 0, hex1)
     const open: Step<T>[] = [step0], closed: Step<T>[] = [], done: Step<T>[] = []
@@ -450,8 +456,7 @@ class PathFinder {
         let turn = step.turn
         if (cost > nConfig.fuel) {   // Oops: we need to refuel before this Step!
           turn += 1
-          nConfig.zshape = undefined;  // shape resets each turn
-          nConfig.fuel = ship.maxFuel;
+          ship.refuel(nConfig)       // shape resets each turn
           nConfig.step0 = true;
           if (cost > nConfig.fuel) continue // over max load! (cost > maxFuel)
         }
@@ -639,7 +644,7 @@ class PathFinder {
    *
    * Recursive function: returns true if *first* step was taken.
    *
-   * @return false [next] step not possible (or no path)
+   * @return true if a step was taken, false if [next] step not possible (or no path)
    */
   takeSteps() {
     let elt = this.path0[0]

@@ -155,11 +155,15 @@ export class GameState extends GameStateLib {
         this.selPanel?.activate(false, button)   // deactivate(line(button))
         const act = button.label_text?.replace(/\n/g, '') as ActionIdent;
         this.selectedAction = act;
-        this.selectedActions.push(act)
         if (this.isPhase('ChooseAction')) {
+          this.selectedActions.push(act)
           this.phase(act);
         } else {
           this.done();     // this.state.done() OR areYouSure() -> cancel
+          if (this.isPhase('ChooseAction')) {
+            this.selectedActions.push(act)
+            this.phase(act);
+          }
         }
       })
     };

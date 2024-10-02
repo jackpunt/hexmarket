@@ -20,6 +20,9 @@ stime.anno = (obj: string | { constructor: { name: string; }; }) => {
 
 /** initialize & reset & startup the application. */
 export class GameSetup extends GameSetupLib {
+  static random_seed = '';
+  get seed() { return GameSetup.random_seed; }
+
   paramGUIs!: ParamGUI[]
   netGUI!: ParamGUI // paramGUIs[2]
   declare gamePlay: GamePlay;
@@ -28,7 +31,10 @@ export class GameSetup extends GameSetupLib {
     window.addEventListener('contextmenu', (evt: MouseEvent) => evt.preventDefault())
     // useEwTopo, size 7.
     const { host, port, file, nH, rand } = qParams;
-    if (rand) Random.random = Random.mulberry32(rand);
+    const rseed = `${Math.random()}`.slice(2);
+    const seed = `${GameSetup.random_seed = rand ?? rseed}`;
+    console.log(stime(this, `.initialize: rand=${seed}&`))
+    Random.random = Random.mulberry32(seed);
     TP.useEwTopo = true;
     TP.nHexes = nH ?? TP.nHexes; // [5,6,7,8]
     TP.ghost = host ?? TP.ghost

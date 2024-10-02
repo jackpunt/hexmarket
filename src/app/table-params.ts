@@ -24,7 +24,9 @@ export class TP extends TPLib {
   static schemeNames = ['Red_Blue']
 
   /** initial Ship load for testing */
-  static initialCargo = [{ F1: 5, F2: 3, O1: 2, O2: 3 }, { F2: 5, F3: 3, O2: 2, O3: 3 }] as Cargo[];
+  static initialCargo = [{  }, {  }] as Cargo[];
+  static initialCargo1 = [{ F1: 2, O2: 3 }, { F2: 2, O2: 2 }] as Cargo[];
+  static initialCargo2 = [{ F1: 5, F2: 3, O1: 2, O2: 3 }, { F2: 5, F3: 3, O2: 2, O3: 3 }] as Cargo[];
 
   /** offset planets  */
   static offP = true;

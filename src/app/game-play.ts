@@ -89,7 +89,7 @@ export class GamePlay extends GamePlayLib {
   /** makeMove ('m' key): advance one [lrt] Ship on its path. */
   override makeMove(auto?: boolean, ev?: any, incb?: number): void {
     if (this.gamePhase?.Aname !== 'Move') return;
-    super.makeMove(auto, ev, incb); // --> Player.playerMove()
+    super.makeMove(auto, ev, incb); // --> Player.playerMove() --> ship.moveOnPath()
   }
 
   override bindKeys() {
