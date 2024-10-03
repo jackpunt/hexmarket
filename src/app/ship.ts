@@ -209,25 +209,13 @@ export class Ship extends Meeple {
   showShipInfo(vis = !this.infoText.visible) {
     const fs = this.infoText.fontSize
     this.infoText.updateText(vis, () => {
-      const icons = [] as Array<TableCell & TextInRect>
       let infoLine = `Fuel: ${this.fuel}`;
-      infoLine = `${infoLine}\nzLoad: ${this.transitCost}`
+      infoLine = `${infoLine}\n zLoad: ${this.transitCost} `
       Object.entries(this.cargo).sort((a, b) => a[0] < b[0] ? -1 : 1).filter(a => a[1] > 0).forEach(([key, value]) => {
         const cargoLine = `${key}: ${value}`;
         infoLine = `${infoLine}\n${cargoLine}`;
-        const icon = iconForItem(key as Item, fs * .86); icons.push(icon);
       })
-      // Hack to overlay icon on text:
-      this.infoText.removeChildType(TextInRect)
-      const text = this.infoText.disp
-      text.text = infoLine; //text.textAlign = 'left';
-      const { x, y } = text.getBounds();
-      const h = text.getMeasuredLineHeight();
-      icons.forEach((icon, n) => {
-        const { width: w, height } = icon.getBounds();
-        icon.setInCell({ x, y: y - 3 + (n + 2) * h, w, h: h-2 })
-        this.infoText.addChild(icon);
-      })
+      this.infoText.addIcons(infoLine);
       return infoLine;
     })
   }
@@ -401,8 +389,8 @@ class PathFinder {
   findPaths<T extends MktHex>(targetHex: T, limit = this.ship.maxFuel) {
     if (targetHex.occupied) return []    // includes: this.hex === targetHex
     const hex0 = this.fromHex as any as T, tc = this.ship.transitCost;
-    let minMetric = hex0.radialDist(targetHex) * tc;
-    const maxMetric = 5 * minMetric
+    let minMetric = hex0.radialDist(targetHex) * tc * 2;
+    const maxMetric = 3 * minMetric;
     let paths: Step<T>[]
     do {
       // minMetric to prune bad paths; try raising it if no good paths:
@@ -433,7 +421,7 @@ class PathFinder {
     const ship = this.ship;
     if (this.pathLog) {
       const mins = minMetric.toFixed(1), Hex0 = hex0.Aname, Hex1 = hex1.Aname;
-      console.log(stime(this, `.findPathsWithMetric:`), { ship: ship.Aname, mins, Hex0, Hex1, hex0, hex1 })
+      console.log(stime(this, `.fPWM:`), { ship: ship.Aname, mins, Hex0, Hex1, hex0, hex1 })
     }
     // BFS, doing rings (H.ewDirs) around the starting hex.
     const fuel = ship.fuel;  // this.moved ? ship.fuel : ship.maxFuel
@@ -470,14 +458,14 @@ class PathFinder {
         let metric = nStep.metric
         if (metric > minMetric + limit) continue // abandon path: too expensive
         if (nHex == hex1) {
-          if (done.length === 0) this.pathLog && console.log(stime(this, `.findPathsWithMetric: [0]:${metric}`), nStep)
+          if (done.length === 0) this.pathLog && console.log(stime(this, `.fPWM: [0]:${metric}`), nStep)
           if (metric < minMetric) minMetric = metric
           done.push(nStep);
         } else {
           open.push(nStep); // save path, check back later
         }
       }
-      if (minCost > ship.maxFuel) console.log(stime(this, `.findPathsWithMetric: minCost(${minCost}) > maxFuel(${ship.maxFuel})`))
+      if (minCost > ship.maxFuel) console.log(stime(this, `.fPWM: minCost(${minCost}) > maxFuel(${ship.maxFuel})`))
       closed.push(step)
       open.sort((a, b) => a.metricb - b.metricb)
     }
@@ -485,7 +473,7 @@ class PathFinder {
     if (done.length > 0) {
       let met0 = done[0].metric || -1, clen = closed.length
       let pathm = done.map(p => { return { turn: p.turn, fuel: p.config.fuel, metric: this.pathMetric(p), p: p.toString(), s0: p } })
-      this.pathLog && console.log(stime(this, `.findPathsWithMetric:`), hex0.Aname, hex1.Aname, this.ship.zcolor, this.ship.curload, met0, clen, `paths:`, pathm)
+      this.pathLog && console.log(stime(this, `.fPWM:`), hex0.Aname, hex1.Aname, this.ship.zcolor, this.ship.curload, met0, clen, `paths:`, pathm)
     }
     return done
   }

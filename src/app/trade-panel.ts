@@ -128,25 +128,24 @@ export class TradePanel extends RectWithDisp {
     // super(`trade-${ship.Aname}`, x, y)
     super(new NamedContainer(`tradeDisp`), { bgColor: 'rgb(180,180,180)', border: 5 });
   }
-  sellTable!: TableCont<TradeRow>;
-  buyTable!: TableCont<TradeRow>;
 
   // item for each Cargo (to Sell)
   // item for each planet.prod
   showPanel(planet: Planet) {
     if (planet) {
       this.disp.removeAllChildren();
-      this.buyTable = this.makeBuyTable(planet);
-      const x0 = this.buyTable.x, y0 = this.buyTable.y;
-      const bh = this.buyTable.getBounds().height + 2;
-      this.sellTable = this.makeSellTable(planet, x0, y0 + bh, this.buyTable.colWidths);
-      this.buyTable.alignCols(this.sellTable.colWidths);
-      this.disp.addChild(this.buyTable);
-      this.disp.addChild(this.sellTable);
+      const sellTable = this.makeSellTable(planet);
+      const x0 = sellTable.x, y0 = sellTable.y;
+      const bh = sellTable.getBounds().height + 2;
+      const buyTable = this.makeBuyTable(planet, x0, y0 + bh, sellTable.colWidths);
+      sellTable.alignCols(buyTable.colWidths);
+      this.disp.addChild(sellTable);
+      this.disp.addChild(buyTable);
       this.setBounds(undefined, 0, 0, 0);
-      const info = this.ship.infoText
-      const { x, y, width, height } = info.getBounds()
-      this.x += (x + width + this.dx1); this.y = y + this.dy0;
+      const infoText = this.ship.infoText
+      this.ship.showShipInfo(infoText.visible)
+      const { x, y, width, height } = infoText.getBounds()
+      this.x += (x + width + this.dx0); this.y = y + this.dy0;
       this.visible = true;
       this.paint(undefined, true);
       this.ship.addChild(this);
@@ -174,7 +173,7 @@ export class TradePanel extends RectWithDisp {
   /** production that planet will sell, with price at which ship can buy */
   makeBuyTable(planet: Planet, x = 0, y = 0, colw: number[] = []) {
     const rowBuilder: RowBuilder<TradeRow> = (prod: PC) => {
-      return new TradeRow(planet, prod.item, prod.quant, Math.min(1, prod.quant), true);
+      return new TradeRow(planet, prod.item, prod.quant, Math.min(0, prod.quant), true);
     };
     const tc = new TableCont(rowBuilder, x, y);
     tc.colWidths = colw; // sync with sellTable if provided
@@ -194,11 +193,12 @@ export class TradePanel extends RectWithDisp {
     const tradeItems = () => {
       tc.tableRows.forEach(trow => {
         const { item, quant } = trow;
+        if (quant <= 0) return
         const cost = planet.price(item, quant, sell, true); // commit purchase
         this.ship.player.coins += (sell ? -cost : cost);
         const cargo = this.ship.cargo, q = cargo[item] ?? 0;
         cargo[item] = q + (sell ? quant : -quant);  // TODO: constrain max cargo
-        trow.pText.text = `${trow.costf(trow.quant = 0)}`
+        trow.pText.text = `$${trow.costf(trow.quant = 0)}`
       })
       tc.stage?.update();
     };

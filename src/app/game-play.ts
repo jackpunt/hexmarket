@@ -115,10 +115,13 @@ export class GamePlay extends GamePlayLib {
     KeyBinder.keyBinder.setKey('Escape', {thisArg: table, func: table.stopDragging}) // Escape
     KeyBinder.keyBinder.setKey('C-s', () => this.gameSetup.restart({}))// C-s START
     KeyBinder.keyBinder.setKey('C-c', () => this.stopPlayer())         // C-c Stop Planner
-    KeyBinder.keyBinder.setKey('C', () => this.table.reCacheTiles())   // reCacheTiles
+    // KeyBinder.keyBinder.setKey('C', () => this.table.reCacheTiles())   // reCacheTiles
+    KeyBinder.keyBinder.setKey('C', () => this.gameState.selectAction('Clock'))
+    KeyBinder.keyBinder.setKey('M', () => this.gameState.selectAction('Move'))
+    KeyBinder.keyBinder.setKey('T', () => this.gameState.selectAction('Trade'))
     // auto move:
     KeyBinder.keyBinder.setKey('m', () => this.makeMove(true))
-    KeyBinder.keyBinder.setKey('M', () => this.makeMoveAgain(true))
+    // KeyBinder.keyBinder.setKey('M', () => this.makeMoveAgain(true))
     KeyBinder.keyBinder.setKey('n', () => this.autoMove(false))
     KeyBinder.keyBinder.setKey('N', () => this.autoMove(true))
     KeyBinder.keyBinder.setKey('c', () => this.autoPlay(0))

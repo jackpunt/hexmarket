@@ -1,9 +1,9 @@
-import { C, F, type XYWH } from "@thegraid/common-lib";
-import { CenterText, CGF, NamedContainer, TextInRect, type TextInRectOptions } from "@thegraid/easeljs-lib";
-import { MouseEvent, Shape, Text } from "@thegraid/easeljs-module";
-import { DragContext, EwDir, H, Hex1, MapTile, rightClickable, TP as TPLib, UtilButtonOptions } from "@thegraid/hexlib";
+import { C, F, stime, type XYWH } from "@thegraid/common-lib";
+import { CenterText, NamedContainer, TextInRect } from "@thegraid/easeljs-lib";
+import { MouseEvent, Shape } from "@thegraid/easeljs-module";
+import { DragContext, EwDir, H, Hex1, MapTile, rightClickable, TP as TPLib } from "@thegraid/hexlib";
 import { HexMap, MktHex, MktHex2 } from "./hex";
-import { InfoText } from "./info-text";
+import { PCInfo } from "./info-text";
 import { Random } from "./random";
 import { TP } from "./table-params";
 
@@ -60,18 +60,18 @@ type RefSpec = [max: n, min: n, lim: n, color: string];
  * { item: Item, max: number, min: number, lim: number, color: string }
  */
 export class PC {
-  /** Market definition: [min$, max$, limQuant, color] for each resource. */
+  /** Market definition: [max$, min$, limQuant, color] for each resource. */
   static readonly refspec: {[key in Item]: RefSpec} = {
-    F1: [30, 10, 20, 'darkgreen'],
-    F2: [30, 10, 20, 'yellow'],
-    F3: [45, 15, 16, 'springgreen'],
-    O1: [20, 10, 32, 'red'],
-    O2: [30, 20, 40, 'GoldenRod'],
-    O3: [20, 10, 32, 'orange'],
-    L1: [50, 30,  4, 'lightblue'],       // luxury (produced in center)
-    L2: [80, 40,  4, 'violet'], // luxury
-    X1: [50, 30,  4, 'blue'],  // exotic (consumed in center)
-    X2: [80, 40,  4, 'darkviolet'],     // exotic
+    F1: [40, 10, 10, 'darkgreen'],
+    F2: [40, 10, 10, 'yellow'],
+    F3: [55, 15,  6, 'springgreen'],
+    O1: [30, 10, 22, 'red'],
+    O2: [40, 20, 30, 'orange'],
+    O3: [30, 10, 22, 'brown'],
+    L1: [60, 30,  4, 'lightblue'],      // luxury (produced in center)
+    L2: [90, 40,  4, 'violet'],         // luxury
+    X1: [60, 30,  4, 'blue'],           // exotic (consumed in center)
+    X2: [90, 40,  4, 'darkviolet'],     // exotic (produced when planet has luxury)
   }
   static refSpecPC(item: Item) {
     const [max, min, lim, color] = PC.refspec[item];
@@ -121,13 +121,6 @@ export class PC {
     return new PC(this.item, this.max, this.min, this.lim, this.color, quant, rate)
   }
 }
-/** InfoText with PC[] for prod or cons. */
-class PCInfo extends InfoText {
-  constructor(public pcary: PC[], label: Text | string, options?: UtilButtonOptions & TextInRectOptions, cgf?: CGF) {
-    super(label, options, cgf)
-    this.pcary = pcary;
-  }
-}
 
 export class Planet extends MapTile {
 
@@ -141,7 +134,7 @@ export class Planet extends MapTile {
     super(Aname)
     this.gShape.name = 'planetRings';
     this.setNameText(Aname);
-    this.setPCs(prodDef, consDef); // initial constructor
+    this.setPCs(prodDef, consDef); // initial constructor: set [rate, quant] for prodPC, consPC
     this.addChild(this.gShape, this.nameText)
     this.addInfoText(this.infoCont, this.prodText, this.consText)
     this.infoCont.visible = false;
@@ -161,6 +154,11 @@ export class Planet extends MapTile {
   consText = new PCInfo(this.consPCs, `cons`, { fontSize: TP.hexRad * .3, textColor: C.PURPLE, active: true, visible: false });
   infoCont = new NamedContainer(`${this.Aname}info`)
 
+  /**
+   * put each PCInfo > InfoText > TextInRect into cont
+   * @param cont
+   * @param pciary ...[consPC, prodPC]
+   */
   addInfoText(cont = this.infoCont, ...pciary: PCInfo[]) {
     let y = 0;
     cont.addChild(...pciary);
@@ -174,32 +172,38 @@ export class Planet extends MapTile {
     })
   }
 
+  /**
+   *
+   * @param cont holds all the PCInfo > InfoText > TextInRect
+   * @param vis
+   */
   updateInfoText(cont = this.infoCont, vis = true) {
     if (vis) {
       const itary = cont.children as PCInfo[];
       let y = 0;
-      itary.forEach((itc, ndx) => {
+      itary.forEach((itc, ndx) => { // [consPC, prodPC]
         const pc = itc.pcary;
-        itc.label_text = Object.entries(pc)
+        itc.label_text = (Object.entries(pc)
           .map(([key, value]) => {
+            const price = value.price();
             const {item, min, max, lim, quant, rate} = value, sign = rate > 0 ? '+' : ''
-            return `${item}: ${quant}/${lim} $${value.price()} ${sign}${rate}`
+            return Number.isNaN(price) ? '' : `${item}: ${quant}/${lim} $${price} ${sign}${rate}`
           })
-          .reduce((pv, cv) => `${pv}${pv.length > 0 ? '\n' : ''}${cv}`, '')
+          .reduce((pv, cv) => `${pv}${pv.length > 0 && cv.length > 0 ? '\n' : ''}${cv}`, ''))
         const { y: y0, height: h } = itc.rectShape.getBounds();
+        itc.addIcons()
         itc.y = (y - y0);
         y += h
         return
       })
     }
     cont.visible = vis;
-    cont.stage?.update()
   }
 
   showPlanetPC(vis = this.infoCont.visible) {
     this.updateInfoText(this.infoCont, vis);
     if (this.cacheID) this.setCache()
-      this.infoCont.stage?.update()
+    this.infoCont.stage?.update()
   }
 
   /** set [quant, rate] for each Resource produced & consumed by this Planet. */
@@ -307,7 +311,11 @@ export class Planet extends MapTile {
    * @returns
    */
   price(item: Item, quant: number, sell = true, commit?: boolean) {
-    return sell ? this.sell_price(item, quant, commit) : this.buy_price(item, quant, commit);
+    const price = sell ? this.sell_price(item, quant, commit) : this.buy_price(item, quant, commit);
+    const player = this.gamePlay.curPlayer;
+    if (commit) console.log(stime(this, `.commit:`),
+      { player, item, quant, price, coins: player.coins })
+    return price;
   }
 
   /** item -> Planet, coins -> Ship */

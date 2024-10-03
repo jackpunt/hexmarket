@@ -1,13 +1,17 @@
-import { C, S } from "@thegraid/common-lib";
+import { C, S, stime } from "@thegraid/common-lib";
 import { CenterText, NamedContainer, RectWithDisp, UtilButton } from "@thegraid/easeljs-lib";
 import { Container } from "@thegraid/easeljs-module";
 import { GameState as GameStateLib, Phase } from "@thegraid/hexlib";
 import type { GamePlay } from "./game-play";
 import { Player } from "./player";
-import { ActionIdent } from "./scenario-parser";
 import { Table } from "./table";
 import { TP } from "./table-params";
 
+export type ActionIdent = 'Move' | 'Move-Attack' | 'Clock' | 'Trade' | 'Attack';
+
+class ActionButton extends UtilButton {
+  get actionIdent() { return this.label_text?.replace(/\n/g, '') as ActionIdent }
+}
 /** expect to make 2 of these */
 class ButtonLine extends RectWithDisp {
   /**
@@ -18,16 +22,16 @@ class ButtonLine extends RectWithDisp {
    * @param fSize [TP.hexRad/2]
    * @param col [true] set false to arrange buttons as rows
    */
-  constructor(name: string, actions: string[], bf: (b: UtilButton) => void, fSize = TP.hexRad / 2, col = true) {
+  constructor(name: string, actions: string[], bf: (b: ActionButton) => void, fSize = TP.hexRad / 2, col = true) {
     const bgColor = C.lightgrey;
     super(new NamedContainer(name), { bgColor: '', border: 5 })
     // make a stack of UtilButton:
     this.addButtons(this.disp as Container, actions, fSize, bf, col)
     this.paint(undefined, true)
   }
-  buttons: UtilButton[] = []
+  buttons: ActionButton[] = []
   /** add a stack of UtilButtons to the given Container */
-  addButtons(cont: Container, actions: string[], fSize: number, bf: (b: UtilButton) => void, col = true) {
+  addButtons(cont: Container, actions: string[], fSize: number, bf: (b: ActionButton) => void, col = true) {
     this.buttons.length = 0;
     const rb = .3, gap = fSize * rb; // UtilButton._border = .3, gap between buttons
     let x = 0, y = 0, maxw = 0, maxh = 0;
@@ -49,7 +53,7 @@ class ButtonLine extends RectWithDisp {
           button.stage?.update();
         }
       }
-      const button = new UtilButton(text, { bgColor: 'grey', ...opts });
+      const button = new ActionButton(text, { bgColor: 'grey', ...opts });
       // Note: highlight = undefined;
       this.buttons.push(button);
 
@@ -86,7 +90,7 @@ class SelectorPanel extends NamedContainer {
   /** An array of ActionSelector */
   constructor(
     specs: { name: string, actions: string[], dir: number }[],
-    bf: (b: UtilButton) => void,
+    bf: (b: ActionButton) => void,
     opts?: { col?: boolean, cx?: number, cy?: number }
   ) {
     super('SelectorPanel');
@@ -113,9 +117,23 @@ class SelectorPanel extends NamedContainer {
     this.addChild(...this.lines);
   }
   lines: ButtonLine[]
-  activate(activate = true, button?: UtilButton) {
+  /**
+   * ActionButton and the ButtonLine that contains it
+   * @param act names the ActionButton
+   * @returns [undefined, undefined] if act is not legitimate
+   */
+  actionButtonLine(act?: ActionIdent) {
+    let actButton!: ActionButton;
+    const line = this.lines
+      .find(line => line.buttons
+        .find(button => button.actionIdent === act
+          && (actButton = button, true)));
+    return [actButton, line] as [ActionButton, ButtonLine];
+  }
+  activate(activate = true, act?: ActionIdent) {
     // activate/deactivate particular ButtonLine
-    const aline = button ? this.lines.find(line=> line.contains(button)) : undefined;
+    const [abut, aline] = this.actionButtonLine(act);
+    !activate && abut && abut.paint('deeppink');
     this.lines.forEach(line => (!aline || (line === aline)) && line.activate(activate))
   }
 }
@@ -144,27 +162,32 @@ export class GameState extends GameStateLib {
   readonly selectedActions: ActionIdent[] = [];
   get actionsDone() { return this.selectedActions.length};
 
-  moveActions =['Move', 'Move-Attack', 'Clock', ]
-  tradeActions = ['Trade', 'Attack', 'Clock', ]
+  moveActions =['Move', 'Move-Attack', 'Clock', ] as ActionIdent[];
+  tradeActions = ['Trade', 'Attack', 'Clock', ] as ActionIdent[];
   selPanel?: SelectorPanel;
+
+  /** invoked by button click OR keystroke */
+  selectAction(act: ActionIdent) {
+    const [abut, aline] = this.selPanel?.actionButtonLine(act) ?? []
+    if (!abut?.isActive) return;
+    if (!this.isPhase('ChooseAction')) {
+      this.done();   // finish selectedAction, expect --> ChooseAction
+    }
+    if (this.isPhase('ChooseAction')) {
+      this.selPanel?.activate(false, act)   // deactivate(line(button(act)))
+      this.selectedAction = act;
+      this.selectedActions.push(act)
+      this.phase(act);
+    } else {
+      console.log(stime(this, `.selectAction: state "${this.state.Aname}" is not ChooseAction, ignoring "${act}"`))
+    }
+  }
+
   /** invoked from layoutTable2() */
   makeActionSelectors(parent: Container, col = true) {
-    const onClick = (button: UtilButton) => {
+    const onClick = (button: ActionButton) => {
       button.on(S.click, () => {
-        button.paint('deeppink')
-        this.selPanel?.activate(false, button)   // deactivate(line(button))
-        const act = button.label_text?.replace(/\n/g, '') as ActionIdent;
-        this.selectedAction = act;
-        if (this.isPhase('ChooseAction')) {
-          this.selectedActions.push(act)
-          this.phase(act);
-        } else {
-          this.done();     // this.state.done() OR areYouSure() -> cancel
-          if (this.isPhase('ChooseAction')) {
-            this.selectedActions.push(act)
-            this.phase(act);
-          }
-        }
+        this.selectAction(button.actionIdent);
       })
     };
     this.selPanel = new SelectorPanel([
