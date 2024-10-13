@@ -70,9 +70,8 @@ class ShipShape extends MeepleShape {
 }
 
 export class Ship extends Meeple {
-  static idCounter = 0;
   /** intrinsic impedance per size; */
-  static z0 = [0, 1, 2, 3];
+  static z0 = [0, 1, 2, 3, 4];
   /** default Ship size in constructor */
   static defaultShipSize = 2;
   static maxFuel = [0, 24 + 2, 36 + 3, 48 + 4]
@@ -85,7 +84,7 @@ export class Ship extends Meeple {
   /** cost for first step of each turn (after coming out of transit to refuel) */
   static step0Cost = 1;
   /** intrinsic cost for each Step (0 or 1); start of turn pays 1 for null 'shape' */
-  static step1 = 1;
+  static step1Cost = 1;
   /** scale for transitCost. */
   static maxZ = 2;       // for now: {shape + color + color}
   static fuelPerStep = 0;
@@ -119,7 +118,7 @@ export class Ship extends Meeple {
    * Mass = z0 + curload;
    * Cost = Mass * maxZ + step1
    */
-  get transitCost() { return Ship.maxZ * (this.z0 + this.curload) + Ship.step1; }
+  get transitCost() { return Ship.maxZ * (this.z0 + this.curload) + Ship.step1Cost; }
 
   get color() { return Player.colorScheme[this.player.index] }
 
@@ -139,7 +138,7 @@ export class Ship extends Meeple {
 
   get maxFuel() { return Ship.maxFuel[this.size] }
    // calc maxLoad: constraint when Trade('buy')
-  get maxLoad() { return  (this.maxFuel - this.z0 - Ship.step1) / Ship.maxZ;}
+  get maxLoad() { return  (this.maxFuel - this.z0 - Ship.step1Cost) / Ship.maxZ;}
 
   /** called in Tile constructor */
   override makeShape(): PaintableShape {
@@ -160,7 +159,7 @@ export class Ship extends Meeple {
     public readonly size = Ship.defaultShipSize,
     cargo: Cargo = {},
   ) {
-    super(Aname ?? `S${Ship.idCounter++}`, player)
+    super(Aname ?? `S${TP.shipCounter++}`, player)
     this.cargo = cargo;
     this.z0 = Ship.z0[size]; this.zconfig;
     this.shipShape.setRadius(this.radius); // now that z0 is set
@@ -250,7 +249,14 @@ export class Ship extends Meeple {
   }
 
   /**
-   * cost for change in config (shape, color, fill)
+   * transit cost: change in config (shape, color, fill) * curload
+   * @example
+   * z0 = [1,2,3,4] [ship-size]
+   * curload = total units of cargo
+   * dc = 1 (shape change) + 1 or 2 (color changes) + 0 (fill change);
+   * cost = (z0 + curLoad) * dc;
+   * @param hex0 start hex with AfHex
+   * @param hex1 end hex with AfHex
    * @param nconfig updated zconfig after spending re-configuration cost
    * @return cost to re-config + curload + shipCost
    */
@@ -268,8 +274,37 @@ export class Ship extends Meeple {
       config(hex0, zkey as keyof ZConfig, afkey, od)
       config(hex1, zkey as keyof ZConfig, afkey, id)
     })
-    const step = (nconfig.step0 ? Ship.step0Cost : 0) + Ship.step1;
-    return step + dc * (this.curload + this.z0);
+    const step = (nconfig.step0 ? Ship.step0Cost : 0) + Ship.step1Cost;
+    return step + this.z0 + (this.curload) * dc;
+  }
+  /**
+   * transit cost: change in config (color, [shape, fill] = 0) * curload
+   * @example
+   * z0 = [1,2,3,4] [ship-size]
+   * curload = total units of cargo
+   * dc = 0 (shape change) + 1 or 2 (color changes) + 0 (fill change);
+   * cost = z0 + (curLoad) * dc;
+   * @param hex0 start hex with AfHex
+   * @param hex1 end hex with AfHex
+   * @param nconfig updated zconfig after spending re-configuration cost
+   * @return cost to re-config + curload + shipCost
+   */
+  configCostC(hex0: MktHex, ds: EwDir, hex1 = hex0.nextHex(ds), nconfig = { ...this.zconfig }) {
+    if (!hex0?.afhex || !hex1?.afhex) return undefined
+    let od = H.ewDirs.findIndex(d => d == ds)
+    let id = H.ewDirs.findIndex(d => d == H.dirRev[ds])
+    let dc = 0    // number of config changes incured in transition from hex0 to hex1
+    const config = (hex: MktHex, zkey: keyof ZConfig, afkey: keyof AfHex, di: number) => {
+      const afInDir = (hex.afhex as any)[afkey][di];
+      if (nconfig[zkey] !== afInDir) dc++;
+      ;(nconfig as Record<keyof ZConfig, any>)[zkey] = afInDir;
+    }
+    Object.entries(Ship.azmap).forEach(([zkey, afkey]) => {
+      config(hex0, zkey as keyof ZConfig, afkey, od)
+      config(hex1, zkey as keyof ZConfig, afkey, id)
+    })
+    const step = (nconfig.step0 ? Ship.step0Cost : 0) + Ship.step1Cost;
+    return step + this.z0 + (this.curload) * dc;
   }
 
   /** move to adjacent hex, incur cost to fuel.

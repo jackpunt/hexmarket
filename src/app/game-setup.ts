@@ -35,6 +35,7 @@ export class GameSetup extends GameSetupLib {
     const seed = `${GameSetup.random_seed = rand ?? rseed}`;
     console.log(stime(this, `.initialize: rand=${seed}&`))
     Random.random = Random.mulberry32(seed);
+    TP.shipCounter = 0;
     TP.useEwTopo = true;
     TP.nHexes = nH ?? TP.nHexes; // [5,6,7,8]
     TP.ghost = host ?? TP.ghost

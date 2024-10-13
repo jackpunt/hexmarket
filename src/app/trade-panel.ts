@@ -136,7 +136,7 @@ export class TradePanel extends RectWithDisp {
       this.disp.removeAllChildren();
       const sellTable = this.makeSellTable(planet);
       const x0 = sellTable.x, y0 = sellTable.y;
-      const bh = sellTable.getBounds().height + 2;
+      const bh = (sellTable.getBounds()?.height ?? 0) + 2;
       const buyTable = this.makeBuyTable(planet, x0, y0 + bh, sellTable.colWidths);
       sellTable.alignCols(buyTable.colWidths);
       this.disp.addChild(sellTable);

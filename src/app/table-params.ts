@@ -23,6 +23,7 @@ export class TP extends TPLib {
   /** ColorScheme names allowed in choice selector */
   static schemeNames = ['Red_Blue']
 
+  static shipCounter = 0;
   /** initial Ship load for testing */
   static initialCargo = [{  }, {  }] as Cargo[];
   static initialCargo1 = [{ F1: 2, O2: 3 }, { F2: 2, O2: 2 }] as Cargo[];

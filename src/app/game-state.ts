@@ -126,7 +126,8 @@ class SelectorPanel extends NamedContainer {
     let actButton!: ActionButton;
     const line = this.lines
       .find(line => line.buttons
-        .find(button => button.actionIdent === act
+        .find(button => (button.actionIdent === act)
+          && (button.isActive)
           && (actButton = button, true)));
     return [actButton, line] as [ActionButton, ButtonLine];
   }
@@ -169,7 +170,7 @@ export class GameState extends GameStateLib {
   /** invoked by button click OR keystroke */
   selectAction(act: ActionIdent) {
     const [abut, aline] = this.selPanel?.actionButtonLine(act) ?? []
-    if (!abut?.isActive) return;
+    if (!abut || !abut.isActive) return;
     if (!this.isPhase('ChooseAction')) {
       this.done();   // finish selectedAction, expect --> ChooseAction
     }
