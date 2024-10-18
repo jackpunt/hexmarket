@@ -100,9 +100,6 @@ export class GamePlay extends GamePlayLib {
       let p = this.curPlayer, op = this.nextPlayer(p)
       this.pauseGame(op); this.resumeGame(p);
     }
-    KeyBinder.keyBinder.setKey('C-b', () => {
-      this.table.scaleCont.removeChildType(BetaMotion)
-    })
     KeyBinder.keyBinder.setKey('p', () => roboPause())
     KeyBinder.keyBinder.setKey('r', () => roboResume())
     KeyBinder.keyBinder.setKey('s', () => roboStep())
