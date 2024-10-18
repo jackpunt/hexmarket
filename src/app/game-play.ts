@@ -9,6 +9,7 @@ import { Ship, ShipSpec } from "./ship";
 import { Table } from "./table";
 import { PlayerColor, TP } from "./table-params";
 import { stime } from "@thegraid/common-lib";
+import { BetaMotion } from "./beta-motion";
 
 class HexEvent {}
 class Move{}
@@ -100,6 +101,17 @@ export class GamePlay extends GamePlayLib {
       let p = this.curPlayer, op = this.nextPlayer(p)
       this.pauseGame(op); this.resumeGame(p);
     }
+    KeyBinder.keyBinder.setKey('B', () => {
+      const beta = new BetaMotion({
+        isi: 250, ont: 250, r1: 100, cn: ['red', 'red'],
+      })
+      this.table.scaleCont.addChild(beta);
+      this.table.stage?.update();
+      beta.run();
+    })
+    KeyBinder.keyBinder.setKey('C-b', () => {
+      this.table.scaleCont.removeChildType(BetaMotion)
+    })
     KeyBinder.keyBinder.setKey('p', () => roboPause())
     KeyBinder.keyBinder.setKey('r', () => roboResume())
     KeyBinder.keyBinder.setKey('s', () => roboStep())
