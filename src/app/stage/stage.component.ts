@@ -7,9 +7,10 @@ import { AppComponent } from '../app.component';
 import { GameSetup } from '../game-setup';
 
 @Component({
-  selector: 'stage-comp',
-  templateUrl: './stage.component.html',
-  styleUrls: ['./stage.component.css']
+    selector: 'stage-comp',
+    templateUrl: './stage.component.html',
+    styleUrls: ['./stage.component.css'],
+    standalone: true
 })
 export class StageComponent implements OnInit {
 

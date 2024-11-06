@@ -7,17 +7,15 @@ import { KeyBinder } from '@thegraid/easeljs-lib';
 import { StageComponent } from './stage/stage.component';
 
 @NgModule({
-  declarations: [
-    AppComponent,
-    StageComponent
-  ],
-  imports: [
-    BrowserModule,
-    AppRoutingModule
-  ],
-  providers: [
-    KeyBinder,
-  ],
-  bootstrap: [AppComponent]
+    declarations: [AppComponent],
+    imports: [
+        BrowserModule,
+        AppRoutingModule,
+        StageComponent
+    ],
+    providers: [
+        KeyBinder,
+    ],
+    bootstrap: [AppComponent]
 })
 export class AppModule { }
