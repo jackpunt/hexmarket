@@ -23,6 +23,12 @@ export class GameSetup extends GameSetupLib {
   static random_seed = '';
   get seed() { return GameSetup.random_seed; }
 
+  override get pageLabel() {
+    const { rand } = this.qParams;
+    const nfile = super.pageLabel;
+    return rand ? `${nfile} rand=${rand}` : nfile;
+  }
+
   paramGUIs!: ParamGUI[]
   netGUI!: ParamGUI // paramGUIs[2]
   declare gamePlay: GamePlay;

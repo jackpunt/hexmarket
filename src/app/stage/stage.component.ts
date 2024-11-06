@@ -1,7 +1,7 @@
 import { Component, Input, OnInit } from '@angular/core';
 import { ActivatedRoute, Params } from '@angular/router';
 import { stime } from '@thegraid/common-lib';
-//import { } from 'wicg-file-system-access';
+import { } from 'wicg-file-system-access';
 import { Title } from '@angular/platform-browser';
 import { AppComponent } from '../app.component';
 import { GameSetup } from '../game-setup';

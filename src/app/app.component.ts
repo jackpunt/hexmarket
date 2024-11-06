@@ -1,4 +1,4 @@
-import { Component, HostListener, Inject } from '@angular/core';
+import { Component, HostListener } from '@angular/core';
 import { Title } from '@angular/platform-browser';
 import { KeyBinder } from '@thegraid/easeljs-lib';
 import type { Event } from '@thegraid/easeljs-module';
@@ -13,10 +13,12 @@ import { StageComponent } from './stage/stage.component';
 })
 export class AppComponent {
   get title() { return this.titleService.getTitle(); }
-  linkName = `${this.title} - User Guide`;
   timestamp = `${new Date().toLocaleTimeString('en-US')}`;
+  linkName: string;
 
-  constructor(@Inject(KeyBinder) private keyBinder: KeyBinder, private titleService: Title) { }
+  constructor(private keyBinder: KeyBinder, private titleService: Title) {
+    this.linkName = `${this.title} - User Guide`;
+  }
 
   // app.component has access to the 'Host', so we use @HostListener here
   // Listen to all Host events and forward them to our internal EventDispatcher
