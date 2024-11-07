@@ -82,8 +82,8 @@ export class Table extends TableLib {
       const nh = (name === 'nHexes') ? TP.nHexes : Math.max(TP.nHexes, TP.dbp + nh1);
       const dbp = (name === 'nHexes') ? Math.min(TP.dbp, TP.nHexes - nh1) : TP.dbp;
       // make game (and GUI) with new values:
-      const state = { name: item.value, nh, nHexes: nh, dbp }
-      gameSetup.restart(state); gameSetup.resetState; // if(restart) NOT required!?
+      const state = { nh, dbp } as { nh?: number, dbp?: number, offP?: boolean };
+      gameSetup.restart(state); // override GameSetup.resetState(state)
       return;
     }
 
