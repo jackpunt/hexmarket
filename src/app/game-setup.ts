@@ -1,12 +1,11 @@
 import { Params } from "@angular/router";
-import { stime } from "@thegraid/common-lib";
+import { Random, stime } from "@thegraid/common-lib";
 import { ParamGUI } from "@thegraid/easeljs-lib";
 import { GameSetup as GameSetupLib, MapCont, Scenario } from "@thegraid/hexlib";
 import { AfHex } from "./AfHex";
 import { GamePlay } from "./game-play";
 import { MktHex2 as Hex2, HexMap } from "./hex";
 import { Player } from "./player";
-import { Random } from "./random";
 import { ScenarioParser } from "./scenario-parser";
 import { Table } from "./table";
 import { TP } from "./table-params";
@@ -36,7 +35,7 @@ export class GameSetup extends GameSetupLib {
   override initialize(canvasId: string, qParams: Params = this.qParams): void {
     window.addEventListener('contextmenu', (evt: MouseEvent) => evt.preventDefault())
     // useEwTopo, size 7.
-    const { host, port, file, nH, rand } = qParams;
+    const { title, host, port, file, nH, rand } = qParams;
     const rseed = `${Math.random()}`.slice(2);
     const seed = `${GameSetup.random_seed = rand ?? rseed}`;
     console.log(stime(this, `.initialize: rand=${seed}&`))
@@ -44,13 +43,14 @@ export class GameSetup extends GameSetupLib {
     TP.shipCounter = 0;
     TP.useEwTopo = true;
     TP.nHexes = nH ?? TP.nHexes; // [5,6,7,8]
-    TP.ghost = host ?? TP.ghost
-    TP.gport = (port !== undefined) ? Number.parseInt(port) : TP.gport;
-    TP.networkGroup = 'hexmarket:game1';
-    TP.setParams(TP);   // set host,port in TPLib so TP.buildURL can find them
-    TP.networkUrl = TP.buildURL(undefined);
-
-    let rfn = document.getElementById('readFileName') as HTMLInputElement;
+    const tp = TP; {
+      tp.ghost = host ?? tp.ghost
+      tp.gport = (port !== undefined) ? Number.parseInt(port) : tp.gport;
+      tp.networkGroup = `${title}:game1`;
+      tp.setParams(tp);   // set host,port in TPLib so TP.buildURL can find them
+      tp.networkUrl = tp.buildURL(undefined);
+    }
+    const rfn = document.getElementById('readFileName') as HTMLInputElement;
     rfn.value = file ?? 'setup@0';
 
     super.initialize(canvasId);
@@ -78,7 +78,6 @@ export class GameSetup extends GameSetupLib {
   override startup(qParams: Params = this.qParams) {
     AfHex.makeAllAfHex();
     super.startup(qParams);
-    // makeNPlayers(); layoutTable(); parseScenario(); p.newGame(); makeGUIs(); table.startGame();
     return;
   }
   override makeGamePlay(scenario: Scenario): GamePlay {

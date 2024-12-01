@@ -1,7 +1,7 @@
+import { permute, Random } from "@thegraid/common-lib";
 import { Hex1 as Hex1Lib, Hex2 as Hex2Lib, Hex2Mixin, HexDir, Hex as HexLib, HexM, HexMap as HexMapLib, HexM as HexMLib } from "@thegraid/hexlib";
 import { AfHex } from "./AfHex";
 import { Planet } from "./planet";
-import { Random } from "./random";
 import { Ship } from "./ship";
 
 /** Base Hex, has no connection to graphics.
@@ -33,16 +33,15 @@ export class MktHex extends Hex1Lib {
 
   afhex?: AfHex;
 
-  addAfHex(affn = Math.floor(Random.random() * AfHex.allAfHex.length)) {
-    if (this.district !== undefined) return
-    const afhex2 = AfHex.allAfHex[affn].clone();
-    const spin = Math.floor(Random.random() * 6);
-    afhex2.spin = spin;
-    afhex2.rotation = 60 * spin; // degrees, not radians
-    afhex2.aColors = AfHex.rotateAf(afhex2.aColors, spin)
-    afhex2.aShapes = AfHex.rotateAf(afhex2.aShapes, spin)
-    afhex2.aFill = AfHex.rotateAf(afhex2.aFill, spin)
-    this.afhex = afhex2;
+  static nth: number = -1;
+  /** select next AfHex and apply random rotation */
+  addAfHex(affn = MktHex.nth) {
+    if (this.district !== undefined) return;
+    if (affn < 0 || affn >= AfHex.allAfHex.length) {
+      permute(AfHex.allAfHex)
+      affn = 0;
+    }
+    this.afhex = AfHex.getAfHex(MktHex.nth = affn++);
   }
   /** remove AfHex from planet Hex */
   rmAfHex() {
@@ -96,7 +95,7 @@ export class MktHex2 extends MktHex2Lib {
     this.addAfHex()           // even when (name == 'nextHex')
   }
 
-  override addAfHex(affn = Math.floor(Random.random() * AfHex.allAfHex.length)) {
+  override addAfHex(affn?: number) {
     super.addAfHex(affn)
     this.cont.addChild(this.afhex as AfHex); // addChild(undefined) is acceptable
     this.cont.updateCache()

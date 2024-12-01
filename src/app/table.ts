@@ -74,6 +74,7 @@ export class Table extends TableLib {
     gui['Aname'] = gui.name = 'ParamGUI';
 
     const gameSetup = this.gamePlay.gameSetup;
+    // idiom to sync TP-local to TP: mH, nH
     const setStateValue = (item: ParamItem) => {
       gui.setValue(item); // set in TP-local and GUI-Chooser
       TP.setParams(TP);   // move nHexes, hexRad into TP-lib

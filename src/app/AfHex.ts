@@ -1,7 +1,7 @@
-import { S, stime } from "@thegraid/common-lib"
+import { Random, stime } from "@thegraid/common-lib"
+import type { NamedObject } from "@thegraid/easeljs-lib"
 import { Container, Shape } from "@thegraid/easeljs-module"
 import { H, HexDir } from "@thegraid/hexlib"
-import { Random } from "./random"
 import { TP } from "./table-params"
 
 /** affinity in three dimensions: Shape(A,T,S), Color(R,G,B=orange), Fill(LINE, FILL) */
@@ -33,6 +33,7 @@ export type Zcolor = typeof AF.zcolor[ZcolorKey];
 /** a Mark (one of six) on the edge of Hex2 to indicate affinity */
 class AfMark extends Shape {
 
+  /** draw AfMark on North edge. */
   drawAfMark(afType: ATS, afc: AfColor, aff: AfFill) {
     let color: Zcolor = AF.zcolor[afc]
     let wm = (TP.hexRad * .4), w2 = wm / 2;
@@ -55,25 +56,26 @@ class AfMark extends Shape {
     if (aff == AF.L) { g.es() } else { g.ef() }
     return g
   }
-  // draw in N orientation
+  // draw in N orientation, rotate by ds;
   constructor(shape: ATS, color: AfColor, fill: AfFill, ds: HexDir) {
-    super()
-    this.drawAfMark(shape, color, fill)
-    this.mouseEnabled = false
-    this.rotation = H.dirRot[ds]
-    ;(this as any)[S.Aname] = `AfMark:${shape},${color},${fill}`  // for debug, not production
+    super();
+    ;(this as NamedObject).Aname = `AfMark:${shape},${color},${fill}`;  // for debug, not production
+    this.drawAfMark(shape, color, fill);
+    this.mouseEnabled = false;
+    this.rotation = H.dirRot[ds];
   }
 }
 
 /** Container of AfMark Shapes */
 export class AfHex extends Container {
+  /** @deprecated advisory - for debug/analysis */
+  get rot() { return Math.round(this.rotation / 60) }
   /** return a cached Container with hex and AfMark[6] */
   constructor(
     public aShapes: ATS[],
     public aColors: AfColor[],
     public aFill: AfFill[],
     public Aname = ``,
-    public spin: number = 0, // [0..5]
   ) {
     super()
     for (let ndx in aShapes) {
@@ -86,7 +88,7 @@ export class AfHex extends Container {
     this.cache(-w / 2, -h / 2, w, h)
   }
   override clone() {
-    return new AfHex(this.aShapes, this.aColors, this.aFill, this.Aname, this.spin);
+    return new AfHex(this.aShapes, this.aColors, this.aFill, this.Aname);
   }
 
   static allAfHexMap: Map<string, AfHex> = new Map();
@@ -102,6 +104,7 @@ export class AfHex extends Container {
    * each annotation rotated to align with ewDirs
    */
   static makeAllAfHex() {
+    // make all Square, RGB, Filled
     // TODO synthesize all permutations
     let atsPerm = AfHex.findPermutations([AF.S, AF.S, AF.S, AF.S, AF.S, AF.S])
     //let atsPerm = AfHex.findPermutations([AF.A, AF.A, AF.T, AF.T, AF.S, AF.S])
@@ -130,6 +133,7 @@ export class AfHex extends Container {
         }
       }
     }
+    console.log(stime(`AfHex`, `.makeAllAfHex: allAfHex`), AfHex.allAfHex);
   }
   static findPermutations(ary: any[]) {
     return AfHex.chooseNext(ary)
@@ -180,5 +184,15 @@ export class AfHex extends Container {
     let head = str.slice(0, n)
     tail.push(...head)
     return tail
+  }
+
+  static getAfHex(affn = Math.floor(Math.random() * AfHex.allAfHex.length), rot = Math.floor(Math.random() * 6)) {
+    const afhex2 = AfHex.allAfHex[affn].clone();
+    // afhex2.rot = rot;
+    afhex2.rotation = 60 * rot; // degrees, not radians
+    afhex2.aColors = AfHex.rotateAf(afhex2.aColors, rot)
+    afhex2.aShapes = AfHex.rotateAf(afhex2.aShapes, rot)
+    afhex2.aFill = AfHex.rotateAf(afhex2.aFill, rot)
+    return afhex2;
   }
 }

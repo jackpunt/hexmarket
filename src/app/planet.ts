@@ -1,10 +1,9 @@
-import { C, F, stime, type XYWH } from "@thegraid/common-lib";
+import { C, F, Random, stime, type XYWH } from "@thegraid/common-lib";
 import { CenterText, NamedContainer, TextInRect } from "@thegraid/easeljs-lib";
 import { MouseEvent, Shape } from "@thegraid/easeljs-module";
 import { DragContext, EwDir, H, Hex1, MapTile, rightClickable, TP as TPLib } from "@thegraid/hexlib";
 import { HexMap, MktHex, MktHex2 } from "./hex";
 import { PCInfo } from "./info-text";
-import { Random } from "./random";
 import { TP } from "./table-params";
 
 export type PlanetLocs = Partial<Record<EwDir, MktHex2>>;  // { [key in EwDir]?: MktHex2 };

@@ -1,11 +1,10 @@
-import { C, stime } from "@thegraid/common-lib"
+import { C, Random, stime } from "@thegraid/common-lib"
 import { KeyBinder, NamedContainer } from "@thegraid/easeljs-lib"
 import { Container } from "@thegraid/easeljs-module"
 import { GamePlay as GamePlayLib, Hex1 as Hex1Lib, HexMap as HexMapLib, newPlanner, NumCounterBox, Player as PlayerLib } from "@thegraid/hexlib"
 import { EditNumber } from "./edit-number"
 import { GamePlay } from "./game-play"
 import type { Planet } from "./planet"
-import { Random } from "./random"
 import { Ship, ShipSpec, type Cargo } from "./ship"
 import { TP } from "./table-params"
 import { TradePanel } from "./trade-panel"
@@ -180,7 +179,7 @@ export class Player extends PlayerLib {
     qText.setInCell({ x: wide, y: 0, w: wc, h: hr }); // as if alignCols([wc, hr])
 
     // full tradePanel at top-right:
-    const tPanel = new TradePanel(this.tShip), p = 'C' ?? 'NE';
+    const tPanel = new TradePanel(this.tShip), p = 'C'// ?? 'NE';
     const planet = this.gamePlay.planetPlacer.planetByDir.get(p) as Planet;
     tPanel.showPanel(planet);
     parent.addChild(tPanel);   // change parent from this.tShip --> tPanel
